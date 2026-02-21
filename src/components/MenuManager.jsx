@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { supabase } from ".supabaseclient.js";
+import { supabase } from "../supabaseclient.js";
 import { Trash2 } from "lucide-react";
 
 export default function MenuManager({ 
