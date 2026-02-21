@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
+import { supabase } from "./supabaseclient";
 
 export default function MenuManager({ 
   products = [], 
@@ -38,20 +39,42 @@ export default function MenuManager({
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => { // ใส่ async ตรงนี้
       try {
         const json = JSON.parse(event.target.result);
-        if (window.confirm("การนำเข้าจะทับข้อมูลปัจจุบันทั้งหมด ยืนยันหรือไม่?")) {
+        if (window.confirm("การนำเข้าจะทับข้อมูลปัจจุบันบนฐานข้อมูล ยืนยันหรือไม่?")) {
+          
+          // --- 1. จัดการข้อมูลในฐานข้อมูล (Supabase) ---
+          if (json.products && json.products.length > 0) {
+            // ลบของเก่าออกก่อน (ป้องกัน ID ซ้ำหรือข้อมูลขยะ)
+            await supabase.from('products').delete().neq('id', 0);
+            
+            // ใส่ของใหม่เข้าไปในตาราง products
+            const { error: pError } = await supabase
+              .from('products')
+              .insert(json.products);
+              
+            if (pError) throw pError;
+          }
+
+          if (json.categories && json.categories.length > 0) {
+            // หมายเหตุ: ถ้าคุณมีตาราง categories ใน supabase ให้ทำแบบเดียวกัน
+            // แต่ถ้าเก็บแค่ชื่อในตาราง products อย่างเดียวก็ข้ามส่วน insert categories ไปได้
+          }
+
+          // --- 2. อัปเดต State ในแอป (เพื่อให้หน้าจอเปลี่ยนทันที) ---
           if (json.products) setProducts([...json.products]);
           if (json.categories) setCategories([...json.categories]);
+
           setFormData(initialForm);
           setOpenDropdownId(null);
           setShowEditModal(false);
           e.target.value = "";
-          alert("โหลดข้อมูลสำเร็จ!");
+          alert("นำเข้าข้อมูลและบันทึกไปยังฐานข้อมูลสำเร็จ!");
         }
-      } catch {
-        alert("ไฟล์ไม่ถูกต้อง หรือรูปแบบ JSON เสียหาย");
+      } catch (error) {
+        console.error("Import Error:", error);
+        alert("เกิดข้อผิดพลาด: " + (error.message || "ไฟล์ไม่ถูกต้อง"));
       }
     };
     reader.readAsText(file);
