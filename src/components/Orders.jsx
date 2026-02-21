@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
-  // ฟังก์ชันช่วยเลือกสีตามช่องทาง
+  const [deletingId, setDeletingId] = useState(null);
+  const [clearing, setClearing] = useState(false);
+
   const getChannelStyle = (channel) => {
     switch (channel) {
       case "grab": return { color: "#00B14F", bg: "#e6f7ee" };
@@ -11,10 +13,29 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
     }
   };
 
-  const handleClearRequest = () => {
+  // BUG FIX: await async onClearAll (Supabase)
+  const handleClearRequest = async () => {
     const confirmBox = window.confirm("⚠️ คุณต้องการลบประวัติการขายทั้งหมดใช่หรือไม่? (ข้อมูลจะหายถาวร)");
-    if (confirmBox) {
-      onClearAll();
+    if (!confirmBox) return;
+    try {
+      setClearing(true);
+      await onClearAll();
+    } catch (err) {
+      alert("❌ ลบไม่ได้ กรุณาลองใหม่");
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  // BUG FIX: await async onDeleteOrder (Supabase)
+  const handleDelete = async (id) => {
+    try {
+      setDeletingId(id);
+      await onDeleteOrder(id);
+    } catch (err) {
+      alert("❌ ลบไม่ได้ กรุณาลองใหม่");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -27,8 +48,12 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
         </div>
         
         {orders.length > 0 && (
-          <button onClick={handleClearRequest} style={styles.btnClearAll}>
-            ล้างประวัติทั้งหมด
+          <button
+            onClick={handleClearRequest}
+            disabled={clearing}
+            style={{ ...styles.btnClearAll, opacity: clearing ? 0.5 : 1 }}
+          >
+            {clearing ? "กำลังลบ..." : "ล้างประวัติทั้งหมด"}
           </button>
         )}
       </div>
@@ -39,31 +64,30 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
         ) : (
           orders.map((order) => {
             const style = getChannelStyle(order.channel);
+            const isDeleting = deletingId === order.id;
             return (
-              <div key={order.id} style={styles.orderCard}>
+              <div key={order.id} style={{ ...styles.orderCard, opacity: isDeleting ? 0.4 : 1 }}>
                 <div style={styles.cardHeader}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                     <div style={{ display: "flex", alignItems: "center" }}>
                       <span style={{ ...styles.channelBadge, color: style.color, backgroundColor: style.bg }}>
                         {order.channel?.toUpperCase()}
                       </span>
-                      {/* --- แสดงเลข Reference ตรงนี้ --- */}
                       {order.refId && (
-                        <span style={styles.refBadge}>
-                          #{order.refId}
-                        </span>
+                        <span style={styles.refBadge}>#{order.refId}</span>
                       )}
                     </div>
                     <span style={styles.time}>
-                      {new Date(order.time).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                      {new Date(order.time).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.
                     </span>
                   </div>
                   
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={styles.orderId}>ID: {order.id.toString().slice(-6)}</div>
-                    <button 
-                      onClick={() => onDeleteOrder(order.id)} 
-                      style={styles.btnDelete}
+                    <button
+                      onClick={() => handleDelete(order.id)}
+                      disabled={isDeleting}
+                      style={{ ...styles.btnDelete, cursor: isDeleting ? "not-allowed" : "pointer" }}
                       title="ลบรายการนี้"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -78,7 +102,12 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
                 <div style={styles.itemList}>
                   {order.items.map((item, idx) => (
                     <div key={idx} style={styles.item}>
-                      <span>{item.name} {item.selectedModifier && <small style={{color: '#888'}}>({item.selectedModifier.name})</small>}</span>
+                      <span>
+                        {item.name}
+                        {item.selectedModifier && (
+                          <small style={{ color: "#888" }}> ({item.selectedModifier.name})</small>
+                        )}
+                      </span>
                       <span>x{item.qty}</span>
                     </div>
                   ))}
@@ -86,17 +115,14 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
 
                 <div style={styles.cardFooter}>
                   <div style={styles.paymentInfo}>
-                    <span>วิธีจ่าย: {order.payment === 'cash' ? '💵 เงินสด' : '📱 โอน/แอป'}</span>
-                    <span style={{ 
-                      color: order.isSettled ? "#4caf50" : "#ff9800",
-                      fontWeight: "bold"
-                    }}>
+                    <span>วิธีจ่าย: {order.payment === "cash" ? "💵 เงินสด" : "📱 โอน/แอป"}</span>
+                    <span style={{ color: order.isSettled ? "#4caf50" : "#ff9800", fontWeight: "bold" }}>
                       {order.isSettled ? "● ตรวจสอบแล้ว" : "○ รอใส่ยอดจริง"}
                     </span>
                   </div>
                   <div style={styles.priceInfo}>
                     <div style={styles.totalLabel}>ยอดบิล: ฿{order.total.toLocaleString()}</div>
-                    <div style={styles.actualLabel}>รับจริง: ฿{order.actualAmount?.toLocaleString() || 0}</div>
+                    <div style={styles.actualLabel}>รับจริง: ฿{(order.actualAmount || 0).toLocaleString()}</div>
                   </div>
                 </div>
               </div>
@@ -114,11 +140,10 @@ const styles = {
   countBadge: { backgroundColor: "#333", padding: "5px 12px", borderRadius: "20px", fontSize: "14px" },
   btnClearAll: { backgroundColor: "transparent", color: "#ff4444", border: "1px solid #ff4444", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "bold" },
   list: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "15px" },
-  orderCard: { backgroundColor: "#262626", borderRadius: "12px", padding: "15px", border: "1px solid #333", display: "flex", flexDirection: "column", gap: "12px" },
+  orderCard: { backgroundColor: "#262626", borderRadius: "12px", padding: "15px", border: "1px solid #333", display: "flex", flexDirection: "column", gap: "12px", transition: "opacity 0.2s" },
   cardHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #333", paddingBottom: "10px" },
-  btnDelete: { background: "none", border: "1px solid #333", borderRadius: "6px", padding: "5px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
+  btnDelete: { background: "none", border: "1px solid #333", borderRadius: "6px", padding: "5px", display: "flex", alignItems: "center", justifyContent: "center" },
   channelBadge: { padding: "3px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", marginRight: "8px" },
-  // สไตล์สำหรับเลข Reference (GF-xxx)
   refBadge: { backgroundColor: "#444", color: "#fff", padding: "3px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold" },
   time: { fontSize: "13px", color: "#aaa" },
   orderId: { fontSize: "11px", color: "#555" },
@@ -129,5 +154,5 @@ const styles = {
   priceInfo: { textAlign: "right" },
   totalLabel: { fontSize: "14px", color: "#aaa" },
   actualLabel: { fontSize: "18px", fontWeight: "bold", color: "#4caf50" },
-  empty: { gridColumn: "1/-1", textAlign: "center", padding: "50px", color: "#666" }
+  empty: { gridColumn: "1/-1", textAlign: "center", padding: "50px", color: "#666" },
 };
