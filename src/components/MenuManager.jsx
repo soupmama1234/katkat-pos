@@ -1,6 +1,6 @@
+import { supabase } from "./supabaseclient";
 import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
-import { supabase } from "./supabaseclient";
 
 export default function MenuManager({ 
   products = [], 
@@ -39,17 +39,16 @@ export default function MenuManager({
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async (event) => { // ใส่ async ตรงนี้
+    reader.onload = async (event) => { // ต้องมี async ตรงนี้!
       try {
         const json = JSON.parse(event.target.result);
         if (window.confirm("การนำเข้าจะทับข้อมูลปัจจุบันบนฐานข้อมูล ยืนยันหรือไม่?")) {
           
-          // --- 1. จัดการข้อมูลในฐานข้อมูล (Supabase) ---
           if (json.products && json.products.length > 0) {
-            // ลบของเก่าออกก่อน (ป้องกัน ID ซ้ำหรือข้อมูลขยะ)
+            // ล้างข้อมูลเก่า (กันเหนียว)
             await supabase.from('products').delete().neq('id', 0);
             
-            // ใส่ของใหม่เข้าไปในตาราง products
+            // ยัดข้อมูลใหม่ลง Supabase
             const { error: pError } = await supabase
               .from('products')
               .insert(json.products);
@@ -57,24 +56,14 @@ export default function MenuManager({
             if (pError) throw pError;
           }
 
-          if (json.categories && json.categories.length > 0) {
-            // หมายเหตุ: ถ้าคุณมีตาราง categories ใน supabase ให้ทำแบบเดียวกัน
-            // แต่ถ้าเก็บแค่ชื่อในตาราง products อย่างเดียวก็ข้ามส่วน insert categories ไปได้
-          }
-
-          // --- 2. อัปเดต State ในแอป (เพื่อให้หน้าจอเปลี่ยนทันที) ---
+          // อัปเดตหน้าจอ
           if (json.products) setProducts([...json.products]);
           if (json.categories) setCategories([...json.categories]);
 
-          setFormData(initialForm);
-          setOpenDropdownId(null);
-          setShowEditModal(false);
-          e.target.value = "";
-          alert("นำเข้าข้อมูลและบันทึกไปยังฐานข้อมูลสำเร็จ!");
+          alert("บันทึกข้อมูลสำเร็จ!");
         }
-      } catch (error) {
-        console.error("Import Error:", error);
-        alert("เกิดข้อผิดพลาด: " + (error.message || "ไฟล์ไม่ถูกต้อง"));
+      } catch (err) {
+        alert("เกิดข้อผิดพลาด: " + err.message);
       }
     };
     reader.readAsText(file);
