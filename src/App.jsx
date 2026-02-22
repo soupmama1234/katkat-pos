@@ -34,7 +34,21 @@ function App() {
           db.fetchModifierGroups(),
           db.fetchOrders(),
         ]);
-        setCategories(cats);
+
+        // FIX: รวม categories จาก DB + categories ที่มีใน products จริงๆ
+        // ป้องกันกรณี categories table ไม่ครบแต่ products มีอยู่แล้ว
+        const dbCats = new Set(cats.filter(c => c !== "All"));
+        const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
+        const merged = ["All", ...new Set([...dbCats, ...prodCats])];
+
+        // save categories ที่หายไปกลับเข้า DB ด้วย (auto-repair)
+        for (const cat of prodCats) {
+          if (!dbCats.has(cat)) {
+            try { await db.addCategory(cat); } catch {}
+          }
+        }
+
+        setCategories(merged);
         setProducts(prods);
         setModifierGroups(mods);
         setOrders(ords);
