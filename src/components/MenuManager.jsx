@@ -1,6 +1,43 @@
 import React, { useState } from "react";
-import { supabase } from "../supabaseclient.js";
 import { Trash2 } from "lucide-react";
+
+// BUG FIX: ย้าย FormInputs ออกมานอก MenuManager component
+// ถ้าอยู่ข้างใน → React สร้าง component ใหม่ทุก render → input เสีย focus ทันที
+const FormInputs = ({ values, onChange, categories }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+    <input
+      name="name"
+      placeholder="ชื่อเมนู *"
+      value={values.name}
+      onChange={onChange}
+      style={s.input}
+    />
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+      <input name="price" placeholder="ราคาหน้าร้าน *" value={values.price} onChange={onChange} type="number" inputMode="numeric" style={s.input} />
+      <input name="grabPrice" placeholder="ราคา Grab" value={values.grabPrice || ""} onChange={onChange} type="number" inputMode="numeric" style={s.input} />
+      <input name="linemanPrice" placeholder="ราคา LineMan" value={values.linemanPrice || ""} onChange={onChange} type="number" inputMode="numeric" style={s.input} />
+      <input name="shopeePrice" placeholder="ราคา Shopee" value={values.shopeePrice || ""} onChange={onChange} type="number" inputMode="numeric" style={s.input} />
+    </div>
+    <select name="category" value={values.category} onChange={onChange} style={s.input}>
+      <option value="ทั่วไป">ทั่วไป</option>
+      {(categories || []).filter(c => c !== "All").map(c => (
+        <option key={c} value={c}>{c}</option>
+      ))}
+    </select>
+  </div>
+);
+
+// BUG FIX: แปลง JSON เก่า (camelCase) → format ใหม่ ก่อน import
+function normalizeImportedProducts(products = []) {
+  return products.map(p => ({
+    ...p,
+    // รองรับทั้ง grabPrice (เก่า) และ grab_price (ใหม่)
+    grabPrice: p.grabPrice ?? p.grab_price ?? null,
+    linemanPrice: p.linemanPrice ?? p.lineman_price ?? null,
+    shopeePrice: p.shopeePrice ?? p.shopee_price ?? null,
+    modifierGroups: p.modifierGroups ?? p.modifier_group_ids ?? [],
+  }));
+}
 
 export default function MenuManager({ 
   products = [], 
@@ -39,31 +76,21 @@ export default function MenuManager({
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async (event) => { // ต้องมี async ตรงนี้!
+    reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target.result);
-        if (window.confirm("การนำเข้าจะทับข้อมูลปัจจุบันบนฐานข้อมูล ยืนยันหรือไม่?")) {
-          
-          if (json.products && json.products.length > 0) {
-            // ล้างข้อมูลเก่า (กันเหนียว)
-            await supabase.from('products').delete().neq('id', 0);
-            
-            // ยัดข้อมูลใหม่ลง Supabase
-            const { error: pError } = await supabase
-              .from('products')
-              .insert(json.products);
-              
-            if (pError) throw pError;
-          }
-
-          // อัปเดตหน้าจอ
-          if (json.products) setProducts([...json.products]);
+        if (window.confirm("การนำเข้าจะทับข้อมูลปัจจุบันทั้งหมด ยืนยันหรือไม่?")) {
+          // BUG FIX: normalize ก่อน import รองรับ format เก่าที่มี grabPrice camelCase
+          if (json.products) setProducts(normalizeImportedProducts(json.products));
           if (json.categories) setCategories([...json.categories]);
-
-          alert("บันทึกข้อมูลสำเร็จ!");
+          setFormData(initialForm);
+          setOpenDropdownId(null);
+          setShowEditModal(false);
+          e.target.value = "";
+          alert("โหลดข้อมูลสำเร็จ!");
         }
-      } catch (err) {
-        alert("เกิดข้อผิดพลาด: " + err.message);
+      } catch {
+        alert("ไฟล์ไม่ถูกต้อง หรือรูปแบบ JSON เสียหาย");
       }
     };
     reader.readAsText(file);
@@ -103,9 +130,10 @@ export default function MenuManager({
   };
 
   const handleUpdate = () => {
-    if (!editFields.name || !editFields.price) return;
+    if (!editFields.name || !editFields.price) return alert("กรุณาใส่ชื่อและราคา");
     updateProduct(editFields.id, {
-      ...editFields,
+      name: editFields.name,
+      category: editFields.category,
       price: Number(editFields.price),
       grabPrice: editFields.grabPrice ? Number(editFields.grabPrice) : null,
       linemanPrice: editFields.linemanPrice ? Number(editFields.linemanPrice) : null,
@@ -124,23 +152,18 @@ export default function MenuManager({
     updateProduct(productId, { modifierGroups: updatedGroups });
   };
 
-  const FormInputs = ({ values, onChange }) => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      <input name="name" placeholder="ชื่อเมนู *" value={values.name} onChange={onChange} style={s.input} />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-        <input name="price" placeholder="ราคาหน้าร้าน *" value={values.price} onChange={onChange} type="number" inputMode="numeric" style={s.input} />
-        <input name="grabPrice" placeholder="ราคา Grab" value={values.grabPrice || ""} onChange={onChange} type="number" inputMode="numeric" style={s.input} />
-        <input name="linemanPrice" placeholder="ราคา LineMan" value={values.linemanPrice || ""} onChange={onChange} type="number" inputMode="numeric" style={s.input} />
-        <input name="shopeePrice" placeholder="ราคา Shopee" value={values.shopeePrice || ""} onChange={onChange} type="number" inputMode="numeric" style={s.input} />
-      </div>
-      <select name="category" value={values.category} onChange={onChange} style={s.input}>
-        <option value="ทั่วไป">ทั่วไป</option>
-        {categories.filter(c => c !== "All").map(c => (
-          <option key={c} value={c}>{c}</option>
-        ))}
-      </select>
-    </div>
-  );
+  const openEdit = (p) => {
+    setEditFields({
+      id: p.id,
+      name: p.name || "",
+      price: p.price || "",
+      grabPrice: p.grabPrice || "",
+      linemanPrice: p.linemanPrice || "",
+      shopeePrice: p.shopeePrice || "",
+      category: p.category || "ทั่วไป",
+    });
+    setShowEditModal(true);
+  };
 
   return (
     <div style={{ padding: "12px", color: "#fff", boxSizing: "border-box" }}>
@@ -163,7 +186,11 @@ export default function MenuManager({
       {/* Add form */}
       <div style={s.section}>
         <h3 style={{ margin: "0 0 14px 0", fontSize: "16px" }}>+ เพิ่มเมนูใหม่</h3>
-        <FormInputs values={formData} onChange={(e) => handleInputChange(e, false)} />
+        <FormInputs
+          values={formData}
+          onChange={(e) => handleInputChange(e, false)}
+          categories={categories}
+        />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "12px" }}>
           <button onClick={handleSubmit} style={s.btnWhite}>บันทึกสินค้า</button>
           <button onClick={() => setShowCategoryInput(!showCategoryInput)} style={s.btnOutline}>
@@ -214,7 +241,7 @@ export default function MenuManager({
                 <span style={{ color: "#555" }}> · {p.category}</span>
               </div>
               {p.modifierGroups?.length > 0 && (
-                <div style={{ fontSize: "11px", color: "#555", marginTop: "3px" }}>
+                <div style={{ fontSize: "11px", color: "#555", marginTop: "2px" }}>
                   ⚙️ {p.modifierGroups.length} กลุ่มตัวเลือก
                 </div>
               )}
@@ -227,15 +254,8 @@ export default function MenuManager({
               >
                 ⚙️ ตัวเลือก
               </button>
-              <button
-                onClick={() => { setEditFields({ ...p, grabPrice: p.grabPrice || "", linemanPrice: p.linemanPrice || "", shopeePrice: p.shopeePrice || "" }); setShowEditModal(true); }}
-                style={s.btnEdit}
-              >
-                ✏️ แก้ไข
-              </button>
-              <button onClick={() => deleteProduct(p.id)} style={s.btnDel}>
-                🗑️ ลบ
-              </button>
+              <button onClick={() => openEdit(p)} style={s.btnEdit}>✏️ แก้ไข</button>
+              <button onClick={() => deleteProduct(p.id)} style={s.btnDel}>🗑️ ลบ</button>
             </div>
 
             {openDropdownId === p.id && (
@@ -272,15 +292,22 @@ export default function MenuManager({
         ))}
       </div>
 
-      {/* Edit modal — slide up from bottom บน mobile */}
+      {/* Edit modal */}
       {showEditModal && (
         <div style={s.modalOverlay} onClick={() => setShowEditModal(false)}>
           <div style={s.modalContent} onClick={e => e.stopPropagation()}>
+            {/* Handle ลาก */}
+            <div style={{ width: "40px", height: "4px", background: "#555", borderRadius: "2px", margin: "0 auto 16px" }} />
             <h3 style={{ marginTop: 0, fontSize: "16px" }}>แก้ไขสินค้า</h3>
-            <FormInputs values={editFields} onChange={(e) => handleInputChange(e, true)} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "16px" }}>
+            <FormInputs
+              values={editFields}
+              onChange={(e) => handleInputChange(e, true)}
+              categories={categories}
+            />
+            {/* BUG FIX: ปุ่มอยู่ใน modal content เสมอ ไม่โดน clip */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "20px", paddingBottom: "8px" }}>
               <button onClick={() => setShowEditModal(false)} style={s.btnOutline}>ยกเลิก</button>
-              <button onClick={handleUpdate} style={s.btnWhite}>บันทึก</button>
+              <button onClick={handleUpdate} style={s.btnWhite}>✅ บันทึก</button>
             </div>
           </div>
         </div>
@@ -291,7 +318,7 @@ export default function MenuManager({
 
 const s = {
   section: { marginBottom: "20px", padding: "16px", backgroundColor: "#262626", borderRadius: "12px", border: "1px solid #333" },
-  input: { padding: "12px", borderRadius: "8px", border: "1px solid #444", backgroundColor: "#1a1a1a", color: "#fff", outline: "none", width: "100%", fontSize: "14px", boxSizing: "border-box" },
+  input: { padding: "12px", borderRadius: "8px", border: "1px solid #444", backgroundColor: "#1a1a1a", color: "#fff", outline: "none", width: "100%", fontSize: "15px", boxSizing: "border-box" },
   btnWhite: { background: "#fff", color: "#000", border: "none", padding: "12px", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", fontSize: "14px" },
   btnOutline: { background: "transparent", border: "1px solid #555", color: "#ccc", padding: "12px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" },
   btnGreen: { background: "#4caf50", color: "#fff", border: "none", padding: "12px", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", fontSize: "14px" },
@@ -304,7 +331,7 @@ const s = {
   dropdown: { marginTop: "12px", background: "#1a1a1a", border: "1px solid #444", padding: "14px", borderRadius: "10px" },
   tag: { padding: "6px 10px", background: "#333", color: "#eee", borderRadius: "20px", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", border: "1px solid #444" },
   tagDel: { background: "none", border: "none", color: "#f44336", cursor: "pointer", fontWeight: "bold", fontSize: "16px", lineHeight: 1, padding: 0 },
-  // Modal slide up from bottom — เหมาะ mobile มากกว่า center
-  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 },
-  modalContent: { background: "#262626", padding: "24px", borderRadius: "16px 16px 0 0", width: "100%", maxWidth: "600px", border: "1px solid #444", maxHeight: "90vh", overflowY: "auto", boxSizing: "border-box" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 },
+  // BUG FIX: ไม่ใช้ maxHeight overflow-y แล้ว ใช้ paddingBottom ให้ปุ่มโผล่เสมอ
+  modalContent: { background: "#1e1e1e", padding: "20px 20px 32px", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "600px", border: "1px solid #444", boxSizing: "border-box" },
 };

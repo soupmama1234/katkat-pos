@@ -50,20 +50,32 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
 
   const stats = useMemo(() => {
     let totalSales = 0, cashTotal = 0, promptPayTotal = 0, actualIncome = 0;
+    // แยก cash/transfer แต่ละ channel
     const channelMap = {};
+
     orders.forEach(o => {
       totalSales += o.total;
       actualIncome += (o.actualAmount || 0);
-      if (o.payment === "cash") cashTotal += (o.actualAmount || 0);
-      if (o.payment === "promptpay" || o.payment === "transfer") promptPayTotal += (o.actualAmount || 0);
-      if (!channelMap[o.channel]) channelMap[o.channel] = { total: 0, actual: 0 };
+
+      if (!channelMap[o.channel]) {
+        channelMap[o.channel] = { total: 0, actual: 0, cash: 0, transfer: 0 };
+      }
       channelMap[o.channel].total += o.total;
       channelMap[o.channel].actual += (o.actualAmount || 0);
+
+      if (o.payment === "cash") {
+        cashTotal += (o.actualAmount || 0);
+        channelMap[o.channel].cash += (o.actualAmount || 0);
+      } else {
+        // promptpay / transfer ทั้งหมด
+        promptPayTotal += (o.actualAmount || 0);
+        channelMap[o.channel].transfer += (o.actualAmount || 0);
+      }
     });
+
     return { totalSales, cashTotal, promptPayTotal, actualIncome, channelMap, orderCount: orders.length };
   }, [orders]);
 
-  // FIX: Invalid Date — Supabase ส่ง created_at เป็น ISO string
   const formatTime = (timeStr) => {
     if (!timeStr) return "N/A";
     try {
@@ -94,7 +106,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
         </div>
       </div>
 
-      {/* Stats 2x2 grid */}
+      {/* Stats 2x2 */}
       <div style={s.statsGrid}>
         <div style={{ ...s.card, borderTop: "3px solid #ff9800" }}>
           <div style={s.cardLabel}>ออเดอร์วันนี้</div>
@@ -117,7 +129,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
         </div>
       </div>
 
-      {/* Channel breakdown */}
+      {/* Channel breakdown — BUG#4: แสดง cash/transfer แยกใต้แต่ละ channel */}
       {Object.keys(stats.channelMap).length > 0 && (
         <div style={s.panel}>
           <div style={s.panelTitle}>สัดส่วนรายได้แยกช่องทาง</div>
@@ -125,10 +137,31 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
             const color = getChannelColor(ch);
             const pct = stats.actualIncome > 0 ? (data.actual / stats.actualIncome) * 100 : 0;
             return (
-              <div key={ch} style={{ marginBottom: "14px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                  <span style={{ color, fontWeight: "bold", fontSize: "13px" }}>{ch.toUpperCase()}</span>
-                  <span style={{ fontSize: "13px" }}>฿{data.actual.toLocaleString()}</span>
+              <div key={ch} style={{ marginBottom: "18px" }}>
+                {/* ชื่อ channel + ยอดรวม */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5px" }}>
+                  <div>
+                    <span style={{ color, fontWeight: "bold", fontSize: "14px" }}>{ch.toUpperCase()}</span>
+                    {/* BUG#4 FIX: แสดง cash/transfer breakdown เฉพาะ POS */}
+                    {ch === "pos" && (
+                      <div style={{ display: "flex", gap: "10px", marginTop: "3px" }}>
+                        {data.cash > 0 && (
+                          <span style={{ fontSize: "11px", color: "#4caf50" }}>
+                            💵 ฿{data.cash.toLocaleString()}
+                          </span>
+                        )}
+                        {data.transfer > 0 && (
+                          <span style={{ fontSize: "11px", color: "#2196f3" }}>
+                            📱 ฿{data.transfer.toLocaleString()}
+                          </span>
+                        )}
+                        {data.cash === 0 && data.transfer === 0 && (
+                          <span style={{ fontSize: "11px", color: "#444" }}>ยังไม่มียอด</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{ fontSize: "14px" }}>฿{data.actual.toLocaleString()}</span>
                 </div>
                 <div style={s.barBg}>
                   <div style={{ ...s.barFill, width: `${pct}%`, backgroundColor: color }} />
