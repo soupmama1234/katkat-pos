@@ -97,19 +97,19 @@ export default function MobilePOS({
       
       {/* 1. หมวดหมู่ */}
       <div style={styles.categoryBar}>
-       {["All", ...(categories || []).filter(c => c !== "All")].map((cat) => (
-  <button
-    key={cat}
-    onClick={() => setSelectedCategory(cat)}
-    style={{
-      ...styles.catBtn,
-      backgroundColor: selectedCategory === cat ? "#fff" : "#222",
-      color: selectedCategory === cat ? "#000" : "#fff",
-    }}
-  >
-    {cat}
-  </button>
-))}
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            style={{
+              ...styles.catBtn,
+              backgroundColor: selectedCategory === cat ? "#fff" : "#222",
+              color: selectedCategory === cat ? "#000" : "#fff",
+            }}
+          >
+            {cat}
+          </button>
+        ))}
       </div>
 
       {/* 2. แถบช่องทาง */}

@@ -79,7 +79,7 @@ export default function Products({
             style={styles.select}
           >
             <option value="All">ทั้งหมด</option>
-            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            {categories.filter(c => c !== "All").map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
       </div>
@@ -92,7 +92,7 @@ export default function Products({
               .map(p => <ProductButton key={p.id} product={p} />)}
           </div>
         ) : (
-          categories.map((cat) => {
+          categories.filter(c => c !== "All").map((cat) => {
             const items = products.filter((p) => p.category === cat);
             if (items.length === 0) return null;
             return (
