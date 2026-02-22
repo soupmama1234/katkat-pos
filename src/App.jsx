@@ -260,7 +260,7 @@ function App() {
           <main style={{ flex: 1, overflowY: "auto", paddingBottom: "80px" }}>
             {view === "pos" && (
               <MobilePOS
-                products={visibleProducts} addToCart={addToCart}
+                products={products} addToCart={addToCart}
                 increaseQty={increaseQty} decreaseQty={decreaseQty}
                 categories={categories} selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory} cart={cart} total={total}
@@ -317,7 +317,7 @@ function App() {
             {view === "pos" && (
               <>
                 <section style={{ flex: 1, overflowY: "auto", padding: "15px", borderRight: "1px solid #333" }}>
-                  <Products products={visibleProducts} addToCart={addToCart} categories={categories}
+                  <Products products={products} addToCart={addToCart} categories={categories}
                     selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}
                     priceChannel={priceChannel} modifierGroups={modifierGroups} />
                 </section>

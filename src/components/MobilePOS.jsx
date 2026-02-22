@@ -137,7 +137,9 @@ export default function MobilePOS({
 
       {/* 3. รายการสินค้า */}
       <div style={styles.productGrid}>
-        {products.map((p) => {
+        {products
+          .filter(p => !selectedCategory || selectedCategory === "All" || p.category === selectedCategory)
+          .map((p) => {
           const hasModifiers = modifierGroups.some(g => p.modifierGroups?.includes(g.id));
           return (
             <button key={p.id} onClick={() => handleProductClick(p)} style={styles.productCard}>
