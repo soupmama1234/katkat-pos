@@ -8,9 +8,8 @@ import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
 
-
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
-import db, { isUsingSupabase } from "./storage.js";
+import db, { isUsingSupabase } from "./storage";
 
 function App() {
   const [view, setView] = useState("pos");
@@ -216,9 +215,15 @@ function App() {
   const menuManagerProps = {
     products, setProducts, updateProduct, deleteProduct, addProduct,
     categories, setCategories, addCategory, deleteCategory, modifierGroups,
+    // สำหรับปุ่ม "ล้างทั้งหมด" — มี confirm 2 ชั้น
     clearAllProducts: async () => {
       if (!window.confirm("ลบเมนูทั้งหมด?")) return;
       if (!window.confirm("ยืนยันครั้งสุดท้าย?")) return;
+      await db.clearAllProducts();
+      setProducts([]);
+    },
+    // สำหรับ Load Menu — ไม่มี confirm (user confirm ตอน import แล้ว)
+    clearAllProductsSilent: async () => {
       await db.clearAllProducts();
       setProducts([]);
     },

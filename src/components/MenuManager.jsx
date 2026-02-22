@@ -51,6 +51,7 @@ export default function MenuManager({
   setProducts,
   setCategories,
   clearAllProducts,
+  clearAllProductsSilent,
 }) {
   const initialForm = { name: "", price: "", grabPrice: "", linemanPrice: "", shopeePrice: "", category: "ทั่วไป" };
 
@@ -89,21 +90,53 @@ export default function MenuManager({
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target.result);
-        if (window.confirm("การนำเข้าจะทับข้อมูลปัจจุบันทั้งหมด ยืนยันหรือไม่?")) {
-          // BUG FIX: normalize ก่อน import รองรับ format เก่าที่มี grabPrice camelCase
-          if (json.products) setProducts(normalizeImportedProducts(json.products));
-          if (json.categories) setCategories([...json.categories]);
-          setFormData(initialForm);
-          setOpenDropdownId(null);
-          setShowEditModal(false);
-          e.target.value = "";
-          alert("โหลดข้อมูลสำเร็จ!");
+        if (!window.confirm("การนำเข้าจะทับข้อมูลปัจจุบันทั้งหมด ยืนยันหรือไม่?")) return;
+
+        const normalized = normalizeImportedProducts(json.products || []);
+
+        // ลบของเดิมใน Supabase ก่อน แล้วค่อย add ใหม่ทีละตัว
+        if (clearAllProductsSilent) await clearAllProductsSilent();
+        else if (clearAllProducts) await clearAllProducts();
+
+        // save แต่ละตัวลง Supabase ผ่าน addProduct
+        let count = 0;
+        for (const p of normalized) {
+          try {
+            await addProduct({
+              name: p.name,
+              category: p.category || "ทั่วไป",
+              price: p.price,
+              grabPrice: p.grabPrice || null,
+              linemanPrice: p.linemanPrice || null,
+              shopeePrice: p.shopeePrice || null,
+              modifierGroups: p.modifierGroups || [],
+            });
+            count++;
+          } catch (err) {
+            console.error("save product error:", p.name, err);
+          }
         }
-      } catch {
-        alert("ไฟล์ไม่ถูกต้อง หรือรูปแบบ JSON เสียหาย");
+
+        // categories
+        if (json.categories) {
+          for (const cat of json.categories) {
+            if (cat && cat !== "All") {
+              try { await addCategory(cat); } catch {}
+            }
+          }
+        }
+
+        setFormData(initialForm);
+        setOpenDropdownId(null);
+        setShowEditModal(false);
+        e.target.value = "";
+        alert(`✅ โหลดสำเร็จ ${count}/${normalized.length} รายการ — refresh เพื่อโหลดเมนูจาก Supabase`);
+      } catch (err) {
+        console.error(err);
+        alert("❌ ไฟล์ไม่ถูกต้อง หรือ save ไม่สำเร็จ");
       }
     };
     reader.readAsText(file);
