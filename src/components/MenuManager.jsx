@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 
 // BUG FIX: ย้าย FormInputs ออกมานอก MenuManager component
@@ -60,6 +60,19 @@ export default function MenuManager({
   const [showEditModal, setShowEditModal] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [editFields, setEditFields] = useState({ ...initialForm, id: null });
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // ตรวจจับ keyboard ขึ้น/ลง → ดัน modal ขึ้นพอดี
+  useEffect(() => {
+    const handleResize = () => {
+      const visualHeight = window.visualViewport?.height || window.innerHeight;
+      const windowHeight = window.innerHeight;
+      const kbHeight = Math.max(0, windowHeight - visualHeight);
+      setKeyboardHeight(kbHeight);
+    };
+    window.visualViewport?.addEventListener("resize", handleResize);
+    return () => window.visualViewport?.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleExport = () => {
     const data = { products, categories, modifierGroups };
@@ -295,7 +308,7 @@ export default function MenuManager({
       {/* Edit modal */}
       {showEditModal && (
         <div style={s.modalOverlay} onClick={() => setShowEditModal(false)}>
-          <div style={s.modalContent} onClick={e => e.stopPropagation()}>
+          <div style={{ ...s.modalContent, marginBottom: keyboardHeight }} onClick={e => e.stopPropagation()}>
             {/* Handle ลาก */}
             <div style={{ width: "40px", height: "4px", background: "#555", borderRadius: "2px", margin: "0 auto 16px" }} />
             <h3 style={{ marginTop: 0, fontSize: "16px" }}>แก้ไขสินค้า</h3>
@@ -333,5 +346,5 @@ const s = {
   tagDel: { background: "none", border: "none", color: "#f44336", cursor: "pointer", fontWeight: "bold", fontSize: "16px", lineHeight: 1, padding: 0 },
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 },
   // BUG FIX: ไม่ใช้ maxHeight overflow-y แล้ว ใช้ paddingBottom ให้ปุ่มโผล่เสมอ
-  modalContent: { background: "#1e1e1e", padding: "20px 20px 32px", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "600px", border: "1px solid #444", boxSizing: "border-box" },
+  modalContent: { background: "#1e1e1e", padding: "20px 20px 32px", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "600px", border: "1px solid #444", boxSizing: "border-box", marginBottom: "env(keyboard-inset-height, 300px)" },
 };
