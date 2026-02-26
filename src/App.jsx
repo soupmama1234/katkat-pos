@@ -24,6 +24,12 @@ function App() {
   const [categories, setCategories] = useState(["All"]);
   const [modifierGroups, setModifierGroups] = useState([]);
 
+  // เรียงเมนูตามตัวอักษร (ใช้แทน products ทุกที่ที่แสดงผล)
+  const sortedProducts = useMemo(() =>
+    [...products].sort((a, b) => a.name.localeCompare(b.name, 'th')),
+    [products]
+  );
+
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
   useEffect(() => {
     async function loadAll() {
@@ -227,7 +233,7 @@ function App() {
   };
 
   const menuManagerProps = {
-    products, setProducts, updateProduct, deleteProduct, addProduct,
+    products: sortedProducts, setProducts, updateProduct, deleteProduct, addProduct,
     categories, setCategories, addCategory, deleteCategory, modifierGroups,
     // สำหรับปุ่ม "ล้างทั้งหมด" — มี confirm 2 ชั้น
     clearAllProducts: async () => {
@@ -274,7 +280,7 @@ function App() {
           <main style={{ flex: 1, overflowY: "auto", paddingBottom: "80px" }}>
             {view === "pos" && (
               <MobilePOS
-                products={products} addToCart={addToCart}
+                products={sortedProducts} addToCart={addToCart}
                 increaseQty={increaseQty} decreaseQty={decreaseQty}
                 categories={categories} selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory} cart={cart} total={total}
@@ -331,7 +337,7 @@ function App() {
             {view === "pos" && (
               <>
                 <section style={{ flex: 1, overflowY: "auto", padding: "15px", borderRight: "1px solid #333" }}>
-                  <Products products={products} addToCart={addToCart} categories={categories}
+                  <Products products={sortedProducts} addToCart={addToCart} categories={categories}
                     selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}
                     priceChannel={priceChannel} modifierGroups={modifierGroups} />
                 </section>
