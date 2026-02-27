@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 
-export default function Cart({ cart = [], decreaseQty, increaseQty, addToCart, total = 0, onCheckout, onClearCart, priceChannel = "pos", deliveryRef = "", onRefChange }) {
+export default function Cart({ cart, decreaseQty, increaseQty, addToCart, total, onCheckout, onClearCart, priceChannel = "pos", deliveryRef = "", onRefChange }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashReceived, setCashReceived] = useState("");
