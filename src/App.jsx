@@ -27,7 +27,7 @@ function App() {
   const [modifierGroups, setModifierGroups] = useState([]);
   const [memberPhone, setMemberPhone] = useState(""); 
 
-  // --- 1. โหลดข้อมูล (คืนค่า Logic เดิมทั้งหมด) ---
+  // --- 1. โหลดข้อมูล (เรียกคืนความสมบูรณ์) ---
   useEffect(() => {
     async function loadAll() {
       try {
@@ -61,31 +61,36 @@ function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // --- 2. ฟังก์ชัน Dashboard (คืนค่าที่หายไป) ---
-  const handleUpdateActual = async (orderId, value) => {
-    const amount = parseFloat(value) || 0;
+  // --- 2. ฟังก์ชันจัดการเมนู (คืนค่าการลบและแก้ไข) ---
+  const addCategory = useCallback(async (name) => {
+    if (!name || categories.includes(name)) return;
+    await db.addCategory(name);
+    setCategories(prev => [...prev, name]);
+  }, [categories]);
+
+  const addProduct = useCallback(async (newProductData) => {
+    const cat = newProductData.category || "ทั่วไป";
+    const saved = await db.addProduct({ ...newProductData, category: cat });
+    setProducts(prev => [...prev, saved]);
+    await addCategory(cat);
+  }, [addCategory]);
+
+  const updateProduct = useCallback(async (id, fields) => {
+    await db.updateProduct(id, fields);
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...fields } : p));
+  }, []);
+
+  const deleteProduct = useCallback(async (id) => {
+    if (!window.confirm("ยืนยันการลบสินค้า? ข้อมูลจะหายจาก Supabase ถาวร")) return;
     try {
-      await db.updateOrder(orderId, { actualAmount: amount, isSettled: true });
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, actualAmount: amount, isSettled: true } : o));
+      await db.deleteProduct(id);
+      setProducts(prev => prev.filter(p => p.id !== id));
     } catch (err) {
-      console.error("บันทึกยอดจริงไม่สำเร็จ:", err);
+      alert("ลบสินค้าไม่ได้: " + err.message);
     }
-  };
+  }, []);
 
-  const handleCloseDay = async () => {
-    const totalSales = orders.reduce((sum, o) => sum + (o.actualAmount || 0), 0);
-    if (window.confirm(`สรุปยอดขายรวมวันนี้: ฿${totalSales.toLocaleString()}\nต้องการปิดยอดวันและล้างหน้าจอใช่หรือไม่?`)) {
-      try {
-        await db.closeDayOrders();
-        setOrders([]);
-        alert("✅ ปิดยอดวันเรียบร้อย");
-      } catch (err) {
-        alert("❌ ปิดยอดไม่สำเร็จ");
-      }
-    }
-  };
-
-  // --- 3. ระบบ Cart & Qty (คืนค่า Logic จัดการ Modifier) ---
+  // --- 3. ระบบ Cart & Checkout (คืนค่า Ref และสมาชิก) ---
   const total = useMemo(() => cart.reduce((sum, item) => sum + (item.price * item.qty), 0), [cart]);
 
   const addToCart = useCallback((product, channel = priceChannel) => {
@@ -106,7 +111,6 @@ function App() {
   const increaseQty = (id, ch, mid) => setCart(prev => prev.map(i => (i.id === id && i.channel === ch && (i.selectedModifier?.id || null) === mid) ? { ...i, qty: i.qty + 1 } : i));
   const decreaseQty = (id, ch, mid) => setCart(prev => prev.map(i => (i.id === id && i.channel === ch && (i.selectedModifier?.id || null) === mid) ? { ...i, qty: i.qty - 1 } : i).filter(i => i.qty > 0));
 
-  // --- 4. ระบบ Checkout (คืนค่า Ref และระบบสมาชิก) ---
   const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
@@ -117,7 +121,7 @@ function App() {
         total_amount: total,
         payment: isDelivery ? "transfer" : paymentMethod,
         channel: priceChannel,
-        ref: refId, // คืนค่าตัวเลขอ้างอิง Grab/Lineman ตรงนี้
+        ref: refId,
         member_phone: phone || null,
         isSettled: !isDelivery,
         actualAmount: isDelivery ? 0 : total,
@@ -134,15 +138,12 @@ function App() {
               total_spent: (m.total_spent || 0) + total 
             }).eq('phone', phone);
           }
-        } catch (e) { console.warn("Member update failed", e); }
+        } catch (e) { console.warn(e); }
       }
       setCart([]); setMemberPhone("");
-      alert("✅ บันทึกออเดอร์เรียบร้อย");
+      alert("บันทึกออเดอร์เรียบร้อย");
       return true;
-    } catch (err) {
-      console.error("Checkout failed:", err);
-      return false;
-    }
+    } catch (err) { console.error(err); return false; }
   };
 
   const CHANNELS = [
@@ -152,7 +153,7 @@ function App() {
     { key: "shopee", label: "Shopee", color: "#EE4D2D" },
   ];
 
-  if (loading) return <div style={{ height: "100vh", backgroundColor: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>กำลังโหลดข้อมูล...</div>;
+  if (loading) return <div style={{ height: "100vh", backgroundColor: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>กำลังโหลด...</div>;
 
   return (
     <div style={styles.appWrapper}>
@@ -160,10 +161,15 @@ function App() {
         <div style={styles.mobileContainer}>
           <main style={styles.mobileMain}>
             {view === "pos" && <MobilePOS products={products} addToCart={addToCart} increaseQty={increaseQty} decreaseQty={decreaseQty} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} cart={cart} total={total} onCheckout={handleCheckout} priceChannel={priceChannel} setPriceChannel={setPriceChannel} onClearCart={() => setCart([])} memberPhone={memberPhone} setMemberPhone={setMemberPhone} modifierGroups={modifierGroups} />}
-            {view === "dashboard" && <Dashboard orders={orders} onUpdateActual={handleUpdateActual} onCloseDay={handleCloseDay} />}
+            {view === "dashboard" && <Dashboard orders={orders} onUpdateActual={(id, v) => db.updateOrder(id, { actualAmount: parseFloat(v), isSettled: true }).then(() => setOrders(prev => prev.map(o => o.id === id ? { ...o, actualAmount: parseFloat(v), isSettled: true } : o)))} onCloseDay={() => db.closeDayOrders().then(() => setOrders([]))} />}
             {view === "orders" && <Orders orders={orders} onDeleteOrder={(id) => db.deleteOrder(id)} onClearAll={() => db.clearOrders()} />}
             {view === "members" && <Members orders={orders} />}
-            {view === "menu" && <div style={{ padding: "10px" }}><MenuManager products={products} setProducts={setProducts} updateProduct={(id, f) => db.updateProduct(id, f)} deleteProduct={(id) => db.deleteProduct(id)} addProduct={(p) => db.addProduct(p)} categories={categories} /><ModifierManager modifierGroups={modifierGroups} setModifierGroups={setModifierGroups} /></div>}
+            {view === "menu" && (
+              <div style={{ padding: "10px" }}>
+                <MenuManager products={products} setProducts={setProducts} updateProduct={updateProduct} deleteProduct={deleteProduct} addProduct={addProduct} categories={categories} />
+                <ModifierManager modifierGroups={modifierGroups} setModifierGroups={setModifierGroups} />
+              </div>
+            )}
           </main>
           <nav style={styles.bottomNav}>
             {["pos", "dashboard", "orders", "members", "menu"].map(v => (
@@ -186,13 +192,11 @@ function App() {
               ))}
             </nav>
           </header>
-          
           <div style={styles.desktopChannelBar}>
             {CHANNELS.map((ch) => (
               <button key={ch.key} onClick={() => setPriceChannel(ch.key)} style={styles.channelBtn(priceChannel === ch.key, ch.color)}>{ch.label}</button>
             ))}
           </div>
-
           <main style={styles.desktopMain}>
             {view === "pos" && (
               <>
@@ -200,8 +204,13 @@ function App() {
                 <aside style={styles.desktopCart}><Cart cart={cart} increaseQty={increaseQty} decreaseQty={decreaseQty} total={total} onCheckout={handleCheckout} onClearCart={() => setCart([])} priceChannel={priceChannel} memberPhone={memberPhone} setMemberPhone={setMemberPhone} /></aside>
               </>
             )}
-            {view === "dashboard" && <div style={{ flex: 1, overflowY: "auto" }}><Dashboard orders={orders} onUpdateActual={handleUpdateActual} onCloseDay={handleCloseDay} /></div>}
-            {view === "menu" && <div style={{ flex: 1, overflowY: "auto", padding: "30px" }}><MenuManager products={products} setProducts={setProducts} updateProduct={(id, f) => db.updateProduct(id, f)} deleteProduct={(id) => db.deleteProduct(id)} addProduct={(p) => db.addProduct(p)} categories={categories} /><ModifierManager modifierGroups={modifierGroups} setModifierGroups={setModifierGroups} /></div>}
+            {view === "dashboard" && <div style={{ flex: 1, overflowY: "auto" }}><Dashboard orders={orders} onUpdateActual={(id, v) => db.updateOrder(id, { actualAmount: parseFloat(v), isSettled: true }).then(() => setOrders(prev => prev.map(o => o.id === id ? { ...o, actualAmount: parseFloat(v), isSettled: true } : o)))} onCloseDay={() => db.closeDayOrders().then(() => setOrders([]))} /></div>}
+            {view === "menu" && (
+              <div style={{ flex: 1, overflowY: "auto", padding: "30px" }}>
+                <MenuManager products={products} setProducts={setProducts} updateProduct={updateProduct} deleteProduct={deleteProduct} addProduct={addProduct} categories={categories} />
+                <ModifierManager modifierGroups={modifierGroups} setModifierGroups={setModifierGroups} />
+              </div>
+            )}
             {view === "orders" && <div style={{ flex: 1, overflowY: "auto" }}><Orders orders={orders} onDeleteOrder={(id) => db.deleteOrder(id)} onClearAll={() => db.clearOrders()} /></div>}
             {view === "members" && <div style={{ flex: 1, overflow: "hidden" }}><Members orders={orders} /></div>}
           </main>
