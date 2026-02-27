@@ -7,6 +7,8 @@ import Dashboard from "./components/Dashboard";
 import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
+import Members from "./components/Members";
+import { supabase as sb } from "./supabase";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
@@ -23,6 +25,7 @@ function App() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [modifierGroups, setModifierGroups] = useState([]);
+  const [memberPhone, setMemberPhone] = useState(""); // เบอร์สมาชิกที่เลือกตอนขาย
 
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
   useEffect(() => {
@@ -181,7 +184,7 @@ function App() {
     ));
   }, []);
 
-  const handleCheckout = async (paymentMethod, refId = "") => {
+  const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
     try {
@@ -194,9 +197,22 @@ function App() {
         refId,
         isSettled: !isDelivery,
         actualAmount: isDelivery ? 0 : total,
+        member_phone: phone || null,
       });
       setOrders(prev => [saved, ...prev]);
+
+      // อัพเดทแต้มและยอดใช้จ่ายของสมาชิก
+      if (phone) {
+        try {
+          const pointsEarned = Math.floor(total / 10);
+          await sb.rpc("increment_member_points", {
+            p_phone: phone, p_points: pointsEarned, p_spent: total,
+          });
+        } catch (e) { console.warn("member update failed", e); }
+      }
+
       setCart([]);
+      setMemberPhone("");
       alert(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "ชำระเงินเรียบร้อย");
     } catch (err) {
       console.error(err);
@@ -281,6 +297,7 @@ function App() {
                 onCheckout={handleCheckout} priceChannel={priceChannel}
                 setPriceChannel={setPriceChannel} onClearCart={() => setCart([])}
                 modifierGroups={modifierGroups}
+                memberPhone={memberPhone} setMemberPhone={setMemberPhone}
               />
             )}
             {view === "dashboard" && (
@@ -299,11 +316,17 @@ function App() {
                 <ModifierManager {...modifierManagerProps} />
               </div>
             )}
+            {view === "members" && (
+              <div style={{ height: "calc(100vh - 150px)" }}>
+                <Members orders={orders} />
+              </div>
+            )}
           </main>
           <nav style={styles.bottomNav}>
             <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
             <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>
             <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>
+            <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>
             <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>
           </nav>
         </div>
@@ -312,9 +335,9 @@ function App() {
           <header style={styles.desktopHeader}>
             <h2 style={{ margin: 0 }}>KATKAT POS</h2>
             <nav style={{ display: "flex", gap: 10 }}>
-              {["pos", "menu", "dashboard", "orders"].map((v) => (
+              {["pos", "menu", "dashboard", "orders", "members"].map((v) => (
                 <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
-                  {v === "pos" ? "ขายหน้าร้าน" : v === "menu" ? "จัดการเมนู" : v.toUpperCase()}
+                  {v === "pos" ? "ขายหน้าร้าน" : v === "menu" ? "จัดการเมนู" : v === "members" ? "👥 สมาชิก" : v.toUpperCase()}
                 </button>
               ))}
             </nav>
@@ -338,7 +361,8 @@ function App() {
                 <aside style={{ width: "400px" }}>
                   <Cart cart={cart} addToCart={addToCart} increaseQty={increaseQty}
                     decreaseQty={decreaseQty} total={total} onCheckout={handleCheckout}
-                    onClearCart={() => setCart([])} priceChannel={priceChannel} />
+                    onClearCart={() => setCart([])} priceChannel={priceChannel}
+                    memberPhone={memberPhone} setMemberPhone={setMemberPhone} />
                 </aside>
               </>
             )}
@@ -362,6 +386,11 @@ function App() {
                   onClearAll={async () => { await db.clearOrders(); setOrders([]); }} />
               </div>
             )}
+            {view === "members" && (
+              <div style={{ flex: 1, overflow: "hidden" }}>
+                <Members orders={orders} />
+              </div>
+            )}
           </main>
         </div>
       )}
@@ -371,7 +400,7 @@ function App() {
 
 const styles = {
   bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
-  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer" }),
+  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer", padding: "0 4px" }),
   desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
   desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
   desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10, alignItems: "center" },
