@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Trash2, User } from "lucide-react"; // เพิ่ม Icon เพื่อความสวยงาม
 
 export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
   const [deletingId, setDeletingId] = useState(null);
@@ -7,13 +6,14 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
 
   const getChannelStyle = (channel) => {
     switch (channel) {
-      case "grab": return { color: "#00B14F", bg: "rgba(0, 177, 79, 0.1)" };
-      case "lineman": return { color: "#00A84F", bg: "rgba(0, 168, 79, 0.1)" };
-      case "shopee": return { color: "#EE4D2D", bg: "rgba(238, 77, 45, 0.1)" };
-      default: return { color: "#fff", bg: "#333" };
+      case "grab": return { color: "#00B14F", bg: "#e6f7ee" };
+      case "lineman": return { color: "#00A84F", bg: "#e6f6ee" };
+      case "shopee": return { color: "#EE4D2D", bg: "#fef1ed" };
+      default: return { color: "#213547", bg: "#f0f2f5" };
     }
   };
 
+  // BUG FIX: await async onClearAll (Supabase)
   const handleClearRequest = async () => {
     const confirmBox = window.confirm("⚠️ คุณต้องการลบประวัติการขายทั้งหมดใช่หรือไม่? (ข้อมูลจะหายถาวร)");
     if (!confirmBox) return;
@@ -27,127 +27,132 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
     }
   };
 
+  // BUG FIX: await async onDeleteOrder (Supabase)
   const handleDelete = async (id) => {
     try {
       setDeletingId(id);
       await onDeleteOrder(id);
     } catch (err) {
-      alert("❌ ลบรายการไม่สำเร็จ");
+      alert("❌ ลบไม่ได้ กรุณาลองใหม่");
     } finally {
       setDeletingId(null);
     }
   };
 
-  // เรียงลำดับออเดอร์ล่าสุดขึ้นก่อน
-  const sortedOrders = [...orders].sort((a, b) => 
-    new Date(b.time || b.created_at) - new Date(a.time || a.created_at)
-  );
-
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h2 style={styles.title}>ประวัติการขาย ({orders.length})</h2>
-        <button 
-          onClick={handleClearRequest} 
-          disabled={clearing || orders.length === 0}
-          style={{...styles.btnClearAll, opacity: orders.length === 0 ? 0.5 : 1}}
-        >
-          {clearing ? "กำลังลบ..." : "ล้างประวัติทั้งหมด"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <h2 style={{ margin: 0 }}>ประวัติการขาย</h2>
+          <span style={styles.countBadge}>ทั้งหมด {orders.length} รายการ</span>
+        </div>
+        
+        {orders.length > 0 && (
+          <button
+            onClick={handleClearRequest}
+            disabled={clearing}
+            style={{ ...styles.btnClearAll, opacity: clearing ? 0.5 : 1 }}
+          >
+            {clearing ? "กำลังลบ..." : "ล้างประวัติทั้งหมด"}
+          </button>
+        )}
       </div>
 
-      <div style={styles.grid}>
-        {sortedOrders.map((order) => (
-          <div key={order.id} style={{...styles.orderCard, opacity: deletingId === order.id ? 0.5 : 1}}>
-            <div style={styles.cardHeader}>
-              <div>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                  <span style={{
-                    ...styles.channelBadge, 
-                    backgroundColor: getChannelStyle(order.channel).bg, 
-                    color: getChannelStyle(order.channel).color
-                  }}>
-                    {order.channel?.toUpperCase() || 'POS'}
-                  </span>
-                  {order.ref && <span style={styles.refBadge}>{order.ref}</span>}
-                </div>
-
-                {/* --- ส่วนแสดงผลข้อมูลสมาชิก --- */}
-                {order.member_phone && (
-                  <div style={styles.memberInfo}>
-                    <User size={14} color="#00B14F" />
-                    <span>สมาชิก: {order.member_phone}</span>
+      <div style={styles.list}>
+        {orders.length === 0 ? (
+          <div style={styles.empty}>ยังไม่มีประวัติการขาย</div>
+        ) : (
+          orders.map((order) => {
+            const style = getChannelStyle(order.channel);
+            const isDeleting = deletingId === order.id;
+            return (
+              <div key={order.id} style={{ ...styles.orderCard, opacity: isDeleting ? 0.4 : 1 }}>
+                <div style={styles.cardHeader}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <span style={{ ...styles.channelBadge, color: style.color, backgroundColor: style.bg }}>
+                        {order.channel?.toUpperCase()}
+                      </span>
+                      {order.refId && (
+                        <span style={styles.refBadge}>#{order.refId}</span>
+                      )}
+                    </div>
+                    <span style={styles.time}>
+                      {new Date(order.time).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.
+                    </span>
                   </div>
-                )}
-                
-                <div style={styles.time}>
-                  {new Date(order.time || order.created_at).toLocaleString('th-TH', {
-                    year: '2-digit', month: 'short', day: 'numeric',
-                    hour: '2-digit', minute: '2-digit'
-                  })}
+                  
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={styles.orderId}>ID: {order.id.toString().slice(-6)}</div>
+                    <button
+                      onClick={() => handleDelete(order.id)}
+                      disabled={isDeleting}
+                      style={{ ...styles.btnDelete, cursor: isDeleting ? "not-allowed" : "pointer" }}
+                      title="ลบรายการนี้"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <div style={styles.orderId}>ID: #{order.id.toString().slice(-6)}</div>
+
+                <div style={styles.itemList}>
+                  {order.items.map((item, idx) => (
+                    <div key={idx} style={styles.item}>
+                      <span>
+                        {item.name}
+                        {item.selectedModifier && (
+                          <small style={{ color: "#888" }}> ({item.selectedModifier.name})</small>
+                        )}
+                      </span>
+                      <span>x{item.qty}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={styles.cardFooter}>
+                  <div style={styles.paymentInfo}>
+                    <span>วิธีจ่าย: {order.payment === "cash" ? "💵 เงินสด" : "📱 โอน/แอป"}</span>
+                    <span style={{ color: order.isSettled ? "#4caf50" : "#ff9800", fontWeight: "bold" }}>
+                      {order.isSettled ? "● ตรวจสอบแล้ว" : "○ รอใส่ยอดจริง"}
+                    </span>
+                  </div>
+                  <div style={styles.priceInfo}>
+                    <div style={styles.totalLabel}>ยอดบิล: ฿{order.total.toLocaleString()}</div>
+                    <div style={styles.actualLabel}>รับจริง: ฿{(order.actualAmount || 0).toLocaleString()}</div>
+                  </div>
+                </div>
               </div>
-
-              <button 
-                onClick={() => handleDelete(order.id)}
-                disabled={deletingId === order.id}
-                style={styles.btnDelete}
-              >
-                <Trash2 size={16} color="#ff5252" />
-              </button>
-            </div>
-
-            <div style={styles.itemList}>
-              {order.items && (typeof order.items === 'string' ? JSON.parse(order.items) : order.items).map((item, idx) => (
-                <div key={idx} style={styles.itemRow}>
-                  <span>{item.name} x{item.qty}</span>
-                  <span>{(item.price * item.qty).toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={styles.cardFooter}>
-              <span style={styles.totalLabel}>ยอดรวม</span>
-              <span style={styles.totalValue}>฿{Number(order.total_amount || 0).toLocaleString()}</span>
-            </div>
-          </div>
-        ))}
+            );
+          })
+        )}
       </div>
-      
-      {orders.length === 0 && (
-        <div style={styles.emptyState}>ยังไม่มีประวัติการขาย</div>
-      )}
     </div>
   );
 }
 
 const styles = {
-  container: { padding: "20px", paddingBottom: "100px", color: "#fff", backgroundColor: "#121212", minHeight: "100vh" },
+  container: { padding: "20px", backgroundColor: "#1a1a1a", minHeight: "100vh", color: "#fff" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" },
-  title: { fontSize: "20px", fontWeight: "bold", margin: 0 },
-  btnClearAll: { padding: "8px 16px", backgroundColor: "transparent", border: "1px solid #ff5252", color: "#ff5252", borderRadius: "8px", cursor: "pointer", fontSize: "12px" },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "15px" },
-  orderCard: { backgroundColor: "#1e1e1e", borderRadius: "14px", padding: "16px", border: "1px solid #333", display: "flex", flexDirection: "column", gap: "12px" },
-  cardHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #333", paddingBottom: "12px" },
-  memberInfo: { 
-    display: "flex", 
-    alignItems: "center", 
-    gap: "6px", 
-    color: "#00B14F", 
-    fontSize: "14px", 
-    fontWeight: "bold",
-    marginBottom: "4px"
-  },
-  time: { fontSize: "12px", color: "#888" },
-  orderId: { fontSize: "10px", color: "#444" },
-  btnDelete: { background: "none", border: "1px solid #333", borderRadius: "8px", padding: "6px", cursor: "pointer" },
-  channelBadge: { padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold" },
-  refBadge: { backgroundColor: "#333", color: "#fff", padding: "3px 8px", borderRadius: "6px", fontSize: "11px" },
-  itemList: { flex: 1, marginY: "8px" },
-  itemRow: { display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#ccc", marginBottom: "4px" },
-  cardFooter: { borderTop: "1px solid #333", paddingTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  totalLabel: { fontSize: "14px", color: "#888" },
-  totalValue: { fontSize: "18px", fontWeight: "bold", color: "#fff" },
-  emptyState: { textAlign: "center", padding: "50px", color: "#555" }
+  countBadge: { backgroundColor: "#333", padding: "5px 12px", borderRadius: "20px", fontSize: "14px" },
+  btnClearAll: { backgroundColor: "transparent", color: "#ff4444", border: "1px solid #ff4444", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "bold" },
+  list: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "15px" },
+  orderCard: { backgroundColor: "#262626", borderRadius: "12px", padding: "15px", border: "1px solid #333", display: "flex", flexDirection: "column", gap: "12px", transition: "opacity 0.2s" },
+  cardHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #333", paddingBottom: "10px" },
+  btnDelete: { background: "none", border: "1px solid #333", borderRadius: "6px", padding: "5px", display: "flex", alignItems: "center", justifyContent: "center" },
+  channelBadge: { padding: "3px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", marginRight: "8px" },
+  refBadge: { backgroundColor: "#444", color: "#fff", padding: "3px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold" },
+  time: { fontSize: "13px", color: "#aaa" },
+  orderId: { fontSize: "11px", color: "#555" },
+  itemList: { flex: 1, fontSize: "14px", color: "#ddd" },
+  item: { display: "flex", justifyContent: "space-between", marginBottom: "4px" },
+  cardFooter: { borderTop: "1px solid #333", paddingTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" },
+  paymentInfo: { display: "flex", flexDirection: "column", fontSize: "12px", gap: "4px" },
+  priceInfo: { textAlign: "right" },
+  totalLabel: { fontSize: "14px", color: "#aaa" },
+  actualLabel: { fontSize: "18px", fontWeight: "bold", color: "#4caf50" },
+  empty: { gridColumn: "1/-1", textAlign: "center", padding: "50px", color: "#666" },
 };
