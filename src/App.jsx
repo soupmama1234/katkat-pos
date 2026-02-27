@@ -25,9 +25,9 @@ function App() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [modifierGroups, setModifierGroups] = useState([]);
-  const [memberPhone, setMemberPhone] = useState(""); // เบอร์สมาชิกที่เลือกตอนขาย
+  const [memberPhone, setMemberPhone] = useState(""); // เก็บเบอร์สมาชิกที่เลือกในปัจจุบัน
 
-  // โหลดข้อมูลทั้งหมดตอนเปิดแอป
+  // --- 1. โหลดข้อมูลตอนเริ่มต้น ---
   useEffect(() => {
     async function loadAll() {
       try {
@@ -41,12 +41,6 @@ function App() {
         const dbCats = new Set(cats.filter(c => c !== "All"));
         const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
         const merged = ["All", ...new Set([...dbCats, ...prodCats])];
-
-        for (const cat of prodCats) {
-          if (!dbCats.has(cat)) {
-            try { await db.addCategory(cat); } catch {}
-          }
-        }
 
         setCategories(merged);
         setProducts(prods);
@@ -67,18 +61,12 @@ function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // --- ACTIONS ---
+  // --- 2. ฟังก์ชันจัดการสินค้าและหมวดหมู่ ---
   const addCategory = useCallback(async (name) => {
     if (!name || categories.includes(name)) return;
     await db.addCategory(name);
     setCategories(prev => [...prev, name]);
   }, [categories]);
-
-  const deleteCategory = useCallback(async (catName) => {
-    if (!window.confirm(`ลบหมวดหมู่ "${catName}"?`)) return;
-    await db.deleteCategory(catName);
-    setCategories(prev => prev.filter(c => c !== catName));
-  }, []);
 
   const addProduct = useCallback(async (newProductData) => {
     const cat = newProductData.category || "ทั่วไป";
@@ -98,7 +86,7 @@ function App() {
     setProducts(prev => prev.filter(p => p.id !== id));
   }, []);
 
-  // --- POS LOGIC ---
+  // --- 3. ระบบตะกร้าสินค้า (Cart) ---
   const total = useMemo(() =>
     cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
     [cart]
@@ -138,13 +126,13 @@ function App() {
     ));
   }, []);
 
-  // --- CHECKOUT & MEMBER LOGIC ---
+  // --- 4. หัวใจสำคัญ: ระบบชำระเงินและสมาชิก (Checkout & Loyalty) ---
   const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
     
     try {
-      // 1. เตรียมข้อมูล Order (เพิ่ม member_phone เข้าไป)
+      // (A) บันทึกออเดอร์ลงตาราง orders พร้อม member_phone
       const orderPayload = {
         time: new Date().toISOString(),
         items: [...cart],
@@ -152,65 +140,62 @@ function App() {
         payment: isDelivery ? "transfer" : paymentMethod,
         channel: priceChannel,
         ref: refId,
-        member_phone: phone || null, // ผูกเบอร์สมาชิกที่นี่
+        member_phone: phone || null, // ผูกข้อมูลสมาชิกกับออเดอร์
         isSettled: !isDelivery,
         actualAmount: isDelivery ? 0 : total,
       };
 
-      const saved = await db.addOrder(orderPayload);
-      setOrders(prev => [saved, ...prev]);
+      const savedOrder = await db.addOrder(orderPayload);
+      setOrders(prev => [savedOrder, ...prev]);
 
-      // 2. อัปเดตแต้มสมาชิก (Update Points & Total Spent)
+      // (B) อัปเดตแต้มสมาชิกในตาราง members (ถ้ามีเบอร์โทร)
       if (phone) {
         try {
-          const { data: currentMember } = await sb
-            .from('members')
-            .select('points, total_spent')
-            .eq('phone', phone)
-            .single();
-
-          if (currentMember) {
-            const pointsEarned = Math.floor(total / 10); // 10 บาท = 1 แต้ม
+          // ดึงแต้มปัจจุบันมาคำนวณใหม่หน้าบ้าน (เลี่ยง RPC Error)
+          const { data: member } = await sb.from('members').select('points, total_spent').eq('phone', phone).single();
+          
+          if (member) {
+            const pointsEarned = Math.floor(total / 10); // ทุก 10 บาทได้ 1 แต้ม
             await sb.from('members').update({
-              points: (currentMember.points || 0) + pointsEarned,
-              total_spent: (currentMember.total_spent || 0) + total
+              points: (member.points || 0) + pointsEarned,
+              total_spent: (member.total_spent || 0) + total
             }).eq('phone', phone);
-            console.log(`✅ อัปเดตสมาชิก ${phone}: +${pointsEarned} แต้ม`);
+            console.log(`✅ สมาชิก ${phone} ได้รับ +${pointsEarned} แต้ม`);
           }
         } catch (e) {
-          console.warn("⚠️ ไม่สามารถอัปเดตแต้มสมาชิกได้:", e);
+          console.warn("⚠️ อัปเดตสมาชิกไม่สำเร็จ:", e.message);
         }
       }
 
+      // (C) ล้างค่าหลังจบการขาย
       setCart([]);
-      setMemberPhone(""); // ล้างเบอร์สมาชิกออกหลังจบการขาย
-      alert(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} แล้ว` : "ชำระเงินเรียบร้อย");
+      setMemberPhone(""); 
+      alert("✅ บันทึกออเดอร์เรียบร้อย");
       return true;
     } catch (err) {
       console.error("❌ Checkout Error:", err);
-      alert("ไม่สามารถบันทึกออเดอร์ได้ กรุณาตรวจสอบการเชื่อมต่อ");
+      alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message);
       return false;
     }
   };
 
+  // --- 5. จัดการประวัติการขาย ---
   const handleUpdateActual = async (orderId, value) => {
     const amount = parseFloat(value) || 0;
     await db.updateOrder(orderId, { actualAmount: amount, isSettled: true });
-    setOrders(prev => prev.map(o =>
-      o.id === orderId ? { ...o, actualAmount: amount, isSettled: true } : o
-    ));
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, actualAmount: amount, isSettled: true } : o));
   };
 
   const handleCloseDay = async () => {
     const totalSales = orders.reduce((sum, o) => sum + (o.actualAmount || 0), 0);
-    if (window.confirm(`ยอดขายรวม: ฿${totalSales.toLocaleString()}\nยืนยันการปิดยอดวัน?`)) {
+    if (window.confirm(`ยอดขายรวมวันนี้: ฿${totalSales.toLocaleString()}\nต้องการปิดยอดวันและล้างหน้าจอใช่หรือไม่?`)) {
       await db.closeDayOrders();
       setOrders([]);
       alert("✅ ปิดยอดวันเรียบร้อย");
     }
   };
 
-  // --- RENDER ---
+  // --- UI Components Props ---
   const CHANNELS = [
     { key: "pos", label: "POS", color: "#4a4a4a" },
     { key: "grab", label: "Grab", color: "#00B14F" },
@@ -218,10 +203,10 @@ function App() {
     { key: "shopee", label: "Shopee", color: "#EE4D2D" },
   ];
 
-  if (loading) return <div style={{ color: "#fff", padding: 20 }}>กำลังโหลด...</div>;
+  if (loading) return <div style={{ background: "#1a1a1a", height: "100vh", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>กำลังโหลด KATKAT POS...</div>;
 
   return (
-    <div style={{ height: "100vh", width: "100vw", backgroundColor: "#1a1a1a", color: "#fff", overflow: "hidden" }}>
+    <div style={{ height: "100vh", width: "100vw", backgroundColor: "#1a1a1a", color: "#fff", overflow: "hidden", fontFamily: "sans-serif" }}>
       {isMobile ? (
         <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
           <main style={{ flex: 1, overflowY: "auto", paddingBottom: "80px" }}>
@@ -247,17 +232,17 @@ function App() {
             )}
           </main>
           <nav style={styles.bottomNav}>
-            <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}>🛍️ ขาย</button>
-            <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}>📊 สรุป</button>
-            <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}>📜 บิล</button>
-            <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}>👥 สมาชิก</button>
-            <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}>🍴 เมนู</button>
+            <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}>🛍️ <span>ขาย</span></button>
+            <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}>📊 <span>สรุป</span></button>
+            <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}>📜 <span>บิล</span></button>
+            <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}>👥 <span>สมาชิก</span></button>
+            <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}>🍴 <span>เมนู</span></button>
           </nav>
         </div>
       ) : (
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <header style={styles.desktopHeader}>
-            <h2 style={{ margin: 0 }}>KATKAT POS</h2>
+            <h2 style={{ margin: 0, color: "#00B14F" }}>KATKAT POS</h2>
             <nav style={{ display: "flex", gap: 10 }}>
               {["pos", "menu", "dashboard", "orders", "members"].map((v) => (
                 <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
@@ -296,11 +281,11 @@ function App() {
 }
 
 const styles = {
-  bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333" },
-  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", cursor: "pointer" }),
-  desktopHeader: { padding: "15px 25px", backgroundColor: "#222", display: "flex", alignItems: "center", justifyContent: "space-between" },
-  desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", cursor: "pointer", fontWeight: "bold" }),
-  desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", display: "flex", gap: 10 },
+  bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
+  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#00B14F" : "#666", fontSize: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", cursor: "pointer", fontWeight: isActive ? "bold" : "normal" }),
+  desktopHeader: { padding: "15px 25px", backgroundColor: "#222", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #333" },
+  desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#00B14F" : "transparent", color: "#fff", border: "1px solid #444", cursor: "pointer", fontWeight: "bold" }),
+  desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", display: "flex", gap: 10, borderBottom: "1px solid #333" },
   channelBtn: (isActive, color) => ({ padding: "6px 18px", borderRadius: "20px", border: "none", background: isActive ? color : "#262626", color: "#fff", cursor: "pointer", fontSize: "12px" }),
 };
 
