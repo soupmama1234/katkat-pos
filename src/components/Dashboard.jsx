@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 
-export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActual }) {
+export default function Dashboard({ orders = [], setOrders, onCloseDay, onUpdateActual }) {
 
   const getChannelColor = (ch) => {
     const colors = { pos: "#ffffff", grab: "#00B14F", lineman: "#00A84F", shopee: "#EE4D2D" };
