@@ -7,6 +7,7 @@ import Dashboard from "./components/Dashboard";
 import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
+import Members from "./components/Members";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
@@ -321,11 +322,17 @@ function App() {
                 <ModifierManager {...modifierManagerProps} />
               </div>
             )}
+            {view === "members" && (
+              <div style={{ height: "calc(100vh - 150px)" }}>
+                <Members orders={orders} />
+              </div>
+            )}
           </main>
           <nav style={styles.bottomNav}>
             <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
             <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>
             <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>
+            <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>
             <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>
           </nav>
         </div>
@@ -334,9 +341,9 @@ function App() {
           <header style={styles.desktopHeader}>
             <h2 style={{ margin: 0 }}>KATKAT POS</h2>
             <nav style={{ display: "flex", gap: 10 }}>
-              {["pos", "menu", "dashboard", "orders"].map((v) => (
+              {["pos", "menu", "dashboard", "orders", "members"].map((v) => (
                 <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
-                  {v === "pos" ? "ขายหน้าร้าน" : v === "menu" ? "จัดการเมนู" : v.toUpperCase()}
+                  {v === "pos" ? "ขายหน้าร้าน" : v === "menu" ? "จัดการเมนู" : v === "members" ? "👥 สมาชิก" : v.toUpperCase()}
                 </button>
               ))}
             </nav>
@@ -383,6 +390,11 @@ function App() {
                 <Orders orders={orders}
                   onDeleteOrder={async (id) => { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); }}
                   onClearAll={async () => { await db.clearOrders(); setOrders([]); }} />
+              </div>
+            )}
+            {view === "members" && (
+              <div style={{ flex: 1, overflow: "hidden" }}>
+                <Members orders={orders} />
               </div>
             )}
           </main>
