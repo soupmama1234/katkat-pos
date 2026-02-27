@@ -24,7 +24,7 @@ function App() {
   const [modifierGroups, setModifierGroups] = useState([]);
   const [memberPhone, setMemberPhone] = useState(""); 
 
-  // --- 1. กู้คืนระบบโหลดข้อมูลทั้งหมด ---
+  // --- Load Data ---
   useEffect(() => {
     async function loadAll() {
       try {
@@ -34,12 +34,12 @@ function App() {
           db.fetchModifierGroups(),
           db.fetchOrders(),
         ]);
-        const dbCats = new Set(cats.filter(c => c !== "All"));
-        const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
-        setCategories(["All", ...new Set([...dbCats, ...prodCats])]);
-        setProducts(prods);
-        setModifierGroups(mods);
+        setProducts(prods || []);
+        setModifierGroups(mods || []);
         setOrders(ords || []);
+        const dbCats = new Set(cats.filter(c => c !== "All"));
+        const prodCats = new Set((prods || []).map(p => p.category).filter(Boolean));
+        setCategories(["All", ...new Set([...dbCats, ...prodCats])]);
       } catch (err) { console.error("Load failed:", err); }
       finally { setLoading(false); }
     }
@@ -52,60 +52,7 @@ function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // --- 2. ฟังก์ชันจัดการสินค้า (ลบ/แก้ไข) ---
-  const updateProduct = async (id, f) => {
-    await db.updateProduct(id, f);
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...f } : p));
-  };
-
-  const deleteProduct = async (id) => {
-    if (!window.confirm("ยืนยันลบเมนูนี้ออกจากฐานข้อมูล?")) return;
-    try {
-      await db.deleteProduct(id);
-      setProducts(prev => prev.filter(p => p.id !== id));
-    } catch (err) { alert("ลบไม่สำเร็จ"); }
-  };
-
-  const addProduct = async (p) => {
-    const saved = await db.addProduct({ ...p, category: p.category || "ทั่วไป" });
-    setProducts(prev => [...prev, saved]);
-  };
-  // --- 3. ฟังก์ชันหน้าออเดอร์ (แก้ปัญหาหน้า Order พัง) ---
-  const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm("ยืนยันลบออเดอร์นี้?")) return;
-    try {
-      await db.deleteOrder(orderId);
-      setOrders(prev => prev.filter(o => o.id !== orderId));
-    } catch (err) { alert("ลบออเดอร์ไม่สำเร็จ"); }
-  };
-
-  const handleClearAllOrders = async () => {
-    if (!window.confirm("⚠️ ยืนยันล้างประวัติออเดอร์ทั้งหมดในหน้านี้?")) return;
-    try {
-      await db.clearOrders();
-      setOrders([]);
-    } catch (err) { alert("ล้างข้อมูลไม่สำเร็จ"); }
-  };
-
-  // --- 4. ฟังก์ชัน Dashboard ---
-  const handleUpdateActual = async (id, val) => {
-    const amt = parseFloat(val) || 0;
-    try {
-      await db.updateOrder(id, { actualAmount: amt, isSettled: true });
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, actualAmount: amt, isSettled: true } : o));
-    } catch (err) { console.error(err); }
-  };
-
-  const handleCloseDay = async () => {
-    if (!window.confirm("สรุปยอดและปิดวัน? ออเดอร์ปัจจุบันจะถูกย้ายไปประวัติย้อนหลัง")) return;
-    try {
-      await db.closeDayOrders();
-      setOrders([]);
-      alert("ปิดยอดเรียบร้อย");
-    } catch (err) { alert("ปิดยอดไม่สำเร็จ"); }
-  };
-
-  // --- 5. ระบบ Cart & Checkout ---
+  // --- Functions ---
   const total = useMemo(() => cart.reduce((s, i) => s + (i.price * i.qty), 0), [cart]);
 
   const addToCart = useCallback((product, channel = priceChannel) => {
@@ -113,9 +60,7 @@ function App() {
       const modId = product.selectedModifier?.id || null;
       const idx = prev.findIndex(i => i.id === product.id && i.channel === channel && (i.selectedModifier?.id || null) === modId);
       if (idx > -1) {
-        const newCart = [...prev];
-        newCart[idx].qty += 1;
-        return newCart;
+        const n = [...prev]; n[idx].qty += 1; return n;
       }
       const base = Number(product[`${channel}Price`] ?? product.price) || 0;
       const modPrice = Number(product.selectedModifier?.price) || 0;
@@ -123,37 +68,39 @@ function App() {
     });
   }, [priceChannel]);
 
-  const increaseQty = (id, ch, mid) => setCart(p => p.map(i => (i.id===id && i.channel===ch && (i.selectedModifier?.id||null)===mid) ? {...i, qty: i.qty+1} : i));
-  const decreaseQty = (id, ch, mid) => setCart(p => p.map(i => (i.id===id && i.channel===ch && (i.selectedModifier?.id||null)===mid) ? {...i, qty: i.qty-1} : i).filter(i => i.qty>0));
-
   const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
     try {
+      // ปรับ Payload ให้ตรงกับตาราง Supabase (ตามรูปที่คุณส่งมา)
       const payload = {
         time: new Date().toISOString(),
-        items: [...cart],
+        items: cart, // ส่งเป็น array ของ object
         total_amount: total,
-        payment: isDelivery ? "transfer" : paymentMethod,
+        payment_method: isDelivery ? "transfer" : paymentMethod,
         channel: priceChannel,
-        ref: refId,
+        ref_id: refId, // *** เลข GF-111 บันทึกลงที่นี่ ***
         member_phone: phone || null,
-        isSettled: !isDelivery,
-        actualAmount: isDelivery ? 0 : total,
+        is_settled: !isDelivery, // ตามชื่อฟิลด์ในรูป
+        actual_amount: isDelivery ? 0 : total, // ตามชื่อฟิลด์ในรูป
+        is_history: false
       };
+
       const saved = await db.addOrder(payload);
       setOrders(prev => [saved, ...prev]);
+
       if (phone) {
         const { data: m } = await sb.from('members').select('points, total_spent').eq('phone', phone).single();
-        if (m) await sb.from('members').update({ points: (m.points || 0) + Math.floor(total / 10), total_spent: (m.total_spent || 0) + total }).eq('phone', phone);
+        if (m) {
+          await sb.from('members').update({ 
+            points: (m.points || 0) + Math.floor(total / 10), 
+            total_spent: (m.total_spent || 0) + total 
+          }).eq('phone', phone);
+        }
       }
-      setCart([]); setMemberPhone("");
-      alert("บันทึกสำเร็จ");
-      return true;
-    } catch (err) { return false; }
+      setCart([]); setMemberPhone(""); alert("บันทึกสำเร็จ!"); return true;
+    } catch (err) { alert("Error: " + err.message); return false; }
   };
-  if (loading) return <div style={{ height: "100vh", backgroundColor: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>กำลังเตรียมระบบ...</div>;
-
   return (
     <div style={styles.appWrapper}>
       {!isMobile ? (
@@ -162,61 +109,52 @@ function App() {
             <h2 style={{ margin: 0, color: "#00B14F" }}>KATKAT POS</h2>
             <nav style={{ display: "flex", gap: 10 }}>
               {["pos", "menu", "dashboard", "orders", "members"].map(v => (
-                <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
-                  {v === "pos" ? "ขายหน้าร้าน" : v === "menu" ? "จัดการเมนู" : v === "members" ? "👥 สมาชิก" : v.toUpperCase()}
-                </button>
+                <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>{v.toUpperCase()}</button>
               ))}
             </nav>
           </header>
-          
-          <div style={styles.desktopChannelBar}>
-            {["pos", "grab", "lineman", "shopee"].map(ch => (
-              <button key={ch} onClick={() => setPriceChannel(ch)} style={styles.channelBtn(priceChannel === ch, "#444")}>
-                {ch.toUpperCase()}
-              </button>
-            ))}
-          </div>
 
           <main style={styles.desktopMain}>
             {view === "pos" && (
               <>
                 <section style={styles.desktopProducts}>
-                  <Products 
-                    products={products} addToCart={addToCart} categories={categories}
-                    selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}
-                    priceChannel={priceChannel} modifierGroups={modifierGroups}
-                  />
+                  <Products products={products} addToCart={addToCart} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} priceChannel={priceChannel} modifierGroups={modifierGroups} />
                 </section>
                 <aside style={styles.desktopCart}>
-                  <Cart 
-                    cart={cart} increaseQty={increaseQty} decreaseQty={decreaseQty} 
-                    total={total} onCheckout={handleCheckout} onClearCart={() => setCart([])} 
-                    priceChannel={priceChannel} memberPhone={memberPhone} setMemberPhone={setMemberPhone} 
+                  <Cart cart={cart} total={total} onCheckout={handleCheckout} onClearCart={() => setCart([])} priceChannel={priceChannel} memberPhone={memberPhone} setMemberPhone={setMemberPhone} 
+                    increaseQty={(id, ch, mid) => setCart(p => p.map(i => (i.id===id && i.channel===ch && (i.selectedModifier?.id||null)===mid) ? {...i, qty: i.qty+1} : i))}
+                    decreaseQty={(id, ch, mid) => setCart(p => p.map(i => (i.id===id && i.channel===ch && (i.selectedModifier?.id||null)===mid) ? {...i, qty: i.qty-1} : i).filter(i => i.qty>0))}
                   />
                 </aside>
               </>
             )}
+
             {view === "menu" && (
               <div style={{ flex: 1, overflowY: "auto", padding: "30px" }}>
                 <MenuManager 
-                  products={products} setProducts={setProducts} 
-                  updateProduct={updateProduct} deleteProduct={deleteProduct} 
-                  addProduct={addProduct} categories={categories} 
+                  products={products} 
+                  setProducts={setProducts} 
+                  modifierGroups={modifierGroups} // *** ส่งกลุ่มตัวเลือกไปให้หน้าจัดการเมนู ***
+                  updateProduct={(id, f) => db.updateProduct(id, f).then(() => setProducts(p => p.map(x => x.id === id ? {...x, ...f} : x)))} 
+                  deleteProduct={(id) => db.deleteProduct(id).then(() => setProducts(p => p.filter(x => x.id !== id)))} 
+                  addProduct={(p) => db.addProduct(p).then(s => setProducts(x => [...x, s]))} 
+                  categories={categories} 
                 />
                 <ModifierManager modifierGroups={modifierGroups} setModifierGroups={setModifierGroups} />
               </div>
             )}
-            {view === "dashboard" && (
-              <div style={{ flex: 1, overflowY: "auto" }}>
-                <Dashboard orders={orders} onUpdateActual={handleUpdateActual} onCloseDay={handleCloseDay} />
-              </div>
-            )}
+
             {view === "orders" && (
               <div style={{ flex: 1, overflowY: "auto" }}>
-                <Orders 
-                  orders={orders} 
-                  onDeleteOrder={handleDeleteOrder} 
-                  onClearAll={handleClearAllOrders} 
+                <Orders orders={orders} onDeleteOrder={(id) => db.deleteOrder(id).then(() => setOrders(o => o.filter(x => x.id !== id)))} onClearAll={() => db.clearOrders().then(() => setOrders([]))} />
+              </div>
+            )}
+            
+            {view === "dashboard" && (
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                <Dashboard orders={orders} 
+                  onUpdateActual={(id, v) => db.updateOrder(id, { actual_amount: parseFloat(v), is_settled: true }).then(() => setOrders(o => o.map(x => x.id === id ? {...x, actual_amount: parseFloat(v), is_settled: true} : x)))} 
+                  onCloseDay={() => db.closeDayOrders().then(() => setOrders([]))} 
                 />
               </div>
             )}
@@ -225,32 +163,10 @@ function App() {
         </div>
       ) : (
         <div style={styles.mobileContainer}>
-          <main style={styles.mobileMain}>
-            {view === "pos" && (
-              <MobilePOS 
-                products={products} addToCart={addToCart} increaseQty={increaseQty} decreaseQty={decreaseQty}
-                categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}
-                cart={cart} total={total} onCheckout={handleCheckout} priceChannel={priceChannel}
-                setPriceChannel={setPriceChannel} onClearCart={() => setCart([])}
-                memberPhone={memberPhone} setMemberPhone={setMemberPhone} modifierGroups={modifierGroups}
-              />
-            )}
-            {view === "dashboard" && <Dashboard orders={orders} onUpdateActual={handleUpdateActual} onCloseDay={handleCloseDay} />}
-            {view === "orders" && <Orders orders={orders} onDeleteOrder={handleDeleteOrder} onClearAll={handleClearAllOrders} />}
-            {view === "menu" && (
-              <div style={{ padding: "10px" }}>
-                <MenuManager products={products} updateProduct={updateProduct} deleteProduct={deleteProduct} addProduct={addProduct} categories={categories} />
-                <ModifierManager modifierGroups={modifierGroups} setModifierGroups={setModifierGroups} />
-              </div>
-            )}
-          </main>
-          <nav style={styles.bottomNav}>
-            {["pos", "dashboard", "orders", "members", "menu"].map(v => (
-              <button key={v} onClick={() => setView(v)} style={styles.navBtn(view === v)}>
-                {v === "pos" ? "🛍️" : v === "dashboard" ? "📊" : v === "orders" ? "📜" : v === "members" ? "👥" : "🍴"}
-              </button>
-            ))}
-          </nav>
+           <main style={styles.mobileMain}>
+             {view === "pos" && <MobilePOS products={products} addToCart={addToCart} categories={categories} cart={cart} total={total} onCheckout={handleCheckout} priceChannel={priceChannel} setPriceChannel={setPriceChannel} onClearCart={() => setCart([])} memberPhone={memberPhone} setMemberPhone={setMemberPhone} modifierGroups={modifierGroups} />}
+             {view === "orders" && <Orders orders={orders} onDeleteOrder={(id) => db.deleteOrder(id).then(() => setOrders(o => o.filter(x => x.id !== id)))} />}
+           </main>
         </div>
       )}
     </div>
@@ -260,17 +176,13 @@ function App() {
 const styles = {
   appWrapper: { height: "100vh", width: "100vw", backgroundColor: "#1a1a1a", color: "#fff", overflow: "hidden" },
   desktopContainer: { height: "100vh", display: "flex", flexDirection: "column" },
-  desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 },
+  desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
   desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
-  desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10, flexShrink: 0 },
-  channelBtn: (isActive, color) => ({ padding: "6px 18px", borderRadius: "20px", border: "none", background: isActive ? "#00B14F" : "#262626", color: "#fff", cursor: "pointer" }),
   desktopMain: { flex: 1, display: "flex", overflow: "hidden" },
   desktopProducts: { flex: 1, overflowY: "auto", padding: "15px", borderRight: "1px solid #333" },
-  desktopCart: { width: "400px", display: "flex", flexDirection: "column", height: "100%", flexShrink: 0 },
+  desktopCart: { width: "400px", height: "100%" },
   mobileContainer: { height: "100vh", display: "flex", flexDirection: "column" },
   mobileMain: { flex: 1, overflowY: "auto", paddingBottom: "80px" },
-  bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333" },
-  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#00B14F" : "#666", display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }),
 };
 
 export default App;
