@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Trash2 } from "lucide-react";
+import { supabase as sb } from "../supabaseclient";
 
 export default function MobilePOS({ 
   products = [], 
@@ -39,36 +40,23 @@ export default function MobilePOS({
     if (phone.length < 9) return;
     setMemberStatus("loading");
     try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
       const { data } = await sb.from("members").select("*").eq("phone", phone).single();
       if (data) {
-        setMemberInfo(data);
-        setMemberStatus("found");
-        setMemberPhone(phone);
+        setMemberInfo(data); setMemberStatus("found"); setMemberPhone(phone);
       } else {
-        setMemberInfo(null);
-        setMemberStatus("notfound");
-        setMemberPhone("");
+        setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone("");
       }
     } catch {
-      setMemberInfo(null);
-      setMemberStatus("notfound");
-      setMemberPhone("");
+      setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone("");
     }
   };
 
   const registerMember = async () => {
     if (!memberInput || !regNickname) return;
     try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
       const { data } = await sb.from("members").insert({ phone: memberInput, nickname: regNickname }).select().single();
-      setMemberInfo(data);
-      setMemberStatus("found");
-      setMemberPhone(memberInput);
-      setShowRegister(false);
-      setRegNickname("");
+      setMemberInfo(data); setMemberStatus("found"); setMemberPhone(memberInput);
+      setShowRegister(false); setRegNickname("");
     } catch (e) { alert("สมัครไม่สำเร็จ: " + e.message); }
   };
 

@@ -8,6 +8,7 @@ import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
 import Members from "./components/Members";
+import { supabase as sb } from "./supabaseclient";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
@@ -203,16 +204,9 @@ function App() {
       // อัพเดทแต้มและยอดใช้จ่ายของสมาชิก
       if (phone) {
         try {
-          const { createClient } = await import("@supabase/supabase-js");
-          const sb = createClient(
-            import.meta.env.VITE_SUPABASE_URL,
-            import.meta.env.VITE_SUPABASE_ANON_KEY
-          );
           const pointsEarned = Math.floor(total / 10);
           await sb.rpc("increment_member_points", {
-            p_phone: phone,
-            p_points: pointsEarned,
-            p_spent: total,
+            p_phone: phone, p_points: pointsEarned, p_spent: total,
           });
         } catch (e) { console.warn("member update failed", e); }
       }

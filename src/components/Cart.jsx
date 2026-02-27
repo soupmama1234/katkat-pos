@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
+import { supabase as sb } from "../supabaseclient";
 
 export default function Cart({ cart = [], decreaseQty, increaseQty, addToCart, total = 0, onCheckout, onClearCart, priceChannel = "pos", memberPhone = "", setMemberPhone }) {
   const [showPayment, setShowPayment] = useState(false);
@@ -29,8 +30,6 @@ export default function Cart({ cart = [], decreaseQty, increaseQty, addToCart, t
     if (phone.length < 9) return;
     setMemberStatus("loading");
     try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
       const { data } = await sb.from("members").select("*").eq("phone", phone).single();
       if (data) { setMemberInfo(data); setMemberStatus("found"); setMemberPhone(phone); }
       else { setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone(""); }
@@ -40,8 +39,6 @@ export default function Cart({ cart = [], decreaseQty, increaseQty, addToCart, t
   const registerMember = async () => {
     if (!memberInput || !regNickname) return;
     try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
       const { data } = await sb.from("members").insert({ phone: memberInput, nickname: regNickname }).select().single();
       setMemberInfo(data); setMemberStatus("found"); setMemberPhone(memberInput);
       setShowRegister(false); setRegNickname("");
