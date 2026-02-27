@@ -122,7 +122,7 @@ export default function MobilePOS({
         ].map((ch) => (
           <button
             key={ch.key}
-            onClick={() => setPriceChannel(ch.key)}
+            onClick={() => { setPriceChannel(ch.key); setRefValue(""); }}
             style={{
               ...styles.channelBtn,
               background: priceChannel === ch.key ? ch.color : "#262626",
@@ -134,6 +134,26 @@ export default function MobilePOS({
           </button>
         ))}
       </div>
+
+      {/* 2.5 ช่องเลข ref — โชว์ทันทีเมื่อเลือก Delivery channel */}
+      {["grab", "lineman", "shopee"].includes(priceChannel) && (
+        <div style={{ padding: "8px 12px", backgroundColor: "#111", borderBottom: "1px solid #222" }}>
+          <div style={styles.inputGroup}>
+            {priceChannel === "grab" && (
+              <span style={styles.prefixLabel}>GF-</span>
+            )}
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder={priceChannel === "grab" ? "ระบุตัวเลข" : "เลขที่อ้างอิง"}
+              value={refValue}
+              onChange={(e) => setRefValue(e.target.value)}
+              style={{ ...styles.innerInput, fontSize: "16px", padding: "10px 12px" }}
+              autoFocus
+            />
+          </div>
+        </div>
+      )}
 
       {/* 3. รายการสินค้า */}
       <div style={styles.productGrid}>
@@ -170,6 +190,11 @@ export default function MobilePOS({
             <div>
               <h3 style={{ margin: 0 }}>ตะกร้าสินค้า</h3>
               <span style={{ fontSize: "12px", color: "#888" }}>ช่องทาง: {priceChannel.toUpperCase()}</span>
+              {["grab","lineman","shopee"].includes(priceChannel) && refValue && (
+                <span style={{ fontSize: "12px", color: "#4caf50", marginLeft: 8 }}>
+                  · {priceChannel === "grab" ? `GF-${refValue}` : refValue}
+                </span>
+              )}
             </div>
             <button onClick={() => setShowCart(false)} style={styles.closeBtn}>✕</button>
           </div>
@@ -219,21 +244,6 @@ export default function MobilePOS({
           </div>
 
           <div style={styles.cartFooter}>
-            {["grab", "lineman", "shopee"].includes(priceChannel) && (
-              <div style={{ marginBottom: "15px" }}>
-                <div style={styles.inputGroup}>
-                  {priceChannel === "grab" && <span style={styles.prefixLabel}>GF-</span>}
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    placeholder={priceChannel === "grab" ? "ระบุตัวเลข" : "เลขที่อ้างอิง"}
-                    value={refValue}
-                    onChange={(e) => setRefValue(e.target.value)}
-                    style={styles.innerInput}
-                  />
-                </div>
-              </div>
-            )}
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <span style={{ fontSize: "18px", fontWeight: "bold" }}>รวมทั้งหมด</span>
