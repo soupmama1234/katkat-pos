@@ -1,36 +1,14 @@
 import React, { useState } from "react";
 
-/* ===============================
-   Modifier Group Item
-================================ */
-const ModifierGroupItem = ({
-  group,
-  addOptionToGroup,
-  deleteModifierGroup,
-  deleteOption,
-}) => {
+// ย้ายออกมานอก component เพื่อป้องกัน re-render/focus bug
+const ModifierGroupItem = ({ group, addOptionToGroup, deleteModifierGroup, deleteOption }) => {
   const [optName, setOptName] = useState("");
   const [optPrice, setOptPrice] = useState("");
   const [collapsed, setCollapsed] = useState(false);
 
   const handleAddOption = () => {
-    const name = optName.trim();
-    const price = Math.max(0, Number(optPrice) || 0);
-
-    if (!name) return;
-
-    // กันชื่อซ้ำ
-    const exists = group.options?.some(
-      (o) => o.name.toLowerCase() === name.toLowerCase()
-    );
-
-    if (exists) {
-      alert("มีตัวเลือกนี้แล้ว");
-      return;
-    }
-
-    addOptionToGroup(group.id, name, price);
-
+    if (!optName.trim()) return;
+    addOptionToGroup(group.id, optName.trim(), Number(optPrice) || 0);
     setOptName("");
     setOptPrice("");
   };
@@ -38,30 +16,22 @@ const ModifierGroupItem = ({
   return (
     <div style={s.groupCard}>
       {/* Header */}
-      <div style={s.groupHeader}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: collapsed ? 0 : 14 }}>
         <button
           onClick={() => setCollapsed(!collapsed)}
-          style={s.groupToggleBtn}
+          style={{ background: "none", border: "none", color: "#fff", fontSize: "15px", fontWeight: "bold", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 8 }}
         >
-          <span style={s.arrow}>{collapsed ? "▶" : "▼"}</span>
+          <span style={{ fontSize: "12px", color: "#666" }}>{collapsed ? "▶" : "▼"}</span>
           📦 {group.name}
-          <span style={s.count}>
-            ({group.options?.length || 0})
-          </span>
+          <span style={{ fontSize: "12px", color: "#555", fontWeight: "normal" }}>({group.options?.length || 0})</span>
         </button>
-
-        <button
-          onClick={() => deleteModifierGroup(group.id)}
-          style={s.btnDeleteGroup}
-        >
-          ลบกลุ่ม
-        </button>
+        <button onClick={() => deleteModifierGroup(group.id)} style={s.btnDel}>ลบกลุ่ม</button>
       </div>
 
       {!collapsed && (
         <>
-          {/* Add Option */}
-          <div style={s.addOptionRow}>
+          {/* Add option inputs */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "8px", marginBottom: "10px" }}>
             <input
               placeholder="ชื่อตัวเลือก เช่น หวานน้อย"
               value={optName}
@@ -69,41 +39,30 @@ const ModifierGroupItem = ({
               onKeyDown={(e) => e.key === "Enter" && handleAddOption()}
               style={s.input}
             />
-
             <input
               placeholder="+฿"
               type="number"
               inputMode="numeric"
-              min="0"
               value={optPrice}
               onChange={(e) => setOptPrice(e.target.value)}
-              style={s.priceInput}
+              style={{ ...s.input, width: "70px", textAlign: "center" }}
             />
           </div>
+          <button onClick={handleAddOption} style={s.btnAdd}>+ เพิ่มตัวเลือก</button>
 
-          <button onClick={handleAddOption} style={s.btnAddOption}>
-            + เพิ่มตัวเลือก
-          </button>
-
-          {/* Option List */}
-          {group.options?.length > 0 ? (
-            <div style={s.optionList}>
+          {/* Options list */}
+          {group.options?.length > 0 && (
+            <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
               {group.options.map((option) => (
                 <div key={option.id} style={s.optionRow}>
-                  <span style={s.optionName}>
-                    {option.name}
-                  </span>
-
-                  <div style={s.optionRight}>
-                    <span style={s.optionPrice}>
-                      +{Number(option.price).toLocaleString()} ฿
+                  <span style={{ color: "#eee", fontSize: "14px" }}>{option.name}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginLeft: "auto" }}>
+                    <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: "13px" }}>
+                      +{option.price}฿
                     </span>
-
                     <button
-                      onClick={() =>
-                        deleteOption(group.id, option.id)
-                      }
-                      style={s.btnDeleteOption}
+                      onClick={() => deleteOption(group.id, option.id)}
+                      style={s.btnX}
                     >
                       ✕
                     </button>
@@ -111,8 +70,10 @@ const ModifierGroupItem = ({
                 </div>
               ))}
             </div>
-          ) : (
-            <div style={s.emptyText}>
+          )}
+
+          {group.options?.length === 0 && (
+            <div style={{ color: "#444", fontSize: "12px", marginTop: "10px", textAlign: "center", padding: "10px 0" }}>
               ยังไม่มีตัวเลือก
             </div>
           )}
@@ -122,9 +83,6 @@ const ModifierGroupItem = ({
   );
 };
 
-/* ===============================
-   Main Component
-================================ */
 export default function ModifierManager({
   modifierGroups = [],
   addModifierGroup,
@@ -135,35 +93,21 @@ export default function ModifierManager({
   const [newGroupName, setNewGroupName] = useState("");
 
   const handleCreateGroup = () => {
-    const name = newGroupName.trim();
-    if (!name) return;
-
-    const exists = modifierGroups.some(
-      (g) => g.name.toLowerCase() === name.toLowerCase()
-    );
-
-    if (exists) {
-      alert("มีกลุ่มนี้แล้ว");
-      return;
-    }
-
-    addModifierGroup(name);
+    if (!newGroupName.trim()) return;
+    addModifierGroup(newGroupName.trim());
     setNewGroupName("");
   };
 
   return (
-    <div style={s.container}>
-      <h2 style={s.title}>
+    <div style={{ padding: "12px", color: "#fff", boxSizing: "border-box" }}>
+      <h2 style={{ fontSize: "18px", margin: "0 0 16px 0", paddingBottom: "10px", borderBottom: "1px solid #333" }}>
         จัดการเมนูเสริม (Modifiers)
       </h2>
 
-      {/* Create Group */}
+      {/* สร้างกลุ่มใหม่ */}
       <div style={s.addSection}>
-        <div style={s.label}>
-          สร้างกลุ่มเมนูเสริมใหม่
-        </div>
-
-        <div style={s.createRow}>
+        <div style={{ fontSize: "13px", color: "#888", marginBottom: "10px" }}>สร้างกลุ่มเมนูเสริมใหม่</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "8px" }}>
           <input
             placeholder="เช่น ระดับความหวาน, ท็อปปิ้ง..."
             value={newGroupName}
@@ -171,23 +115,17 @@ export default function ModifierManager({
             onKeyDown={(e) => e.key === "Enter" && handleCreateGroup()}
             style={s.input}
           />
-
-          <button
-            onClick={handleCreateGroup}
-            style={s.btnPrimary}
-          >
-            สร้าง
-          </button>
+          <button onClick={handleCreateGroup} style={s.btnPrimary}>สร้าง</button>
         </div>
       </div>
 
-      {/* Group List */}
+      {/* รายการกลุ่ม */}
       {modifierGroups.length === 0 ? (
-        <div style={s.emptyMain}>
+        <div style={{ textAlign: "center", padding: "30px 0", color: "#444", fontSize: "14px" }}>
           ยังไม่มีกลุ่มเมนูเสริม
         </div>
       ) : (
-        <div style={s.groupList}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {modifierGroups.map((group) => (
             <ModifierGroupItem
               key={group.id}
@@ -203,193 +141,41 @@ export default function ModifierManager({
   );
 }
 
-/* ===============================
-   Styles
-================================ */
 const s = {
-  container: {
-    padding: "14px",
-    color: "#fff",
-    boxSizing: "border-box",
-  },
-
-  title: {
-    fontSize: "18px",
-    marginBottom: "18px",
-    paddingBottom: "10px",
-    borderBottom: "1px solid #333",
-  },
-
   addSection: {
-    backgroundColor: "#262626",
-    padding: "14px",
-    borderRadius: "12px",
-    marginBottom: "16px",
-    border: "1px solid #333",
+    backgroundColor: "#262626", padding: "14px", borderRadius: "12px",
+    marginBottom: "16px", border: "1px solid #333",
   },
-
-  label: {
-    fontSize: "13px",
-    color: "#888",
-    marginBottom: "10px",
-  },
-
-  createRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: "8px",
-  },
-
-  groupList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-  },
-
   groupCard: {
-    backgroundColor: "#262626",
-    padding: "14px",
-    borderRadius: "12px",
-    border: "1px solid #444",
+    backgroundColor: "#262626", padding: "14px",
+    borderRadius: "12px", border: "1px solid #444",
   },
-
-  groupHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "14px",
-  },
-
-  groupToggleBtn: {
-    background: "none",
-    border: "none",
-    color: "#fff",
-    fontSize: "15px",
-    fontWeight: "bold",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    padding: 0,
-  },
-
-  arrow: {
-    fontSize: "12px",
-    color: "#666",
-  },
-
-  count: {
-    fontSize: "12px",
-    color: "#555",
-    fontWeight: "normal",
-  },
-
   input: {
-    backgroundColor: "#1a1a1a",
-    border: "1px solid #444",
-    color: "#fff",
-    padding: "11px 12px",
-    borderRadius: "8px",
-    outline: "none",
-    fontSize: "14px",
+    backgroundColor: "#1a1a1a", border: "1px solid #444", color: "#fff",
+    padding: "11px 12px", borderRadius: "8px", outline: "none",
+    width: "100%", fontSize: "14px", boxSizing: "border-box",
   },
-
-  priceInput: {
-    backgroundColor: "#1a1a1a",
-    border: "1px solid #444",
-    color: "#fff",
-    padding: "11px 12px",
-    borderRadius: "8px",
-    textAlign: "center",
-    width: "80px",
-  },
-
   btnPrimary: {
-    backgroundColor: "#fff",
-    color: "#000",
-    border: "none",
-    padding: "11px 16px",
-    borderRadius: "8px",
-    fontWeight: "bold",
-    cursor: "pointer",
+    backgroundColor: "#fff", color: "#000", border: "none",
+    padding: "11px 16px", borderRadius: "8px", fontWeight: "bold",
+    cursor: "pointer", fontSize: "14px", whiteSpace: "nowrap",
+  },
+  btnAdd: {
+    width: "100%", backgroundColor: "#2a2a2a", color: "#aaa",
+    border: "1px dashed #555", padding: "10px", borderRadius: "8px",
+    cursor: "pointer", fontSize: "13px",
+  },
+  btnDel: {
+    background: "none", border: "none", color: "#ff5252",
+    cursor: "pointer", fontSize: "12px", textDecoration: "underline",
     whiteSpace: "nowrap",
   },
-
-  btnAddOption: {
-    width: "100%",
-    marginTop: "8px",
-    backgroundColor: "#2a2a2a",
-    color: "#aaa",
-    border: "1px dashed #555",
-    padding: "10px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontSize: "13px",
-  },
-
-  optionList: {
-    marginTop: "12px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-
   optionRow: {
-    display: "flex",
-    alignItems: "center",
-    padding: "8px 10px",
-    backgroundColor: "#1a1a1a",
-    borderRadius: "8px",
-    border: "1px solid #2a2a2a",
+    display: "flex", alignItems: "center", padding: "8px 10px",
+    backgroundColor: "#1a1a1a", borderRadius: "8px", border: "1px solid #2a2a2a",
   },
-
-  optionName: {
-    fontSize: "14px",
-    color: "#eee",
-  },
-
-  optionRight: {
-    marginLeft: "auto",
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
-
-  optionPrice: {
-    color: "#4caf50",
-    fontWeight: "bold",
-    fontSize: "13px",
-  },
-
-  btnDeleteGroup: {
-    background: "none",
-    border: "none",
-    color: "#ff5252",
-    cursor: "pointer",
-    fontSize: "12px",
-    textDecoration: "underline",
-  },
-
-  btnDeleteOption: {
-    background: "none",
-    border: "none",
-    color: "#ff5252",
-    cursor: "pointer",
-    fontSize: "16px",
-  },
-
-  emptyText: {
-    color: "#444",
-    fontSize: "12px",
-    marginTop: "10px",
-    textAlign: "center",
-    padding: "10px 0",
-  },
-
-  emptyMain: {
-    textAlign: "center",
-    padding: "30px 0",
-    color: "#444",
-    fontSize: "14px",
+  btnX: {
+    background: "none", border: "none", color: "#ff5252",
+    cursor: "pointer", fontSize: "16px", padding: "0 4px", lineHeight: 1,
   },
 };

@@ -1,252 +1,140 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 
-export default function Products({
-  products = [],
-  addToCart,
-  categories = [],
-  selectedCategory,
-  setSelectedCategory,
+export default function Products({ 
+  products = [], 
+  addToCart, 
+  categories = [], 
+  selectedCategory, 
+  setSelectedCategory, 
   priceChannel,
-  modifierGroups = [],
+  modifierGroups = []
 }) {
   const [showModifierPopup, setShowModifierPopup] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [tempSelection, setTempSelection] = useState([]);
-
-  /* ===============================
-     Helpers
-  ============================== */
-
-  const formatMoney = (num) =>
-    Number(num || 0).toLocaleString();
 
   const getDisplayPrice = (product) => {
     const channelPrices = {
       pos: product.price,
       grab: product.grabPrice,
       lineman: product.linemanPrice,
-      shopee: product.shopeePrice,
+      shopee: product.shopeePrice
     };
-
-    return Number(
-      channelPrices[priceChannel] ?? product.price ?? 0
-    );
+    return channelPrices[priceChannel] ?? product.price;
   };
 
-  /* ===============================
-     Selected Product
-  ============================== */
-
-  const selectedProduct = useMemo(
-    () => products.find((p) => p.id === selectedProductId),
-    [products, selectedProductId]
-  );
-
-  // reset modifier เมื่อเปลี่ยนสินค้า
-  useEffect(() => {
-    setTempSelection([]);
-  }, [selectedProductId]);
-
-  /* ===============================
-     Active Modifier Groups
-  ============================== */
-
-  const activeModifierGroups = useMemo(() => {
-    if (!selectedProduct?.modifierGroups) return [];
-    return modifierGroups.filter((g) =>
-      selectedProduct.modifierGroups.includes(g.id)
-    );
-  }, [modifierGroups, selectedProduct]);
-
-  /* ===============================
-     Product Click
-  ============================== */
-
+  // BUG#3 FIX: เช็ค product.modifierGroups (array of IDs) แทน product.modifiers
   const handleProductClick = (product) => {
-    const productModGroups = modifierGroups.filter((g) =>
+    const productModGroups = modifierGroups.filter(g =>
       product.modifierGroups?.includes(g.id)
     );
-
     if (productModGroups.length > 0) {
       setSelectedProductId(product.id);
       setShowModifierPopup(true);
     } else {
-      addToCart({
-        ...product,
-        price: getDisplayPrice(product),
-        selectedModifier: null,
-      });
+      addToCart({ ...product, price: getDisplayPrice(product) });
     }
   };
 
-  /* ===============================
-     Modifier Toggle
-  ============================== */
+  const selectedProduct = useMemo(() =>
+    products.find(p => p.id === selectedProductId),
+    [products, selectedProductId]
+  );
+
+  // BUG#5 FIX: filter เฉพาะ groups ที่ผูกกับ selectedProduct เท่านั้น
+  const activeModifierGroups = useMemo(() =>
+    modifierGroups.filter(g =>
+      selectedProduct?.modifierGroups?.includes(g.id)
+    ),
+    [modifierGroups, selectedProduct]
+  );
 
   const toggleModifier = (opt) => {
-    setTempSelection((prev) => {
-      const exists = prev.find((item) => item.id === opt.id);
-      if (exists) return prev.filter((i) => i.id !== opt.id);
+    setTempSelection(prev => {
+      const isExist = prev.find(item => item.id === opt.id);
+      if (isExist) return prev.filter(item => item.id !== opt.id);
       return [...prev, opt];
     });
   };
 
-  const modifierTotal = useMemo(
-    () =>
-      tempSelection.reduce(
-        (sum, m) => sum + Number(m.price || 0),
-        0
-      ),
-    [tempSelection]
-  );
-
-  /* ===============================
-     Filtered Products
-  ============================== */
-
-  const filteredProducts = useMemo(() => {
-    if (selectedCategory === "All")
-      return products;
-
-    return products.filter(
-      (p) => p.category === selectedCategory
-    );
-  }, [products, selectedCategory]);
-
-  /* ===============================
-     Confirm Add to Cart
-  ============================== */
-
-  const handleConfirmModifier = () => {
-    if (!selectedProduct) return;
-
-    const basePrice = getDisplayPrice(selectedProduct);
-
-    addToCart({
-      ...selectedProduct,
-      price: basePrice + modifierTotal,
-      selectedModifier:
-        tempSelection.length > 0
-          ? {
-              id: tempSelection
-                .map((m) => m.id)
-                .join("-"),
-              name: tempSelection
-                .map((m) => m.name)
-                .join(", "),
-              price: modifierTotal,
-            }
-          : null,
-    });
-
-    setShowModifierPopup(false);
-    setTempSelection([]);
-  };
-
-  /* ===============================
-     UI
-  ============================== */
-
   const ProductButton = ({ product }) => {
     const price = getDisplayPrice(product);
-
     return (
-      <button
-        onClick={() => handleProductClick(product)}
-        style={styles.productCard}
-      >
-        <div style={styles.productName}>
-          {product.name}
-        </div>
-        <div style={styles.productPrice}>
-          ฿{formatMoney(price)}
-        </div>
+      <button onClick={() => handleProductClick(product)} style={styles.productCard}>
+        <div style={styles.productName}>{product.name}</div>
+        <div style={styles.productPrice}>฿{price}</div>
       </button>
     );
   };
 
   return (
     <div style={styles.container}>
-      {/* HEADER */}
       <div style={styles.headerRow}>
         <h2 style={{ margin: 0 }}>เมนูสินค้า</h2>
-
-        <select
-          value={selectedCategory}
-          onChange={(e) =>
-            setSelectedCategory(e.target.value)
-          }
-          style={styles.select}
-        >
-          <option value="All">ทั้งหมด</option>
-          {categories
-            .filter((c) => c !== "All")
-            .map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-        </select>
-      </div>
-
-      {/* PRODUCT GRID */}
-      <div style={styles.scrollArea}>
-        <div style={styles.grid}>
-          {filteredProducts.map((p) => (
-            <ProductButton key={p.id} product={p} />
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: "14px", color: "#888" }}>หมวดหมู่:</span>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            style={styles.select}
+          >
+            <option value="All">ทั้งหมด</option>
+            {categories.filter(c => c !== "All").map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
       </div>
 
-      {/* MODIFIER POPUP */}
-      {showModifierPopup && selectedProduct && (
-        <div
-          style={styles.modalOverlay}
-          onClick={() => {
-            setShowModifierPopup(false);
-            setTempSelection([]);
-          }}
-        >
-          <div
-            style={styles.modalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3>
-              เลือกตัวเลือก: {selectedProduct.name}
-            </h3>
+      <div style={styles.scrollArea}>
+        {selectedCategory !== "All" ? (
+          <div style={styles.grid}>
+            {products
+              .filter(p => p.category === selectedCategory)
+              .map(p => <ProductButton key={p.id} product={p} />)}
+          </div>
+        ) : (
+          categories.filter(c => c !== "All").map((cat) => {
+            const items = products.filter((p) => p.category === cat);
+            if (items.length === 0) return null;
+            return (
+              <div key={cat} style={{ marginBottom: 24 }}>
+                <div style={styles.categoryTitle}>{cat}</div>
+                <div style={styles.grid}>
+                  {items.map((p) => <ProductButton key={p.id} product={p} />)}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
 
-            <div style={styles.modifierArea}>
-              {activeModifierGroups.map((group) => (
-                <div key={group.id}>
-                  <div style={styles.groupTitle}>
+      {showModifierPopup && selectedProduct && (
+        <div style={styles.modalOverlay} onClick={() => { setShowModifierPopup(false); setTempSelection([]); }}>
+          <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0, color: "#fff" }}>เลือกตัวเลือก: {selectedProduct.name}</h3>
+            <div style={{ maxHeight: "60vh", overflowY: "auto", margin: "20px 0" }}>
+              {/* BUG#5 FIX: ใช้ activeModifierGroups แทน modifierGroups ทั้งหมด */}
+              {activeModifierGroups.map(group => (
+                <div key={group.id} style={{ marginBottom: "15px", textAlign: "left" }}>
+                  <div style={{ fontSize: "14px", color: "#888", marginBottom: "8px", fontWeight: "bold" }}>
                     {group.name}
                   </div>
-
-                  <div style={styles.modifierGrid}>
-                    {(group.options || []).map((opt) => {
-                      const isSelected =
-                        tempSelection.find(
-                          (s) => s.id === opt.id
-                        );
-
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    {group.options && group.options.map(opt => {
+                      const isSelected = tempSelection.find(s => s.id === opt.id);
                       return (
                         <button
                           key={opt.id}
-                          onClick={() =>
-                            toggleModifier(opt)
-                          }
                           style={{
-                            ...styles.modifierBtn,
-                            backgroundColor: isSelected
-                              ? "#4caf50"
-                              : "#333",
+                            padding: "12px",
+                            backgroundColor: isSelected ? "#4caf50" : "#333",
+                            border: isSelected ? "1px solid #fff" : "1px solid #444",
+                            color: "#fff", borderRadius: "8px", cursor: "pointer", textAlign: "center"
                           }}
+                          onClick={() => toggleModifier(opt)}
                         >
-                          <div>
-                            {opt.name}
-                          </div>
-                          <div style={styles.modPrice}>
-                            +{formatMoney(opt.price)} ฿
+                          <div style={{ fontWeight: "bold" }}>{opt.name}</div>
+                          <div style={{ color: isSelected ? "#fff" : "#4caf50", fontSize: "13px", marginTop: "4px" }}>
+                            +{Number(opt.price).toLocaleString()} ฿
                           </div>
                         </button>
                       );
@@ -255,23 +143,32 @@ export default function Products({
                 </div>
               ))}
             </div>
-
-            <div style={styles.modalFooter}>
+            <div style={{ display: "flex", gap: "10px" }}>
               <button
-                onClick={() => {
-                  setShowModifierPopup(false);
-                  setTempSelection([]);
-                }}
-                style={styles.btnCancel}
+                onClick={() => { setShowModifierPopup(false); setTempSelection([]); }}
+                style={{ ...styles.btnCancel, flex: 1 }}
               >
                 ยกเลิก
               </button>
-
               <button
-                onClick={handleConfirmModifier}
-                style={styles.btnConfirm}
+                style={{ flex: 2, padding: "12px", backgroundColor: "#2196f3", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}
+                onClick={() => {
+                  const basePrice = getDisplayPrice(selectedProduct);
+                  const totalModPrice = tempSelection.reduce((sum, m) => sum + Number(m.price), 0);
+                  addToCart({
+                    ...selectedProduct,
+                    price: basePrice + totalModPrice,
+                    selectedModifier: tempSelection.length > 0 ? {
+                      id: tempSelection.map(m => m.id).join("-"),
+                      name: tempSelection.map(m => m.name).join(", "),
+                      price: totalModPrice
+                    } : null
+                  });
+                  setShowModifierPopup(false);
+                  setTempSelection([]);
+                }}
               >
-                ยืนยัน (+{formatMoney(modifierTotal)} ฿)
+                ยืนยัน (+{tempSelection.reduce((sum, m) => sum + Number(m.price), 0)} ฿)
               </button>
             </div>
           </div>
@@ -281,140 +178,18 @@ export default function Products({
   );
 }
 
-/* ===============================
-   Styles
-============================== */
-
 const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    height: "100%",
-    padding: "15px",
-  },
-
-  headerRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "20px",
-  },
-
-  select: {
-    padding: "8px 12px",
-    borderRadius: "8px",
-    backgroundColor: "#262626",
-    color: "#fff",
-    border: "1px solid #444",
-  },
-
-  scrollArea: {
-    flex: 1,
-    overflowY: "auto",
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fill, minmax(110px, 1fr))",
-    gap: "10px",
-  },
-
-  productCard: {
-    aspectRatio: "1 / 1",
-    padding: "15px",
-    backgroundColor: "#262626",
-    border: "1px solid #333",
-    borderRadius: "12px",
-    cursor: "pointer",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    color: "#fff",
-  },
-
-  productName: {
-    fontWeight: "bold",
-    fontSize: "14px",
-    marginBottom: "8px",
-    textAlign: "center",
-  },
-
-  productPrice: {
-    color: "#4caf50",
-    fontWeight: "bold",
-  },
-
-  modalOverlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.8)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  modalContent: {
-    background: "#262626",
-    padding: "25px",
-    borderRadius: "16px",
-    width: "90%",
-    maxWidth: "450px",
-  },
-
-  modifierArea: {
-    maxHeight: "60vh",
-    overflowY: "auto",
-    margin: "20px 0",
-  },
-
-  groupTitle: {
-    marginBottom: "8px",
-    fontWeight: "bold",
-    color: "#aaa",
-  },
-
-  modifierGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "8px",
-    marginBottom: "15px",
-  },
-
-  modifierBtn: {
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #444",
-    color: "#fff",
-    cursor: "pointer",
-  },
-
-  modPrice: {
-    fontSize: "12px",
-    color: "#4caf50",
-  },
-
-  modalFooter: {
-    display: "flex",
-    gap: "10px",
-  },
-
-  btnCancel: {
-    flex: 1,
-    padding: "12px",
-    background: "none",
-    border: "1px solid #555",
-    color: "#888",
-    borderRadius: "8px",
-  },
-
-  btnConfirm: {
-    flex: 2,
-    padding: "12px",
-    backgroundColor: "#2196f3",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    fontWeight: "bold",
-  },
+  container: { display: "flex", flexDirection: "column", height: "100%", padding: "15px", boxSizing: "border-box" },
+  headerRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", paddingBottom: "10px", borderBottom: "1px solid #333" },
+  select: { padding: "8px 12px", borderRadius: "8px", backgroundColor: "#262626", color: "#fff", border: "1px solid #444", outline: "none" },
+  scrollArea: { flex: 1, overflowY: "auto", paddingRight: "5px" },
+  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "10px" },
+  // BUG#7 FIX: "px" → "12px"
+  productCard: { aspectRatio: "1 / 1", padding: "15px", backgroundColor: "#262626", border: "1px solid #333", borderRadius: "12px", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", color: "#fff" },
+  productName: { fontWeight: "bold", fontSize: "14px", marginBottom: "8px" },
+  productPrice: { color: "#4caf50", fontWeight: "bold", fontSize: "15px" },
+  categoryTitle: { fontSize: "18px", fontWeight: "800", color: "#888", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "1px" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 },
+  modalContent: { background: "#262626", padding: "25px", borderRadius: "16px", width: "90%", maxWidth: "450px", border: "1px solid #444" },
+  btnCancel: { padding: "12px", background: "none", border: "1px solid #555", color: "#888", borderRadius: "8px", cursor: "pointer" }
 };
