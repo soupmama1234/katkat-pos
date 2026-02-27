@@ -319,5 +319,5 @@ const localDriver = {
 // =============================================
 const db = USE_SUPABASE ? supabaseDriver : localDriver;
 
-export const isUsingSupabase = USE_SUPABASE;
+export const supabaseClient = USE_SUPABASE ? getSupabase() : null;
 export default db;

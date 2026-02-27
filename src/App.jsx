@@ -8,7 +8,7 @@ import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
 import Members from "./components/Members";
-import { supabase as sb } from "./supabaseclient";
+import { supabaseClient as sb } from "./storage";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
@@ -202,7 +202,7 @@ function App() {
       setOrders(prev => [saved, ...prev]);
 
       // อัพเดทแต้มและยอดใช้จ่ายของสมาชิก
-      if (phone) {
+      if (phone && sb) {
         try {
           const pointsEarned = Math.floor(total / 10);
           await sb.rpc("increment_member_points", {

@@ -1,7 +1,0 @@
-import { createClient } from '@supabase/supabase-js'
-
-// เอาค่าที่ก๊อปมาวางตรงนี้
-const supabaseUrl = 'https://uhruejkycwcxjhcokbfm.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocnVlamt5Y3djeGpoY29rYmZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2NjE4NDUsImV4cCI6MjA4NzIzNzg0NX0.M67DwOTw2cKXHlPBJnfn7FSsRmUCv83s7J3-CkvZguc'
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
