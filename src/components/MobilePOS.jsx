@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import { Trash2 } from "lucide-react";
 import { supabase } from "../supabase";
 
 export default function MobilePOS({
@@ -17,79 +16,12 @@ export default function MobilePOS({
   priceChannel,
   setPriceChannel,
   modifierGroups = [],
-  memberPhone = "",
-  setMemberPhone,
 }) {
   const [showCart, setShowCart] = useState(false);
   const [refValue, setRefValue] = useState("");
-
-  const [memberInput, setMemberInput] = useState("");
-  const [memberInfo, setMemberInfo] = useState(null);
-  const [memberStatus, setMemberStatus] = useState("idle");
-  const [showRegister, setShowRegister] = useState(false);
-  const [regNickname, setRegNickname] = useState("");
-
   const [showModifierPopup, setShowModifierPopup] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [tempSelection, setTempSelection] = useState([]);
-
-  /* ---------------- MEMBER ---------------- */
-
-  const lookupMember = async (phone) => {
-    if (phone.length < 9) return;
-    setMemberStatus("loading");
-
-    const { data } = await sb
-      .from("members")
-      .select("*")
-      .eq("phone", phone)
-      .maybeSingle();
-
-    if (data) {
-      setMemberInfo(data);
-      setMemberStatus("found");
-      setMemberPhone(phone);
-    } else {
-      setMemberInfo(null);
-      setMemberStatus("notfound");
-      setMemberPhone("");
-    }
-  };
-
-  const registerMember = async () => {
-    if (!memberInput || !regNickname) return;
-
-    const { data, error } = await sb
-      .from("members")
-      .insert({
-        phone: memberInput,
-        nickname: regNickname,
-        points: 0,
-        tier: "standard",
-      })
-      .select()
-      .single();
-
-    if (error) {
-      alert("สมัครไม่สำเร็จ: " + error.message);
-      return;
-    }
-
-    setMemberInfo(data);
-    setMemberStatus("found");
-    setMemberPhone(memberInput);
-    setShowRegister(false);
-    setRegNickname("");
-  };
-
-  const clearMember = () => {
-    setMemberInput("");
-    setMemberInfo(null);
-    setMemberStatus("idle");
-    setMemberPhone("");
-    setShowRegister(false);
-    setRegNickname("");
-  };
 
   /* ---------------- PRICE ---------------- */
 
@@ -186,8 +118,15 @@ export default function MobilePOS({
   /* ---------------- UI ---------------- */
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#000" }}>
-      {/* หมวดหมู่ */}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        background: "#000",
+      }}
+    >
+      {/* CATEGORY */}
       <div style={styles.categoryBar}>
         {categories.map((cat) => (
           <button
@@ -204,7 +143,7 @@ export default function MobilePOS({
         ))}
       </div>
 
-      {/* สินค้า */}
+      {/* PRODUCT GRID */}
       <div style={styles.productGrid}>
         {products
           .filter(
@@ -227,172 +166,96 @@ export default function MobilePOS({
           ))}
       </div>
 
-      {/* ปุ่มลอย */}
+      {/* FLOATING CART BUTTON */}
       {cart.length > 0 && !showCart && (
-        <button style={styles.floatingCart} onClick={() => setShowCart(true)}>
+        <button
+          style={styles.floatingCart}
+          onClick={() => setShowCart(true)}
+        >
           🛒 {totalQty} รายการ · ฿{total.toLocaleString()}
         </button>
       )}
-    </div>
-  );
-}
 
-/* ---------------- STYLES ---------------- */
-
-const styles = {
-  categoryBar: {
-    display: "flex",
-    flexWrap: "wrap",
-    padding: "12px",
-    gap: "8px",
-    background: "#111",
-  },
-  catBtn: {
-    padding: "8px 14px",
-    borderRadius: "10px",
-    border: "none",
-    fontSize: "13px",
-    fontWeight: "bold",
-    cursor: "pointer",
-  },
-  productGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "12px",
-    padding: "12px",
-    overflowY: "auto",
-  },
-  productCard: {
-    background: "#1a1a1a",
-    border: "1px solid #333",
-    borderRadius: "16px",
-    color: "#fff",
-    padding: "20px",
-    textAlign: "center",
-    cursor: "pointer",
-  },
-  floatingCart: {
-    position: "fixed",
-    bottom: "20px",
-    left: "16px",
-    right: "16px",
-    background: "#4caf50",
-    border: "none",
-    borderRadius: "14px",
-    padding: "16px",
-    fontWeight: "bold",
-  },
-};
       {/* ================= CART OVERLAY ================= */}
       {showCart && (
         <div style={styles.cartOverlay}>
-          <div style={styles.cartHeader}>
-            <div>
-              <h3 style={{ margin: 0 }}>ตะกร้าสินค้า</h3>
-              <span style={{ fontSize: 12, color: "#888" }}>
-                ช่องทาง: {priceChannel.toUpperCase()}
-              </span>
+          <div style={styles.cartContainer}>
+            <div style={styles.cartHeader}>
+              <h3>ตะกร้าสินค้า</h3>
+              <button onClick={() => setShowCart(false)}>✕</button>
             </div>
-            <button
-              onClick={() => setShowCart(false)}
-              style={styles.closeBtn}
-            >
-              ✕
-            </button>
-          </div>
 
-          <div style={styles.cartList}>
-            {cart.map((item, idx) => (
-              <div key={`${item.id}-${idx}`} style={styles.cartItem}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: "bold" }}>{item.name}</div>
-
-                  {item.selectedModifier && (
-                    <div style={{ fontSize: 12, color: "#aaa" }}>
-                      • {item.selectedModifier.name}
+            <div style={styles.cartList}>
+              {cart.map((item, idx) => (
+                <div key={`${item.id}-${idx}`} style={styles.cartItem}>
+                  <div style={{ flex: 1 }}>
+                    <div>{item.name}</div>
+                    {item.selectedModifier && (
+                      <div style={{ fontSize: 12, color: "#aaa" }}>
+                        • {item.selectedModifier.name}
+                      </div>
+                    )}
+                    <div>
+                      ฿{item.price} × {item.qty}
                     </div>
-                  )}
+                  </div>
 
-                  <div style={{ fontSize: 13, color: "#888" }}>
-                    ฿{item.price.toLocaleString()} × {item.qty} =
-                    <strong style={{ color: "#fff", marginLeft: 4 }}>
-                      ฿{(item.price * item.qty).toLocaleString()}
-                    </strong>
+                  <div>
+                    <button
+                      onClick={() =>
+                        decreaseQty(
+                          item.id,
+                          item.channel,
+                          item.selectedModifier?.id
+                        )
+                      }
+                    >
+                      −
+                    </button>
+                    {item.qty}
+                    <button
+                      onClick={() =>
+                        increaseQty(
+                          item.id,
+                          item.channel,
+                          item.selectedModifier?.id
+                        )
+                      }
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
+              ))}
 
-                {/* qty control */}
-                <div style={styles.qtyControl}>
-                  <button
-                    onClick={() =>
-                      decreaseQty(
-                        item.id,
-                        item.channel,
-                        item.selectedModifier?.id
-                      )
-                    }
-                    style={styles.qtyBtn}
-                  >
-                    −
-                  </button>
-
-                  <span style={styles.qtyNumber}>{item.qty}</span>
-
-                  <button
-                    onClick={() =>
-                      increaseQty(
-                        item.id,
-                        item.channel,
-                        item.selectedModifier?.id
-                      )
-                    }
-                    style={styles.qtyBtn}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {cart.length > 0 && (
-              <button onClick={onClearCart} style={styles.btnClear}>
-                ล้างทั้งหมด
-              </button>
-            )}
-          </div>
-
-          <div style={styles.cartFooter}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 18, fontWeight: "bold" }}>
-                รวมทั้งหมด
-              </span>
-              <span style={{ fontSize: 22, fontWeight: "bold", color: "#4caf50" }}>
-                ฿{total.toLocaleString()}
-              </span>
+              {cart.length > 0 && (
+                <button onClick={onClearCart}>ล้างทั้งหมด</button>
+              )}
             </div>
 
-            <div style={{ marginTop: 16 }}>
+            <div style={styles.cartFooter}>
+              <h3>รวม ฿{total.toLocaleString()}</h3>
+
               {priceChannel === "pos" ? (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <>
                   <button
                     onClick={() => handleConfirmCheckout("cash")}
-                    style={{ ...styles.payBtn, background: "#4caf50" }}
                   >
                     เงินสด
                   </button>
                   <button
                     onClick={() => handleConfirmCheckout("transfer")}
-                    style={{ ...styles.payBtn, background: "#2196f3" }}
                   >
                     โอนเงิน
                   </button>
-                </div>
+                </>
               ) : (
                 <button
-                  onClick={() => handleConfirmCheckout(priceChannel)}
-                  style={{ ...styles.payBtn, background: "#1e293b" }}
+                  onClick={() =>
+                    handleConfirmCheckout(priceChannel)
+                  }
                 >
-                  บันทึก {priceChannel.toUpperCase()}
+                  บันทึก {priceChannel}
                 </button>
               )}
             </div>
@@ -413,58 +276,124 @@ const styles = {
             style={styles.modifierModal}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ marginTop: 0 }}>{selectedProduct.name}</h3>
+            <h3>{selectedProduct.name}</h3>
 
-            <div style={{ maxHeight: "45vh", overflowY: "auto" }}>
-              {activeModifierGroups.map((group) => (
-                <div key={group.id} style={{ marginBottom: 16 }}>
-                  <div style={{ fontWeight: "bold", marginBottom: 8 }}>
-                    {group.name}
-                  </div>
+            {activeModifierGroups.map((group) => (
+              <div key={group.id}>
+                <strong>{group.name}</strong>
 
-                  {group.options?.map((opt) => {
-                    const selected = tempSelection.find(
-                      (s) => s.id === opt.id
-                    );
-                    return (
-                      <button
-                        key={opt.id}
-                        onClick={() => toggleModifier(opt)}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          padding: 10,
-                          marginBottom: 6,
-                          background: selected ? "#4caf50" : "#2a2a2a",
-                          border: "1px solid #444",
-                          borderRadius: 8,
-                          color: "#fff",
-                          textAlign: "left",
-                        }}
-                      >
-                        {opt.name} (+{Number(opt.price).toLocaleString()} ฿)
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+                {group.options?.map((opt) => {
+                  const selected = tempSelection.find(
+                    (s) => s.id === opt.id
+                  );
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => toggleModifier(opt)}
+                      style={{
+                        background: selected
+                          ? "#4caf50"
+                          : "#2a2a2a",
+                        color: "#fff",
+                        display: "block",
+                        width: "100%",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {opt.name} (+{opt.price})
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
 
-            <button
-              onClick={handleConfirmModifier}
-              style={{
-                marginTop: 12,
-                width: "100%",
-                padding: 14,
-                background: "#2196f3",
-                border: "none",
-                borderRadius: 10,
-                color: "#fff",
-                fontWeight: "bold",
-              }}
-            >
+            <button onClick={handleConfirmModifier}>
               เพิ่มลงตะกร้า
             </button>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------- STYLES ---------------- */
+
+const styles = {
+  categoryBar: {
+    display: "flex",
+    flexWrap: "wrap",
+    padding: 12,
+    gap: 8,
+    background: "#111",
+  },
+  catBtn: {
+    padding: "8px 14px",
+    borderRadius: 10,
+    border: "none",
+    fontWeight: "bold",
+  },
+  productGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 12,
+    padding: 12,
+    overflowY: "auto",
+  },
+  productCard: {
+    background: "#1a1a1a",
+    borderRadius: 16,
+    color: "#fff",
+    padding: 20,
+  },
+  floatingCart: {
+    position: "fixed",
+    bottom: 20,
+    left: 16,
+    right: 16,
+    background: "#4caf50",
+    borderRadius: 14,
+    padding: 16,
+    fontWeight: "bold",
+  },
+  cartOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.6)",
+  },
+  cartContainer: {
+    background: "#fff",
+    height: "100%",
+    padding: 16,
+  },
+  cartHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+  },
+  cartList: {
+    marginTop: 16,
+  },
+  cartItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  cartFooter: {
+    marginTop: 20,
+  },
+  modifierOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.6)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modifierModal: {
+    background: "#111",
+    padding: 20,
+    borderRadius: 12,
+    width: "90%",
+    maxWidth: 400,
+  },
+};
