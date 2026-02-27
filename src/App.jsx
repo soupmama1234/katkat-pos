@@ -23,6 +23,7 @@ function App() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [modifierGroups, setModifierGroups] = useState([]);
+  const [memberPhone, setMemberPhone] = useState(""); // เบอร์สมาชิกที่เลือกตอนขาย
 
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
   useEffect(() => {
@@ -181,7 +182,7 @@ function App() {
     ));
   }, []);
 
-  const handleCheckout = async (paymentMethod, refId = "") => {
+  const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
     try {
@@ -194,9 +195,29 @@ function App() {
         refId,
         isSettled: !isDelivery,
         actualAmount: isDelivery ? 0 : total,
+        member_phone: phone || null,
       });
       setOrders(prev => [saved, ...prev]);
+
+      // อัพเดทแต้มและยอดใช้จ่ายของสมาชิก
+      if (phone) {
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const sb = createClient(
+            import.meta.env.VITE_SUPABASE_URL,
+            import.meta.env.VITE_SUPABASE_ANON_KEY
+          );
+          const pointsEarned = Math.floor(total / 10);
+          await sb.rpc("increment_member_points", {
+            p_phone: phone,
+            p_points: pointsEarned,
+            p_spent: total,
+          });
+        } catch (e) { console.warn("member update failed", e); }
+      }
+
       setCart([]);
+      setMemberPhone("");
       alert(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "ชำระเงินเรียบร้อย");
     } catch (err) {
       console.error(err);
@@ -281,6 +302,7 @@ function App() {
                 onCheckout={handleCheckout} priceChannel={priceChannel}
                 setPriceChannel={setPriceChannel} onClearCart={() => setCart([])}
                 modifierGroups={modifierGroups}
+                memberPhone={memberPhone} setMemberPhone={setMemberPhone}
               />
             )}
             {view === "dashboard" && (
@@ -338,7 +360,8 @@ function App() {
                 <aside style={{ width: "400px" }}>
                   <Cart cart={cart} addToCart={addToCart} increaseQty={increaseQty}
                     decreaseQty={decreaseQty} total={total} onCheckout={handleCheckout}
-                    onClearCart={() => setCart([])} priceChannel={priceChannel} />
+                    onClearCart={() => setCart([])} priceChannel={priceChannel}
+                    memberPhone={memberPhone} setMemberPhone={setMemberPhone} />
                 </aside>
               </>
             )}

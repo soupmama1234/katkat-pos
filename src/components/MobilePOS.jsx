@@ -16,14 +16,67 @@ export default function MobilePOS({
   priceChannel,
   setPriceChannel,
   modifierGroups = [],
+  memberPhone = "",
+  setMemberPhone,
 }) {
   const [showCart, setShowCart] = useState(false);
   const [refValue, setRefValue] = useState("");
+
+  // member lookup state
+  const [memberInput, setMemberInput] = useState("");
+  const [memberInfo, setMemberInfo] = useState(null);   // { nickname, points, ... }
+  const [memberStatus, setMemberStatus] = useState("idle"); // idle | found | notfound | loading
+  const [showRegister, setShowRegister] = useState(false);
+  const [regNickname, setRegNickname] = useState("");
 
   // --- Modifier Popup State ---
   const [showModifierPopup, setShowModifierPopup] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [tempSelection, setTempSelection] = useState([]);
+
+  // --- Member Lookup ---
+  const lookupMember = async (phone) => {
+    if (phone.length < 9) return;
+    setMemberStatus("loading");
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+      const { data } = await sb.from("members").select("*").eq("phone", phone).single();
+      if (data) {
+        setMemberInfo(data);
+        setMemberStatus("found");
+        setMemberPhone(phone);
+      } else {
+        setMemberInfo(null);
+        setMemberStatus("notfound");
+        setMemberPhone("");
+      }
+    } catch {
+      setMemberInfo(null);
+      setMemberStatus("notfound");
+      setMemberPhone("");
+    }
+  };
+
+  const registerMember = async () => {
+    if (!memberInput || !regNickname) return;
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+      const { data } = await sb.from("members").insert({ phone: memberInput, nickname: regNickname }).select().single();
+      setMemberInfo(data);
+      setMemberStatus("found");
+      setMemberPhone(memberInput);
+      setShowRegister(false);
+      setRegNickname("");
+    } catch (e) { alert("สมัครไม่สำเร็จ: " + e.message); }
+  };
+
+  const clearMember = () => {
+    setMemberInput(""); setMemberInfo(null);
+    setMemberStatus("idle"); setMemberPhone("");
+    setShowRegister(false); setRegNickname("");
+  };
 
   const getDisplayPrice = (product) => {
     const channelPrices = {
@@ -152,6 +205,72 @@ export default function MobilePOS({
               autoFocus
             />
           </div>
+        </div>
+      )}
+
+      {/* 2.6 ช่องสมาชิก — เฉพาะ POS channel */}
+      {priceChannel === "pos" && (
+        <div style={{ padding: "8px 12px", backgroundColor: "#0a0a0a", borderBottom: "1px solid #222" }}>
+          {memberStatus === "found" && memberInfo ? (
+            // แสดงข้อมูลสมาชิกที่เจอ
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: 14 }}>
+                  👤 {memberInfo.nickname}
+                </span>
+                <span style={{ color: "#888", fontSize: 12, marginLeft: 8 }}>
+                  ⭐ {memberInfo.points} แต้ม · {memberInfo.tier}
+                </span>
+              </div>
+              <button onClick={clearMember}
+                style={{ background: "none", border: "1px solid #444", color: "#888", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>
+                เปลี่ยน
+              </button>
+            </div>
+          ) : showRegister ? (
+            // ฟอร์มสมัครสมาชิก
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ fontSize: 12, color: "#ff9800" }}>✨ สมัครสมาชิกใหม่ · {memberInput}</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  placeholder="ชื่อเล่น"
+                  value={regNickname}
+                  onChange={e => setRegNickname(e.target.value)}
+                  style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }}
+                  autoFocus
+                />
+                <button onClick={registerMember}
+                  style={{ background: "#4caf50", border: "none", color: "#000", borderRadius: 8, padding: "8px 14px", fontWeight: "bold", cursor: "pointer" }}>
+                  บันทึก
+                </button>
+                <button onClick={clearMember}
+                  style={{ background: "#222", border: "1px solid #444", color: "#888", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}>
+                  ✕
+                </button>
+              </div>
+            </div>
+          ) : (
+            // ช่องค้นหาเบอร์
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input
+                type="tel"
+                inputMode="numeric"
+                placeholder="👤 เบอร์สมาชิก (optional)"
+                value={memberInput}
+                onChange={e => { setMemberInput(e.target.value); setMemberStatus("idle"); }}
+                onBlur={e => lookupMember(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && lookupMember(memberInput)}
+                style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }}
+              />
+              {memberStatus === "loading" && <span style={{ color: "#888", fontSize: 12 }}>🔍</span>}
+              {memberStatus === "notfound" && memberInput.length >= 9 && (
+                <button onClick={() => setShowRegister(true)}
+                  style={{ background: "#ff9800", border: "none", color: "#000", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  + สมัคร
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

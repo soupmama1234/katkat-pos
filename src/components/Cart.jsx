@@ -1,12 +1,18 @@
 import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 
-export default function Cart({ cart, decreaseQty, increaseQty, addToCart, total, onCheckout, onClearCart, priceChannel = "pos" }) {
-  // BUG#6 FIX: useState ทั้งหมดอยู่บนสุด
+export default function Cart({ cart = [], decreaseQty, increaseQty, addToCart, total = 0, onCheckout, onClearCart, priceChannel = "pos", memberPhone = "", setMemberPhone }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashReceived, setCashReceived] = useState("");
   const [deliveryRef, setDeliveryRef] = useState("");
+
+  // member state สำหรับ desktop
+  const [memberInput, setMemberInput] = useState("");
+  const [memberInfo, setMemberInfo] = useState(null);
+  const [memberStatus, setMemberStatus] = useState("idle");
+  const [showRegister, setShowRegister] = useState(false);
+  const [regNickname, setRegNickname] = useState("");
 
   const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
   const receivedNumber = Number(cashReceived) || 0;
@@ -18,6 +24,35 @@ export default function Cart({ cart, decreaseQty, increaseQty, addToCart, total,
       setCashReceived("");
     }
   }, [showPayment, priceChannel]);
+
+  const lookupMember = async (phone) => {
+    if (phone.length < 9) return;
+    setMemberStatus("loading");
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+      const { data } = await sb.from("members").select("*").eq("phone", phone).single();
+      if (data) { setMemberInfo(data); setMemberStatus("found"); setMemberPhone(phone); }
+      else { setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone(""); }
+    } catch { setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone(""); }
+  };
+
+  const registerMember = async () => {
+    if (!memberInput || !regNickname) return;
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+      const { data } = await sb.from("members").insert({ phone: memberInput, nickname: regNickname }).select().single();
+      setMemberInfo(data); setMemberStatus("found"); setMemberPhone(memberInput);
+      setShowRegister(false); setRegNickname("");
+    } catch (e) { alert("สมัครไม่สำเร็จ: " + e.message); }
+  };
+
+  const clearMember = () => {
+    setMemberInput(""); setMemberInfo(null);
+    setMemberStatus("idle"); setMemberPhone("");
+    setShowRegister(false); setRegNickname("");
+  };
 
   const handleRefChange = (val) => {
     if (priceChannel === "grab") {
@@ -116,6 +151,47 @@ export default function Cart({ cart, decreaseQty, increaseQty, addToCart, total,
           </div>
         ))}
       </div>
+
+      {/* Member Section — เฉพาะ POS */}
+      {!isDelivery && (
+        <div style={{ padding: "10px 0", marginBottom: 8, borderTop: "1px solid #e0e0e0" }}>
+          {memberStatus === "found" && memberInfo ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#e8f5e9", padding: "8px 12px", borderRadius: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: "bold", color: "#2e7d32", fontSize: 14 }}>👤 {memberInfo.nickname}</div>
+                <div style={{ fontSize: 12, color: "#555" }}>⭐ {memberInfo.points} แต้ม · {memberInfo.tier}</div>
+              </div>
+              <button onClick={clearMember} style={{ background: "none", border: "1px solid #bbb", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer", color: "#888" }}>เปลี่ยน</button>
+            </div>
+          ) : showRegister ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ fontSize: 12, color: "#ff9800", fontWeight: "bold" }}>✨ สมัครสมาชิกใหม่ · {memberInput}</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input placeholder="ชื่อเล่น" value={regNickname} onChange={e => setRegNickname(e.target.value)}
+                  style={{ flex: 1, border: "1px solid #ddd", borderRadius: 6, padding: "8px", fontSize: 14 }} autoFocus />
+                <button onClick={registerMember} style={{ background: "#2e7d32", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: "bold", cursor: "pointer" }}>บันทึก</button>
+                <button onClick={clearMember} style={{ background: "#eee", border: "none", borderRadius: 6, padding: "8px", cursor: "pointer" }}>✕</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input type="tel" inputMode="numeric" placeholder="👤 เบอร์สมาชิก (optional)"
+                value={memberInput}
+                onChange={e => { setMemberInput(e.target.value); setMemberStatus("idle"); }}
+                onBlur={e => lookupMember(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && lookupMember(memberInput)}
+                style={{ flex: 1, border: "1px solid #ddd", borderRadius: 6, padding: "8px", fontSize: 14 }} />
+              {memberStatus === "loading" && <span style={{ fontSize: 12, color: "#888" }}>🔍</span>}
+              {memberStatus === "notfound" && memberInput.length >= 9 && (
+                <button onClick={() => setShowRegister(true)}
+                  style={{ background: "#ff9800", border: "none", color: "#fff", borderRadius: 6, padding: "8px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  + สมัคร
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Footer */}
       <div style={styles.footer}>
