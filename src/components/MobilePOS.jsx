@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Trash2 } from "lucide-react";
-import { supabase as sb } from "../supabaseclient";
+import { supabase } from "../supabase";
 
 export default function MobilePOS({
   products = [],

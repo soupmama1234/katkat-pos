@@ -1,6 +1,7 @@
 // storage.js
 import { createClient } from "@supabase/supabase-js";
 
+export const isUsingSupabase = true;
 /*
 ==================================================
  Auto-switch Supabase ↔ localStorage
