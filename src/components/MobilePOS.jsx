@@ -2,16 +2,16 @@ import React, { useState, useMemo } from "react";
 import { Trash2 } from "lucide-react";
 
 export default function MobilePOS({ 
-  products = [], 
+  products, 
   addToCart,
   increaseQty,
   decreaseQty,
   onClearCart, 
-  categories = [], 
+  categories, 
   selectedCategory, 
   setSelectedCategory, 
-  cart = [], 
-  total = 0, 
+  cart, 
+  total, 
   onCheckout, 
   priceChannel,
   setPriceChannel,
