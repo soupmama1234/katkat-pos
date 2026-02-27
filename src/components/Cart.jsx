@@ -1,52 +1,36 @@
 import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 
-export default function Cart({ cart, decreaseQty, increaseQty, addToCart, total, onCheckout, onClearCart, priceChannel = "pos" }) {
-  // BUG#6 FIX: useState ทั้งหมดอยู่บนสุด
+export default function Cart({ cart, decreaseQty, increaseQty, addToCart, total, onCheckout, onClearCart, priceChannel = "pos", deliveryRef = "", onRefChange }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashReceived, setCashReceived] = useState("");
-  const [deliveryRef, setDeliveryRef] = useState("");
 
   const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
   const receivedNumber = Number(cashReceived) || 0;
   const change = receivedNumber - total;
 
   React.useEffect(() => {
-    if (showPayment) {
-      setDeliveryRef(priceChannel === "grab" ? "GF-" : "");
-      setCashReceived("");
-    }
-  }, [showPayment, priceChannel]);
-
-  const handleRefChange = (val) => {
-    if (priceChannel === "grab") {
-      if (val.startsWith("GF-")) setDeliveryRef(val.toUpperCase());
-    } else if (priceChannel === "lineman") {
-      if (val.length <= 4) setDeliveryRef(val);
-    } else {
-      setDeliveryRef(val);
-    }
-  };
+    if (showPayment) setCashReceived("");
+  }, [showPayment]);
 
   const handleFinalConfirm = () => {
+    const finalRef = priceChannel === "grab" ? `GF-${deliveryRef}` : deliveryRef;
     if (isDelivery) {
-      onCheckout("transfer", deliveryRef);
+      onCheckout("transfer", finalRef);
     } else {
       onCheckout(paymentMethod);
     }
     setShowPayment(false);
     setCashReceived("");
-    setDeliveryRef("");
+    if (onRefChange) onRefChange("");
   };
-
-  // increaseQty มาจาก props (App.jsx) — +1 ตรงๆ ใน state ไม่คำนวณราคาใหม่
 
   const isConfirmDisabled =
     (!isDelivery && paymentMethod === "cash" && (cashReceived === "" || change < 0)) ||
     (isDelivery && (
       !deliveryRef ||
-      (priceChannel === "grab" && (deliveryRef === "GF-" || deliveryRef.length < 4)) ||
+      (priceChannel === "grab" && deliveryRef.length < 2) ||
       (priceChannel === "lineman" && deliveryRef.length < 4)
     ));
 
@@ -181,28 +165,14 @@ export default function Cart({ cart, decreaseQty, increaseQty, addToCart, total,
                 )}
               </>
             ) : (
-              <div style={{ marginBottom: 20 }}>
-                <p style={{ textAlign: "center", color: "#888", fontSize: 13, marginBottom: 10 }}>
-                  ระบุเลขอ้างอิง {priceChannel.toUpperCase()}
-                </p>
-                <input
-                  type="text"
-                  placeholder={priceChannel === "lineman" ? "เลข 4 หลัก" : "ระบุเลขอ้างอิง"}
-                  style={styles.input}
-                  value={deliveryRef}
-                  onChange={(e) => handleRefChange(e.target.value)}
-                  autoFocus
-                  onFocus={(e) => {
-                    if (priceChannel === "grab") {
-                      const val = e.target.value;
-                      e.target.value = "";
-                      e.target.value = val;
-                    }
-                  }}
-                />
-                <p style={{ textAlign: "center", color: "#bbb", fontSize: 11, marginTop: 8 }}>
-                  ออเดอร์จะไปรอที่ Dashboard เพื่อใส่ยอดรับจริง
-                </p>
+              <div style={{ marginBottom: 20, textAlign: "center" }}>
+                <p style={{ color: "#888", fontSize: 13, margin: "0 0 8px" }}>เลขอ้างอิง {priceChannel.toUpperCase()}</p>
+                <div style={{ fontSize: 22, fontWeight: "bold", color: "#4caf50", letterSpacing: 2 }}>
+                  {priceChannel === "grab" ? `GF-${deliveryRef}` : deliveryRef}
+                </div>
+                {!deliveryRef && (
+                  <p style={{ color: "#ff5252", fontSize: 12, marginTop: 8 }}>⚠️ ยังไม่ได้ใส่เลขอ้างอิง</p>
+                )}
               </div>
             )}
 
