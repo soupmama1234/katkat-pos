@@ -7,7 +7,7 @@ import Dashboard from "./components/Dashboard";
 import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
-import Members from "./components/Members";
+import Members, { calcPoints, getPointSettings } from "./components/Members";
 import { supabase as sb } from "./supabase";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
@@ -207,14 +207,14 @@ function App() {
       // สะสมแต้ม
       if (phone) {
         try {
-          const pointsEarned = Math.floor(total / 10);
+          const { rate, tiers } = getPointSettings();
+          const pointsEarned = calcPoints(total, rate, tiers);
           await sb.rpc("increment_member_points", {
             p_phone: phone, p_points: pointsEarned, p_spent: total,
           });
-          // update members state ด้วย
           setMembers(prev => prev.map(m =>
             m.phone === phone
-              ? { ...m, points: m.points + pointsEarned, total_spent: m.total_spent + total }
+              ? { ...m, points: (m.points || 0) + pointsEarned, total_spent: (m.total_spent || 0) + total }
               : m
           ));
         } catch (e) { console.warn("member update failed", e); }

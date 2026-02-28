@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Trash2 } from "lucide-react";
 import { supabase as sb } from "../supabase";
+import { calcPoints, nextThreshold, getPointSettings } from "./Members";
 
 export default function MobilePOS({ 
   products = [], 
@@ -23,10 +24,10 @@ export default function MobilePOS({
   const [showCart, setShowCart] = useState(false);
   const [refValue, setRefValue] = useState("");
 
-  // member lookup state
+  // member state
   const [memberInput, setMemberInput] = useState("");
-  const [memberInfo, setMemberInfo] = useState(null);   // { nickname, points, ... }
-  const [memberStatus, setMemberStatus] = useState("idle"); // idle | found | notfound | loading
+  const [memberInfo, setMemberInfo] = useState(null);
+  const [memberStatus, setMemberStatus] = useState("idle");
   const [showRegister, setShowRegister] = useState(false);
   const [regNickname, setRegNickname] = useState("");
 
@@ -35,20 +36,20 @@ export default function MobilePOS({
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [tempSelection, setTempSelection] = useState([]);
 
-  // --- Member Lookup ---
+  // ── bonus points calculation ──
+  const { rate, tiers } = getPointSettings();
+  const pointsWillEarn = memberPhone ? calcPoints(total, rate, tiers) : 0;
+  const nextTier = nextThreshold(total, tiers);
+  const needMore = nextTier ? nextTier.minSpend - total : null;
+
   const lookupMember = async (phone) => {
     if (phone.length < 9) return;
     setMemberStatus("loading");
     try {
       const { data } = await sb.from("members").select("*").eq("phone", phone).single();
-      if (data) {
-        setMemberInfo(data); setMemberStatus("found"); setMemberPhone(phone);
-      } else {
-        setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone("");
-      }
-    } catch {
-      setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone("");
-    }
+      if (data) { setMemberInfo(data); setMemberStatus("found"); setMemberPhone(phone); }
+      else { setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone(""); }
+    } catch { setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone(""); }
   };
 
   const registerMember = async () => {
@@ -196,61 +197,67 @@ export default function MobilePOS({
         </div>
       )}
 
-      {/* 2.6 ช่องสมาชิก — เฉพาะ POS channel */}
+      {/* ── Member Bar (POS only) ── */}
       {priceChannel === "pos" && (
-        <div style={{ padding: "8px 12px", backgroundColor: "#0a0a0a", borderBottom: "1px solid #222" }}>
+        <div style={{ padding: "8px 12px", backgroundColor: "#0a0a0a", borderBottom: "1px solid #1a1a1a" }}>
           {memberStatus === "found" && memberInfo ? (
-            // แสดงข้อมูลสมาชิกที่เจอ
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ flex: 1 }}>
-                <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: 14 }}>
-                  👤 {memberInfo.nickname}
-                </span>
-                <span style={{ color: "#888", fontSize: 12, marginLeft: 8 }}>
-                  ⭐ {memberInfo.points} แต้ม · {memberInfo.tier}
-                </span>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: 13 }}>👤 {memberInfo.nickname}</span>
+                  <span style={{ color: "#666", fontSize: 12, marginLeft: 8 }}>⭐ {memberInfo.points} แต้ม</span>
+                </div>
+                <button onClick={clearMember} style={{ background: "none", border: "1px solid #333", color: "#666", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>เปลี่ยน</button>
               </div>
-              <button onClick={clearMember}
-                style={{ background: "none", border: "1px solid #444", color: "#888", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>
-                เปลี่ยน
-              </button>
+              {/* Bonus Progress Bar */}
+              {total > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  {nextTier ? (
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                        <span style={{ fontSize: 11, color: "#f5c518" }}>
+                          ⭐ จะได้ {pointsWillEarn} แต้ม
+                          {calcPoints(total, rate, tiers) > calcPoints(total, rate, []) && (
+                            <span style={{ color: "#ff9800", marginLeft: 4 }}>
+                              ({tiers.sort((a,b)=>b.minSpend-a.minSpend).find(t=>total>=t.minSpend)?.multiplier || 1}x!)
+                            </span>
+                          )}
+                        </span>
+                        <span style={{ fontSize: 11, color: "#ff9800" }}>อีก ฿{needMore} → {nextTier.multiplier}x 🚀</span>
+                      </div>
+                      <div style={{ height: 4, background: "#222", borderRadius: 4, overflow: "hidden" }}>
+                        <div style={{ height: "100%", borderRadius: 4, background: "linear-gradient(90deg,#f5c518,#ff9800)",
+                          width: `${Math.min(100, (total / nextTier.minSpend) * 100)}%`, transition: "width 0.3s" }} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 11, color: "#f5c518" }}>
+                      ⭐ จะได้ {pointsWillEarn} แต้ม
+                      {calcPoints(total, rate, tiers) > calcPoints(total, rate, []) && " 🔥 MAX BONUS!"}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : showRegister ? (
-            // ฟอร์มสมัครสมาชิก
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ fontSize: 12, color: "#ff9800" }}>✨ สมัครสมาชิกใหม่ · {memberInput}</div>
               <div style={{ display: "flex", gap: 6 }}>
-                <input
-                  placeholder="ชื่อเล่น"
-                  value={regNickname}
-                  onChange={e => setRegNickname(e.target.value)}
-                  style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }}
-                  autoFocus
-                />
-                <button onClick={registerMember}
-                  style={{ background: "#4caf50", border: "none", color: "#000", borderRadius: 8, padding: "8px 14px", fontWeight: "bold", cursor: "pointer" }}>
-                  บันทึก
-                </button>
-                <button onClick={clearMember}
-                  style={{ background: "#222", border: "1px solid #444", color: "#888", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}>
-                  ✕
-                </button>
+                <input placeholder="ชื่อเล่น" value={regNickname} onChange={e => setRegNickname(e.target.value)}
+                  style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }} autoFocus />
+                <button onClick={registerMember} style={{ background: "#4caf50", border: "none", color: "#000", borderRadius: 8, padding: "8px 14px", fontWeight: "bold", cursor: "pointer" }}>บันทึก</button>
+                <button onClick={clearMember} style={{ background: "#222", border: "1px solid #444", color: "#888", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}>✕</button>
               </div>
             </div>
           ) : (
-            // ช่องค้นหาเบอร์
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input
-                type="tel"
-                inputMode="numeric"
-                placeholder="👤 เบอร์สมาชิก (optional)"
+              <input type="tel" inputMode="numeric" placeholder="👤 เบอร์สมาชิก (optional)"
                 value={memberInput}
                 onChange={e => { setMemberInput(e.target.value); setMemberStatus("idle"); }}
                 onBlur={e => lookupMember(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && lookupMember(memberInput)}
-                style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }}
-              />
-              {memberStatus === "loading" && <span style={{ color: "#888", fontSize: 12 }}>🔍</span>}
+                style={{ flex: 1, background: "#1a1a1a", border: "1px solid #222", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }} />
+              {memberStatus === "loading" && <span style={{ color: "#666", fontSize: 12 }}>🔍</span>}
               {memberStatus === "notfound" && memberInput.length >= 9 && (
                 <button onClick={() => setShowRegister(true)}
                   style={{ background: "#ff9800", border: "none", color: "#000", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
