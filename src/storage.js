@@ -76,6 +76,7 @@ function dbToOrder(row) {
     actualAmount: row.actual_amount,
     isSettled: row.is_settled,
     items: row.items || [],
+    member_phone: row.member_phone || null,
   };
 }
 
@@ -186,6 +187,7 @@ const supabaseDriver = {
       channel: order.channel, payment: order.payment, ref_id: order.refId || "",
       total: order.total, actual_amount: order.actualAmount || 0,
       is_settled: order.isSettled || false, is_history: false, items: order.items,
+      member_phone: order.member_phone || null,
     }).select().single();
     if (error) throw error;
     return dbToOrder(data);
@@ -211,6 +213,25 @@ const supabaseDriver = {
   async closeDayOrders() {
     const sb = getSupabase();
     const { error } = await sb.from("orders").update({ is_history: true }).eq("is_history", false);
+    if (error) throw error;
+  },
+
+  // MEMBERS
+  async fetchMembers() {
+    const sb = getSupabase();
+    const { data, error } = await sb.from("members").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+  async addMember(member) {
+    const sb = getSupabase();
+    const { data, error } = await sb.from("members").insert(member).select().single();
+    if (error) throw error;
+    return data;
+  },
+  async updateMember(phone, fields) {
+    const sb = getSupabase();
+    const { error } = await sb.from("members").update(fields).eq("phone", phone);
     if (error) throw error;
   },
 };
@@ -305,6 +326,21 @@ const localDriver = {
     const history = ls.get("katkat_history", []);
     ls.set("katkat_history", [...history, ...orders]);
     ls.set("katkat_orders", []);
+  },
+
+  // MEMBERS
+  async fetchMembers() {
+    return ls.get("katkat_members", []);
+  },
+  async addMember(member) {
+    const saved = { ...member, created_at: member.created_at || new Date().toISOString() };
+    const mems = ls.get("katkat_members", []);
+    ls.set("katkat_members", [...mems, saved]);
+    return saved;
+  },
+  async updateMember(phone, fields) {
+    const mems = ls.get("katkat_members", []);
+    ls.set("katkat_members", mems.map(m => m.phone === phone ? { ...m, ...fields } : m));
   },
 };
 
