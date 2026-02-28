@@ -25,17 +25,19 @@ function App() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [modifierGroups, setModifierGroups] = useState([]);
-  const [memberPhone, setMemberPhone] = useState(""); // เบอร์สมาชิกที่เลือกตอนขาย
+  const [members, setMembers] = useState([]);
+  const [memberPhone, setMemberPhone] = useState("");
 
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
   useEffect(() => {
     async function loadAll() {
       try {
-        const [cats, prods, mods, ords] = await Promise.all([
+        const [cats, prods, mods, ords, mems] = await Promise.all([
           db.fetchCategories(),
           db.fetchProducts(),
           db.fetchModifierGroups(),
           db.fetchOrders(),
+          db.fetchMembers(),
         ]);
 
         // FIX: รวม categories จาก DB + categories ที่มีใน products จริงๆ
@@ -55,6 +57,7 @@ function App() {
         setProducts(prods);
         setModifierGroups(mods);
         setOrders(ords);
+        setMembers(mems || []);
       } catch (err) {
         console.error("โหลดข้อมูลไม่ได้:", err);
         alert("❌ โหลดข้อมูลไม่ได้ กรุณา refresh");
@@ -201,13 +204,19 @@ function App() {
       });
       setOrders(prev => [saved, ...prev]);
 
-      // อัพเดทแต้มและยอดใช้จ่ายของสมาชิก
+      // สะสมแต้ม
       if (phone) {
         try {
           const pointsEarned = Math.floor(total / 10);
           await sb.rpc("increment_member_points", {
             p_phone: phone, p_points: pointsEarned, p_spent: total,
           });
+          // update members state ด้วย
+          setMembers(prev => prev.map(m =>
+            m.phone === phone
+              ? { ...m, points: m.points + pointsEarned, total_spent: m.total_spent + total }
+              : m
+          ));
         } catch (e) { console.warn("member update failed", e); }
       }
 
@@ -318,7 +327,7 @@ function App() {
             )}
             {view === "members" && (
               <div style={{ height: "calc(100vh - 150px)" }}>
-                <Members orders={orders} />
+                <Members orders={orders} members={members} />
               </div>
             )}
           </main>
@@ -388,7 +397,7 @@ function App() {
             )}
             {view === "members" && (
               <div style={{ flex: 1, overflow: "hidden" }}>
-                <Members orders={orders} />
+                <Members orders={orders} members={members} />
               </div>
             )}
           </main>
@@ -400,7 +409,7 @@ function App() {
 
 const styles = {
   bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
-  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer", padding: "0 4px" }),
+  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer" }),
   desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
   desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
   desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10, alignItems: "center" },
