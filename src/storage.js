@@ -89,7 +89,7 @@ const supabaseDriver = {
   },
   async addCategory(name) {
     const sb = getSupabase();
-    const { error } = await sb.from("categories").insert({ name, sort_order: Date.now() });
+    const { error } = await sb.from("categories").insert({ name });
     if (error && error.code !== "23505") throw error;
   },
   async deleteCategory(name) {
