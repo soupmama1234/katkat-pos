@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Trash2 } from "lucide-react";
 import { supabase as sb } from "../supabase";
 import { calcPoints, nextThreshold, getPointSettings } from "./Members";
+import RedeemModal from "./RedeemModal";
 
 export default function MobilePOS({ 
   products = [], 
@@ -23,6 +24,7 @@ export default function MobilePOS({
 }) {
   const [showCart, setShowCart] = useState(false);
   const [refValue, setRefValue] = useState("");
+  const [showRedeem, setShowRedeem] = useState(false);
 
   // member state
   const [memberInput, setMemberInput] = useState("");
@@ -207,6 +209,10 @@ export default function MobilePOS({
                   <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: 13 }}>👤 {memberInfo.nickname}</span>
                   <span style={{ color: "#666", fontSize: 12, marginLeft: 8 }}>⭐ {memberInfo.points} แต้ม</span>
                 </div>
+                <button onClick={() => setShowRedeem(true)}
+                  style={{ background: "#f5c518", border: "none", color: "#000", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: "bold", cursor: "pointer", marginRight: 4 }}>
+                  🎁 แลก
+                </button>
                 <button onClick={clearMember} style={{ background: "none", border: "1px solid #333", color: "#666", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>เปลี่ยน</button>
               </div>
               {/* Bonus Progress Bar */}
@@ -453,6 +459,18 @@ export default function MobilePOS({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Redeem Modal */}
+      {showRedeem && memberInfo && (
+        <RedeemModal
+          memberPhone={memberPhone}
+          memberInfo={memberInfo}
+          onSuccess={(updatedMember) => {
+            setMemberInfo(updatedMember);
+          }}
+          onClose={() => setShowRedeem(false)}
+        />
       )}
     </div>
   );

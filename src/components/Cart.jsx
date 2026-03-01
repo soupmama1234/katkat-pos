@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { supabase as sb } from "../supabase";
 import { calcPoints, nextThreshold, getPointSettings } from "./Members";
+import RedeemModal from "./RedeemModal";
 
 export default function Cart({
   cart = [], decreaseQty, increaseQty, total = 0,
@@ -12,6 +13,7 @@ export default function Cart({
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashReceived, setCashReceived] = useState("");
   const [deliveryRef, setDeliveryRef] = useState("");
+  const [showRedeem, setShowRedeem] = useState(false);
 
   // member state
   const [memberInput, setMemberInput] = useState("");
@@ -112,6 +114,10 @@ export default function Cart({
                     ⭐ {memberInfo.points} แต้ม · {memberInfo.tier || "Standard"}
                   </span>
                 </div>
+                <button onClick={() => setShowRedeem(true)}
+                  style={{ ...S.btnSmall, background: "#f5c518", border: "none", fontWeight: "bold", marginRight: 4 }}>
+                  🎁 แลก
+                </button>
                 <button onClick={clearMember} style={S.btnSmall}>เปลี่ยน</button>
               </div>
 
@@ -281,6 +287,14 @@ export default function Cart({
             </div>
           </div>
         </div>
+      )}
+      {showRedeem && memberInfo && (
+        <RedeemModal
+          memberPhone={memberPhone}
+          memberInfo={memberInfo}
+          onSuccess={(updatedMember) => setMemberInfo(updatedMember)}
+          onClose={() => setShowRedeem(false)}
+        />
       )}
     </div>
   );

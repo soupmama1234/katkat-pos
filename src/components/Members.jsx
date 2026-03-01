@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { supabase as sb } from "../supabase";
+import RewardManager from "./RewardManager";
 
-const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป"];
+const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards"];
 
 // ── Storage keys ──
 const RATE_KEY = "katkat_point_rate";
@@ -45,6 +46,12 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const [tiersInput, setTiersInput] = useState(tiers);
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState(null);
+  const [adjusting, setAdjusting] = useState(null); // { phone, nickname, points }
+  const [adjustVal, setAdjustVal] = useState("");
+  const [adjustNote, setAdjustNote] = useState("");
+  const [adjustSaving, setAdjustSaving] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   React.useEffect(() => { setMembers(initMembers); }, [initMembers]);
 
@@ -99,6 +106,42 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     setPointRate(r); saveRate(r); setEditRate(false);
   };
 
+  const handleAdjustPoints = async () => {
+    if (!adjusting || adjustVal === "") return;
+    const delta = Number(adjustVal);
+    if (isNaN(delta)) return;
+    setAdjustSaving(true);
+    try {
+      const newPoints = Math.max(0, (adjusting.points || 0) + delta);
+      await sb.from("members").update({ points: newPoints }).eq("phone", adjusting.phone);
+      await sb.from("point_history").insert({
+        member_phone: adjusting.phone,
+        type: "adjust",
+        points: delta,
+        note: adjustNote || `แก้ไขแต้มโดย admin (${delta > 0 ? "+" : ""}${delta})`,
+      });
+      setMembers(prev => prev.map(m => m.phone === adjusting.phone ? { ...m, points: newPoints } : m));
+      onMembersChange?.(members.map(m => m.phone === adjusting.phone ? { ...m, points: newPoints } : m));
+      setAdjusting(null); setAdjustVal(""); setAdjustNote("");
+    } catch (e) { alert("แก้แต้มไม่สำเร็จ: " + e.message); }
+    setAdjustSaving(false);
+  };
+
+  const fetchHistory = async () => {
+    setHistoryLoading(true);
+    const { data } = await sb.from("point_history")
+      .select("*, members(nickname)")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setHistory(data || []);
+    setHistoryLoading(false);
+  };
+
+  const deleteHistory = async (id) => {
+    await sb.from("point_history").delete().eq("id", id);
+    setHistory(prev => prev.filter(h => h.id !== id));
+  };
+
   const handleSaveTiers = () => {
     const cleaned = tiersInput
       .filter(t => t.minSpend > 0 && t.multiplier > 1)
@@ -120,6 +163,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     m, stats: statsMap[m.phone], fav: favMenu[m.phone] || [],
     tierColor, daysSince, daysUntil, isExpired, expiringSoon,
     onDelete: () => setDeleting(m.phone),
+    onAdjust: () => { setAdjusting(m); setAdjustVal(""); setAdjustNote(""); },
   });
 
   // preview คำนวณแต้มตัวอย่าง
@@ -300,6 +344,53 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
             {goneMems.length === 0 && neverCome.length === 0 && <Empty text="สมาชิกทุกคนยังมาสม่ำเสมอ 👍" />}
           </div>
         )}
+
+        {/* ══ ประวัติแต้ม ══ */}
+        {tab === "ประวัติ" && (
+          <div>
+            <button onClick={fetchHistory} style={{ ...S.btnEdit, marginBottom: 12, color: "#4D96FF", borderColor: "#4D96FF" }}>
+              🔄 โหลดประวัติล่าสุด
+            </button>
+            {historyLoading ? <Empty text="กำลังโหลด..." /> : history.length === 0 ? (
+              <Empty text="กด 'โหลดประวัติล่าสุด' เพื่อดูข้อมูล" />
+            ) : (
+              <div style={S.section}>
+                <div style={S.sectionTitle}>100 รายการล่าสุด</div>
+                {history.map(h => (
+                  <div key={h.id} style={S.memberRow}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 16 }}>
+                          {h.type === "earn" ? "⭐" : h.type === "redeem" ? "🎁" : "✏️"}
+                        </span>
+                        <span style={{ fontWeight: "bold", fontSize: 13 }}>
+                          {h.members?.nickname || h.member_phone}
+                        </span>
+                        <span style={{ fontSize: 11, color: "#555" }}>{h.member_phone}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{h.note || h.type}</div>
+                      <div style={{ fontSize: 11, color: "#444", marginTop: 1 }}>
+                        {new Date(h.created_at).toLocaleString("th-TH")}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                      <span style={{ fontWeight: "bold", color: h.points > 0 ? "#4caf50" : "#ff6b6b", fontSize: 15 }}>
+                        {h.points > 0 ? "+" : ""}{h.points} ⭐
+                      </span>
+                      <button onClick={() => deleteHistory(h.id)}
+                        style={{ background: "none", border: "none", color: "#333", fontSize: 14, cursor: "pointer", padding: "2px 4px" }}>
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ Rewards ══ */}
+        {tab === "Rewards" && <RewardManager />}
       </div>
 
       {/* Confirm Delete */}
@@ -318,11 +409,58 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
           </div>
         </div>
       )}
+
+      {/* Adjust Points Modal */}
+      {adjusting && (
+        <div style={S.overlay} onClick={() => setAdjusting(null)}>
+          <div style={{ ...S.modal, width: 320, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: "bold", fontSize: 16, marginBottom: 4 }}>✏️ แก้ไขแต้ม</div>
+            <div style={{ color: "#888", fontSize: 13, marginBottom: 16 }}>
+              {adjusting.nickname} · ⭐ {adjusting.points || 0} แต้ม
+            </div>
+
+            <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>เพิ่ม/ลด แต้ม (ใส่ - เพื่อลด)</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              {[-50, -10, +10, +50, +100].map(v => (
+                <button key={v} onClick={() => setAdjustVal(String(v))}
+                  style={{ flex: 1, padding: "6px 0", background: v < 0 ? "#2a1a1a" : "#1a2a1a",
+                    border: `1px solid ${v < 0 ? "#ff4444" : "#4caf50"}33`,
+                    color: v < 0 ? "#ff6b6b" : "#4caf50", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>
+                  {v > 0 ? "+" : ""}{v}
+                </button>
+              ))}
+            </div>
+            <input type="number" placeholder="หรือใส่จำนวนเอง เช่น +30 หรือ -20"
+              value={adjustVal} onChange={e => setAdjustVal(e.target.value)}
+              style={{ ...S.input, width: "100%", marginBottom: 8 }} />
+            <input placeholder="หมายเหตุ (optional)" value={adjustNote}
+              onChange={e => setAdjustNote(e.target.value)}
+              style={{ ...S.input, width: "100%", marginBottom: 14 }} />
+
+            {adjustVal !== "" && !isNaN(Number(adjustVal)) && (
+              <div style={{ fontSize: 13, color: "#888", marginBottom: 12, textAlign: "center" }}>
+                แต้มใหม่จะเป็น:{" "}
+                <span style={{ color: "#f5c518", fontWeight: "bold", fontSize: 16 }}>
+                  ⭐ {Math.max(0, (adjusting.points || 0) + Number(adjustVal))}
+                </span>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setAdjusting(null)} style={S.btnCancel}>ยกเลิก</button>
+              <button onClick={handleAdjustPoints} disabled={adjustSaving || adjustVal === ""}
+                style={{ ...S.btnSave, flex: 2, opacity: adjustVal === "" ? 0.5 : 1 }}>
+                {adjustSaving ? "กำลังบันทึก..." : "💾 บันทึก"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function MemberRow({ m, stats, fav = [], tierColor, daysSince, daysUntil, isExpired, expiringSoon, rank, onDelete, showDelete }) {
+function MemberRow({ m, stats, fav = [], tierColor, daysSince, daysUntil, isExpired, expiringSoon, rank, onDelete, onAdjust, showDelete }) {
   const expired = isExpired(m);
   const soon = expiringSoon(m);
   const dLeft = daysUntil(m.expires_at);
@@ -361,7 +499,12 @@ function MemberRow({ m, stats, fav = [], tierColor, daysSince, daysUntil, isExpi
       <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
         <div style={{ color: "#f5c518", fontWeight: "bold" }}>⭐ {(m.points || 0).toLocaleString()}</div>
         <div style={{ color: "#4caf50", fontSize: 12 }}>฿{(m.total_spent || 0).toLocaleString()}</div>
-        {showDelete && <button onClick={onDelete} style={S.btnDelete}>🗑️</button>}
+        {showDelete && (
+          <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+            <button onClick={onAdjust} style={{ ...S.btnDelete, color: "#4D96FF", fontSize: 14 }} title="แก้ไขแต้ม">✏️</button>
+            <button onClick={onDelete} style={S.btnDelete} title="ลบสมาชิก">🗑️</button>
+          </div>
+        )}
       </div>
     </div>
   );
