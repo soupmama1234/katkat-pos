@@ -32,6 +32,7 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
       });
 
       onSuccess({ ...memberInfo, points: newPoints }, reward);
+      onClose();
     } catch (e) {
       alert("แลกแต้มไม่สำเร็จ: " + e.message);
     }

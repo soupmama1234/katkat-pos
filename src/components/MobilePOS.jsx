@@ -466,8 +466,18 @@ export default function MobilePOS({
         <RedeemModal
           memberPhone={memberPhone}
           memberInfo={memberInfo}
-          onSuccess={(updatedMember) => {
+          onSuccess={(updatedMember, reward) => {
             setMemberInfo(updatedMember);
+            // เพิ่ม reward เข้าตะกร้าราคา ฿0
+            addToCart({
+              id: `reward-${reward.id}`,
+              name: `🎁 ${reward.name}`,
+              price: 0,
+              qty: 1,
+              category: "reward",
+              modifierGroups: [],
+            });
+            setShowRedeem(false);
           }}
           onClose={() => setShowRedeem(false)}
         />
