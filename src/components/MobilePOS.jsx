@@ -97,7 +97,7 @@ export default function MobilePOS({
       setSelectedProductId(product.id);
       setShowModifierPopup(true);
     } else {
-      addToCart({ ...product, price: getDisplayPrice(product) });
+      addToCart(product);
     }
   };
 
@@ -112,11 +112,9 @@ export default function MobilePOS({
 
   const handleConfirmModifier = () => {
     if (!selectedProduct) return;
-    const basePrice = getDisplayPrice(selectedProduct);
     const totalModPrice = tempSelection.reduce((sum, m) => sum + Number(m.price), 0);
     addToCart({
       ...selectedProduct,
-      price: basePrice + totalModPrice,
       selectedModifier: tempSelection.length > 0 ? {
         id: [...tempSelection].map(m => m.key).sort().join("|"),
         name: tempSelection.map(m => m.name).join(", "),

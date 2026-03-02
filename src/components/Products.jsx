@@ -32,7 +32,7 @@ export default function Products({
       setSelectedProductId(product.id);
       setShowModifierPopup(true);
     } else {
-      addToCart({ ...product, price: getDisplayPrice(product) });
+      addToCart(product);
     }
   };
 
@@ -155,11 +155,9 @@ export default function Products({
               <button
                 style={{ flex: 2, padding: "12px", backgroundColor: "#2196f3", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}
                 onClick={() => {
-                  const basePrice = getDisplayPrice(selectedProduct);
                   const totalModPrice = tempSelection.reduce((sum, m) => sum + Number(m.price), 0);
                   addToCart({
                     ...selectedProduct,
-                    price: basePrice + totalModPrice,
                     selectedModifier: tempSelection.length > 0 ? {
                       id: [...tempSelection].map(m => m.key).sort().join("|"),
                       name: tempSelection.map(m => m.name).join(", "),
