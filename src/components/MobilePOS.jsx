@@ -97,27 +97,26 @@ export default function MobilePOS({
       setSelectedProductId(product.id);
       setShowModifierPopup(true);
     } else {
-      addToCart({ ...product, price: getDisplayPrice(product) });
+      addToCart(product);
     }
   };
 
-  const toggleModifier = (opt) => {
+  const toggleModifier = (groupId, opt) => {
+    const selectionKey = `${groupId}:${opt.id}`;
     setTempSelection(prev => {
-      const isExist = prev.find(item => item.id === opt.id);
-      if (isExist) return prev.filter(item => item.id !== opt.id);
-      return [...prev, opt];
+      const isExist = prev.find(item => item.key === selectionKey);
+      if (isExist) return prev.filter(item => item.key !== selectionKey);
+      return [...prev, { ...opt, key: selectionKey, groupId }];
     });
   };
 
   const handleConfirmModifier = () => {
     if (!selectedProduct) return;
-    const basePrice = getDisplayPrice(selectedProduct);
     const totalModPrice = tempSelection.reduce((sum, m) => sum + Number(m.price), 0);
     addToCart({
       ...selectedProduct,
-      price: basePrice + totalModPrice,
       selectedModifier: tempSelection.length > 0 ? {
-        id: tempSelection.map(m => m.id).join("-"),
+        id: [...tempSelection].map(m => m.key).sort().join("|"),
         name: tempSelection.map(m => m.name).join(", "),
         price: totalModPrice
       } : null
@@ -409,11 +408,12 @@ export default function MobilePOS({
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                     {group.options && group.options.map(opt => {
-                      const isSelected = tempSelection.find(s => s.id === opt.id);
+                      const optionKey = `${group.id}:${opt.id}`;
+                      const isSelected = tempSelection.find(s => s.key === optionKey);
                       return (
                         <button
                           key={opt.id}
-                          onClick={() => toggleModifier(opt)}
+                          onClick={() => toggleModifier(group.id, opt)}
                           style={{
                             padding: "14px 10px",
                             backgroundColor: isSelected ? "#4caf50" : "#2a2a2a",
