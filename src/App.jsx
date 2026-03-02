@@ -13,6 +13,13 @@ import { supabase as sb } from "./supabase";
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
 
+const sortCategoriesWithAllFirst = (cats = []) => {
+  const unique = [...new Set((cats || []).filter(Boolean))];
+  const withoutAll = unique.filter(c => c !== "All");
+  const sorted = withoutAll.sort((a, b) => a.localeCompare(b, "th", { numeric: true, sensitivity: "base" }));
+  return ["All", ...sorted];
+};
+
 function App() {
   const [view, setView] = useState("pos");
   const [priceChannel, setPriceChannel] = useState("pos");
@@ -68,7 +75,7 @@ function App() {
         // ป้องกันกรณี categories table ไม่ครบแต่ products มีอยู่แล้ว
         const dbCats = new Set(cats.filter(c => c !== "All"));
         const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
-        const merged = ["All", ...new Set([...dbCats, ...prodCats])];
+        const merged = sortCategoriesWithAllFirst([...dbCats, ...prodCats]);
 
         // save categories ที่หายไปกลับเข้า DB ด้วย (auto-repair)
         for (const cat of prodCats) {
@@ -104,7 +111,7 @@ function App() {
   const addCategory = useCallback(async (name) => {
     if (!name || categories.includes(name)) return;
     await db.addCategory(name);
-    setCategories(prev => [...prev, name]);
+    setCategories(prev => sortCategoriesWithAllFirst([...prev, name]));
   }, [categories]);
 
   const deleteCategory = useCallback(async (catName) => {
