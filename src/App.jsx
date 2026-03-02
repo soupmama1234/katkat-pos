@@ -13,6 +13,13 @@ import { supabase as sb } from "./supabase";
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
 
+const sortCategoriesWithAllFirst = (cats = []) => {
+  const unique = [...new Set((cats || []).filter(Boolean))];
+  const withoutAll = unique.filter(c => c !== "All");
+  const sorted = withoutAll.sort((a, b) => a.localeCompare(b, "th", { numeric: true, sensitivity: "base" }));
+  return ["All", ...sorted];
+};
+
 function App() {
   const [view, setView] = useState("pos");
   const [priceChannel, setPriceChannel] = useState("pos");
@@ -27,6 +34,30 @@ function App() {
   const [modifierGroups, setModifierGroups] = useState([]);
   const [members, setMembers] = useState([]);
   const [memberPhone, setMemberPhone] = useState("");
+
+  const cleanupInvalidModifierLinks = useCallback(async (prods, mods) => {
+    const validGroupIds = new Set((mods || []).map(g => g.id));
+    const fixedProducts = [];
+
+    for (const p of prods || []) {
+      const original = Array.isArray(p.modifierGroups) ? p.modifierGroups : [];
+      const filtered = original.filter(id => validGroupIds.has(id));
+      if (filtered.length !== original.length) {
+        fixedProducts.push({ ...p, modifierGroups: filtered });
+      }
+    }
+
+    if (fixedProducts.length > 0) {
+      await Promise.all(
+        fixedProducts.map((p) => db.updateProduct(p.id, { modifierGroups: p.modifierGroups }))
+      );
+    }
+
+    return (prods || []).map((p) => {
+      const fixed = fixedProducts.find(fp => fp.id === p.id);
+      return fixed || p;
+    });
+  }, []);
 
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
   useEffect(() => {
@@ -44,7 +75,7 @@ function App() {
         // ป้องกันกรณี categories table ไม่ครบแต่ products มีอยู่แล้ว
         const dbCats = new Set(cats.filter(c => c !== "All"));
         const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
-        const merged = ["All", ...new Set([...dbCats, ...prodCats])];
+        const merged = sortCategoriesWithAllFirst([...dbCats, ...prodCats]);
 
         // save categories ที่หายไปกลับเข้า DB ด้วย (auto-repair)
         for (const cat of prodCats) {
@@ -53,8 +84,10 @@ function App() {
           }
         }
 
+        const normalizedProducts = await cleanupInvalidModifierLinks(prods, mods);
+
         setCategories(merged);
-        setProducts(prods);
+        setProducts(normalizedProducts);
         setModifierGroups(mods);
         setOrders(ords);
         setMembers(mems || []);
@@ -66,7 +99,7 @@ function App() {
       }
     }
     loadAll();
-  }, []);
+  }, [cleanupInvalidModifierLinks]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -78,7 +111,7 @@ function App() {
   const addCategory = useCallback(async (name) => {
     if (!name || categories.includes(name)) return;
     await db.addCategory(name);
-    setCategories(prev => [...prev, name]);
+    setCategories(prev => sortCategoriesWithAllFirst([...prev, name]));
   }, [categories]);
 
   const deleteCategory = useCallback(async (catName) => {
@@ -139,6 +172,24 @@ function App() {
       g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g
     ));
   }, []);
+
+  const cleanupUnusedModifierGroups = useCallback(async () => {
+    const usedGroupIds = new Set(
+      products.flatMap((p) => Array.isArray(p.modifierGroups) ? p.modifierGroups : [])
+    );
+    const unusedGroups = modifierGroups.filter(g => !usedGroupIds.has(g.id));
+
+    if (unusedGroups.length === 0) {
+      alert("ไม่พบกลุ่มเมนูเสริมที่ไม่ได้ใช้งาน");
+      return;
+    }
+
+    if (!window.confirm(`พบ ${unusedGroups.length} กลุ่มที่ไม่ได้ใช้งาน ต้องการลบหรือไม่?`)) return;
+
+    await Promise.all(unusedGroups.map(g => db.deleteModifierGroup(g.id)));
+    setModifierGroups(prev => prev.filter(g => usedGroupIds.has(g.id)));
+    alert(`ลบกลุ่มเมนูเสริมที่ไม่ได้ใช้งานแล้ว ${unusedGroups.length} กลุ่ม`);
+  }, [modifierGroups, products]);
 
   // POS LOGIC
   const visibleProducts = useMemo(() =>
@@ -270,6 +321,7 @@ function App() {
 
   const modifierManagerProps = {
     modifierGroups, addModifierGroup, deleteModifierGroup, addOptionToGroup, deleteOption,
+    cleanupUnusedModifierGroups,
   };
 
   const CHANNELS = [
