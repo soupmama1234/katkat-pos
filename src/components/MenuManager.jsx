@@ -212,7 +212,8 @@ export default function MenuManager({
   };
 
   return (
-    <div style={{ padding: "12px", color: "#fff", boxSizing: "border-box" }}>
+    <div style={s.page}>
+      <div style={s.topGrid}>
 
       {/* Header */}
       <div style={{ backgroundColor: "#262626", padding: "14px", borderRadius: "12px", marginBottom: "16px", border: "1px solid #333" }}>
@@ -272,9 +273,11 @@ export default function MenuManager({
         )}
       </div>
 
+      </div>
+
       {/* Product list */}
-      <h3 style={{ fontSize: "15px", margin: "0 0 10px 0" }}>รายการสินค้าทั้งหมด ({products.length})</h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px", paddingBottom: "20px" }}>
+      <h3 style={{ fontSize: "15px", margin: "0 0 10px 0", color: "#ddd" }}>รายการสินค้าทั้งหมด ({products.length})</h3>
+      <div style={s.productGrid}>
         {products.map((p) => (
           <div key={p.id} style={s.productCard}>
             <div style={{ marginBottom: "10px" }}>
@@ -363,7 +366,9 @@ export default function MenuManager({
 }
 
 const s = {
-  section: { marginBottom: "20px", padding: "16px", backgroundColor: "#262626", borderRadius: "12px", border: "1px solid #333" },
+  page: { padding: "12px", color: "#fff", boxSizing: "border-box", maxWidth: "1100px", margin: "0 auto" },
+  topGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "12px", alignItems: "start" },
+  section: { marginBottom: "12px", padding: "16px", backgroundColor: "#262626", borderRadius: "12px", border: "1px solid #333" },
   input: { padding: "12px", borderRadius: "8px", border: "1px solid #444", backgroundColor: "#1a1a1a", color: "#fff", outline: "none", width: "100%", fontSize: "15px", boxSizing: "border-box" },
   btnWhite: { background: "#fff", color: "#000", border: "none", padding: "12px", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", fontSize: "14px" },
   btnOutline: { background: "transparent", border: "1px solid #555", color: "#ccc", padding: "12px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" },
@@ -373,6 +378,7 @@ const s = {
   btnAction: { background: "#2a2a2a", color: "#64b5f6", border: "1px solid #444", padding: "8px 4px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" },
   btnEdit: { background: "transparent", border: "1px solid #4caf50", color: "#4caf50", padding: "8px 4px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" },
   btnDel: { background: "transparent", border: "1px solid #f44336", color: "#f44336", padding: "8px 4px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" },
+  productGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "10px", paddingBottom: "20px" },
   productCard: { position: "relative", padding: "14px", border: "1px solid #333", borderRadius: "12px", backgroundColor: "#262626" },
   dropdown: { marginTop: "12px", background: "#1a1a1a", border: "1px solid #444", padding: "14px", borderRadius: "10px" },
   tag: { padding: "6px 10px", background: "#333", color: "#eee", borderRadius: "20px", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", border: "1px solid #444" },
