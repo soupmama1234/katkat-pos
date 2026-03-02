@@ -49,11 +49,12 @@ export default function Products({
     [modifierGroups, selectedProduct]
   );
 
-  const toggleModifier = (opt) => {
+  const toggleModifier = (groupId, opt) => {
+    const selectionKey = `${groupId}:${opt.id}`;
     setTempSelection(prev => {
-      const isExist = prev.find(item => item.id === opt.id);
-      if (isExist) return prev.filter(item => item.id !== opt.id);
-      return [...prev, opt];
+      const isExist = prev.find(item => item.key === selectionKey);
+      if (isExist) return prev.filter(item => item.key !== selectionKey);
+      return [...prev, { ...opt, key: selectionKey, groupId }];
     });
   };
 
@@ -120,7 +121,8 @@ export default function Products({
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                     {group.options && group.options.map(opt => {
-                      const isSelected = tempSelection.find(s => s.id === opt.id);
+                      const optionKey = `${group.id}:${opt.id}`;
+                      const isSelected = tempSelection.find(s => s.key === optionKey);
                       return (
                         <button
                           key={opt.id}
@@ -130,7 +132,7 @@ export default function Products({
                             border: isSelected ? "1px solid #fff" : "1px solid #444",
                             color: "#fff", borderRadius: "8px", cursor: "pointer", textAlign: "center"
                           }}
-                          onClick={() => toggleModifier(opt)}
+                          onClick={() => toggleModifier(group.id, opt)}
                         >
                           <div style={{ fontWeight: "bold" }}>{opt.name}</div>
                           <div style={{ color: isSelected ? "#fff" : "#4caf50", fontSize: "13px", marginTop: "4px" }}>
@@ -159,7 +161,7 @@ export default function Products({
                     ...selectedProduct,
                     price: basePrice + totalModPrice,
                     selectedModifier: tempSelection.length > 0 ? {
-                      id: tempSelection.map(m => m.id).join("-"),
+                      id: [...tempSelection].map(m => m.key).sort().join("|"),
                       name: tempSelection.map(m => m.name).join(", "),
                       price: totalModPrice
                     } : null
