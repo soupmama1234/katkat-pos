@@ -7,10 +7,12 @@
   "theme_color": "#F59C1A",
   "icons": [
     {
-      "src": "/katkat-logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/kat%20kat%20katsu%20-%20Logo-07.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
     }
   ]
 }

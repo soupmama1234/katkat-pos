@@ -19,7 +19,7 @@ const sortCategoriesWithAllFirst = (cats = []) => {
   const sorted = withoutAll.sort((a, b) => a.localeCompare(b, "th", { numeric: true, sensitivity: "base" }));
   return ["All", ...sorted];
 };
-
+const APP_LOGO_SRC = "/kat%20kat%20katsu%20-%20Logo-07.png";
 function App() {
   const [view, setView] = useState("pos");
   const [priceChannel, setPriceChannel] = useState("pos");
@@ -334,7 +334,7 @@ function App() {
   if (loading) {
     return (
       <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff", gap: 16 }}>
-        <img src="/katkat-logo.svg" alt="KATKAT POS" style={{ width: 92, height: 92, borderRadius: 18, border: "1px solid #333", background: "#f59c1a" }} />
+        <img src={APP_LOGO_SRC} alt="KATKAT POS" onError={(e) => { e.currentTarget.src = "/kat kat katsu - Logo-07.png"; }} style={{ width: 92, height: 92, borderRadius: 18, border: "1px solid #333", background: "#f59c1a" }} />
         <div style={{ fontSize: 20, fontWeight: "bold" }}>KATKAT POS</div>
         <div style={{ color: "#666", fontSize: 14 }}>กำลังโหลดข้อมูล...</div>
         {!isUsingSupabase && (
@@ -396,7 +396,8 @@ function App() {
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <header style={styles.desktopHeader}>
             <div style={styles.brandWrap}>
-              <img src="/katkat-logo.svg" alt="KATKAT logo" style={styles.brandLogo} />
+              <img src={APP_LOGO_SRC} alt="KATKAT logo" onError={(e) => { e.currentTarget.src = "/kat%20kat%20katsu%20-%20Logo-07.png"; }} style={styles.brandLogo} />
+
               <h2 style={{ margin: 0 }}>KATKAT POS</h2>
             </div>
             <nav style={{ display: "flex", gap: 10 }}>
