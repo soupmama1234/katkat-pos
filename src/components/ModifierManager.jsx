@@ -89,6 +89,7 @@ export default function ModifierManager({
   deleteModifierGroup,
   addOptionToGroup,
   deleteOption,
+  cleanupUnusedModifierGroups,
 }) {
   const [newGroupName, setNewGroupName] = useState("");
 
@@ -117,6 +118,9 @@ export default function ModifierManager({
           />
           <button onClick={handleCreateGroup} style={s.btnPrimary}>สร้าง</button>
         </div>
+        <button onClick={cleanupUnusedModifierGroups} style={s.btnCleanup}>
+          🧹 ลบกลุ่มที่ไม่ได้ใช้
+        </button>
       </div>
 
       {/* รายการกลุ่ม */}
@@ -164,6 +168,10 @@ const s = {
     width: "100%", backgroundColor: "#2a2a2a", color: "#aaa",
     border: "1px dashed #555", padding: "10px", borderRadius: "8px",
     cursor: "pointer", fontSize: "13px",
+  },
+  btnCleanup: {
+    marginTop: "10px", width: "100%", backgroundColor: "#1f2937", color: "#cbd5e1",
+    border: "1px solid #334155", padding: "10px", borderRadius: "8px", cursor: "pointer", fontSize: "13px",
   },
   btnDel: {
     background: "none", border: "none", color: "#ff5252",
