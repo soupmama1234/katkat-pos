@@ -1,0 +1,22 @@
+{
+  "name": "KATKAT POS",
+  "short_name": "KATKAT",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F59C1A",
+  "theme_color": "#F59C1A",
+  "icons": [
+    {
+      "src": "/kat%20kat%20katsu%20-%20Logo-07.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/katkat-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
