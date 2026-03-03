@@ -338,14 +338,6 @@ function App() {
   if (loading) {
     return (
       <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: BRAND_BG, color: "#fff", gap: 16 }}>
-        {!isMobile && (
-          <img
-            src={APP_LOGO_SRC}
-            alt="KATKAT logo"
-            onError={(e) => { e.currentTarget.src = "/vite.svg"; }}
-            style={{ width: 84, height: 84, borderRadius: 12, border: "1px solid #333", background: "#222" }}
-          />
-        )}
         <div style={{ fontSize: 20, fontWeight: "bold" }}>KATKAT POS</div>
         <div style={{ color: "#666", fontSize: 14 }}>กำลังโหลดข้อมูล...</div>
         {!isUsingSupabase && (
