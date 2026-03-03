@@ -395,6 +395,7 @@ function App() {
             )}
           </main>
           <nav style={styles.bottomNav}>
+            <img src="/katkat-logo.svg" alt="KATKAT logo" style={styles.mobileNavLogo} />
             <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
             <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>
             <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>
