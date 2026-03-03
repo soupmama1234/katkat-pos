@@ -20,7 +20,9 @@ const sortCategoriesWithAllFirst = (cats = []) => {
   return ["All", ...sorted];
 };
 
+
 const APP_LOGO_SRC = "/kat%20kat%20katsu%20-%20Logo-07.png";
+const BRAND_BG = "#161616";
 
 function App() {
   const [view, setView] = useState("pos");
@@ -335,9 +337,14 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff", gap: 16 }}>
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: BRAND_BG, color: "#fff", gap: 16 }}>
         {!isMobile && (
-          <img src={APP_LOGO_SRC} alt="KATKAT POS" style={{ width: 92, height: 92, borderRadius: 18, border: "1px solid #333", background: "#f59c1a" }} />
+          <img
+            src={APP_LOGO_SRC}
+            alt="KATKAT logo"
+            onError={(e) => { e.currentTarget.src = "/vite.svg"; }}
+            style={{ width: 84, height: 84, borderRadius: 12, border: "1px solid #333", background: "#222" }}
+          />
         )}
         <div style={{ fontSize: 20, fontWeight: "bold" }}>KATKAT POS</div>
         <div style={{ color: "#666", fontSize: 14 }}>กำลังโหลดข้อมูล...</div>
@@ -400,7 +407,7 @@ function App() {
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <header style={styles.desktopHeader}>
             <div style={styles.brandWrap}>
-              <img src={APP_LOGO_SRC} alt="KATKAT logo" style={styles.brandLogo} />
+              <img src={APP_LOGO_SRC} alt="KATKAT logo" onError={(e) => { e.currentTarget.src = "/vite.svg"; }} style={styles.brandLogo} />
               <h2 style={{ margin: 0 }}>KATKAT POS</h2>
             </div>
             <nav style={{ display: "flex", gap: 10 }}>
@@ -469,11 +476,11 @@ function App() {
 
 const styles = {
   brandWrap: { display: "flex", alignItems: "center", gap: 10 },
-  brandLogo: { width: 34, height: 34, borderRadius: 8, background: "#f59c1a", border: "1px solid #444" },
+  brandLogo: { width: 34, height: 34, borderRadius: 8, border: "1px solid #333", background: "#222" },
   bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
   mobileNavLogo: { position: "absolute", top: -18, left: 10, width: 38, height: 38, borderRadius: 10, border: "1px solid #333", background: "#f59c1a" },
   navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer" }),
-  desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
+  desktopHeader: { padding: "15px 25px", backgroundColor: BRAND_BG, borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
   desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
   desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10, alignItems: "center" },
   channelBtn: (isActive, color) => ({ padding: "6px 18px", borderRadius: "20px", border: "none", background: isActive ? color : "#262626", color: "#fff", cursor: "pointer", transition: "0.2s", fontSize: "12px" }),
