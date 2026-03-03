@@ -22,7 +22,7 @@ const sortCategoriesWithAllFirst = (cats = []) => {
 
 
 const APP_LOGO_SRC = "/kat%20kat%20katsu%20-%20Logo-07.png";
-const BRAND_BG = "#161616";
+const BRAND_BG = "#ff970d";
 
 function App() {
   const [view, setView] = useState("pos");
@@ -387,7 +387,6 @@ function App() {
             )}
           </main>
           <nav style={styles.bottomNav}>
-            <img src="kat kat katsu - Logo-07.png" alt="KATKAT logo" style={styles.mobileNavLogo} />
             <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
             <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>
             <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>
