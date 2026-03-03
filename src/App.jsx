@@ -13,6 +13,13 @@ import { supabase as sb } from "./supabase";
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
 
+const sortCategoriesWithAllFirst = (cats = []) => {
+  const unique = [...new Set((cats || []).filter(Boolean))];
+  const withoutAll = unique.filter(c => c !== "All");
+  const sorted = withoutAll.sort((a, b) => a.localeCompare(b, "th", { numeric: true, sensitivity: "base" }));
+  return ["All", ...sorted];
+};
+
 function App() {
   const [view, setView] = useState("pos");
   const [priceChannel, setPriceChannel] = useState("pos");
@@ -27,6 +34,30 @@ function App() {
   const [modifierGroups, setModifierGroups] = useState([]);
   const [members, setMembers] = useState([]);
   const [memberPhone, setMemberPhone] = useState("");
+
+  const cleanupInvalidModifierLinks = useCallback(async (prods, mods) => {
+    const validGroupIds = new Set((mods || []).map(g => g.id));
+    const fixedProducts = [];
+
+    for (const p of prods || []) {
+      const original = Array.isArray(p.modifierGroups) ? p.modifierGroups : [];
+      const filtered = original.filter(id => validGroupIds.has(id));
+      if (filtered.length !== original.length) {
+        fixedProducts.push({ ...p, modifierGroups: filtered });
+      }
+    }
+
+    if (fixedProducts.length > 0) {
+      await Promise.all(
+        fixedProducts.map((p) => db.updateProduct(p.id, { modifierGroups: p.modifierGroups }))
+      );
+    }
+
+    return (prods || []).map((p) => {
+      const fixed = fixedProducts.find(fp => fp.id === p.id);
+      return fixed || p;
+    });
+  }, []);
 
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
   useEffect(() => {
@@ -44,7 +75,7 @@ function App() {
         // ป้องกันกรณี categories table ไม่ครบแต่ products มีอยู่แล้ว
         const dbCats = new Set(cats.filter(c => c !== "All"));
         const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
-        const merged = ["All", ...new Set([...dbCats, ...prodCats])];
+        const merged = sortCategoriesWithAllFirst([...dbCats, ...prodCats]);
 
         // save categories ที่หายไปกลับเข้า DB ด้วย (auto-repair)
         for (const cat of prodCats) {
@@ -53,8 +84,10 @@ function App() {
           }
         }
 
+        const normalizedProducts = await cleanupInvalidModifierLinks(prods, mods);
+
         setCategories(merged);
-        setProducts(prods);
+        setProducts(normalizedProducts);
         setModifierGroups(mods);
         setOrders(ords);
         setMembers(mems || []);
@@ -66,7 +99,7 @@ function App() {
       }
     }
     loadAll();
-  }, []);
+  }, [cleanupInvalidModifierLinks]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -78,7 +111,7 @@ function App() {
   const addCategory = useCallback(async (name) => {
     if (!name || categories.includes(name)) return;
     await db.addCategory(name);
-    setCategories(prev => [...prev, name]);
+    setCategories(prev => sortCategoriesWithAllFirst([...prev, name]));
   }, [categories]);
 
   const deleteCategory = useCallback(async (catName) => {
@@ -139,6 +172,24 @@ function App() {
       g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g
     ));
   }, []);
+
+  const cleanupUnusedModifierGroups = useCallback(async () => {
+    const usedGroupIds = new Set(
+      products.flatMap((p) => Array.isArray(p.modifierGroups) ? p.modifierGroups : [])
+    );
+    const unusedGroups = modifierGroups.filter(g => !usedGroupIds.has(g.id));
+
+    if (unusedGroups.length === 0) {
+      alert("ไม่พบกลุ่มเมนูเสริมที่ไม่ได้ใช้งาน");
+      return;
+    }
+
+    if (!window.confirm(`พบ ${unusedGroups.length} กลุ่มที่ไม่ได้ใช้งาน ต้องการลบหรือไม่?`)) return;
+
+    await Promise.all(unusedGroups.map(g => db.deleteModifierGroup(g.id)));
+    setModifierGroups(prev => prev.filter(g => usedGroupIds.has(g.id)));
+    alert(`ลบกลุ่มเมนูเสริมที่ไม่ได้ใช้งานแล้ว ${unusedGroups.length} กลุ่ม`);
+  }, [modifierGroups, products]);
 
   // POS LOGIC
   const visibleProducts = useMemo(() =>
@@ -270,6 +321,7 @@ function App() {
 
   const modifierManagerProps = {
     modifierGroups, addModifierGroup, deleteModifierGroup, addOptionToGroup, deleteOption,
+    cleanupUnusedModifierGroups,
   };
 
   const CHANNELS = [
@@ -282,7 +334,7 @@ function App() {
   if (loading) {
     return (
       <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff", gap: 16 }}>
-        <div style={{ fontSize: 40 }}>🍖</div>
+        <img src="/katkat-logo.svg" alt="KATKAT POS" style={{ width: 92, height: 92, borderRadius: 18, border: "1px solid #333", background: "#f59c1a" }} />
         <div style={{ fontSize: 20, fontWeight: "bold" }}>KATKAT POS</div>
         <div style={{ color: "#666", fontSize: 14 }}>กำลังโหลดข้อมูล...</div>
         {!isUsingSupabase && (
@@ -332,6 +384,7 @@ function App() {
             )}
           </main>
           <nav style={styles.bottomNav}>
+            <img src="/katkat-logo.svg" alt="KATKAT logo" style={styles.mobileNavLogo} />
             <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
             <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>
             <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>
@@ -342,7 +395,10 @@ function App() {
       ) : (
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <header style={styles.desktopHeader}>
-            <h2 style={{ margin: 0 }}>KATKAT POS</h2>
+            <div style={styles.brandWrap}>
+              <img src="/katkat-logo.svg" alt="KATKAT logo" style={styles.brandLogo} />
+              <h2 style={{ margin: 0 }}>KATKAT POS</h2>
+            </div>
             <nav style={{ display: "flex", gap: 10 }}>
               {["pos", "menu", "dashboard", "orders", "members"].map((v) => (
                 <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
@@ -408,7 +464,10 @@ function App() {
 }
 
 const styles = {
+  brandWrap: { display: "flex", alignItems: "center", gap: 10 },
+  brandLogo: { width: 34, height: 34, borderRadius: 8, background: "#f59c1a", border: "1px solid #444" },
   bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
+  mobileNavLogo: { position: "absolute", top: -18, left: 10, width: 38, height: 38, borderRadius: 10, border: "1px solid #333", background: "#f59c1a" },
   navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer" }),
   desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
   desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
