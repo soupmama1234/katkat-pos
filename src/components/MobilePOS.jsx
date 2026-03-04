@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Trash2 } from "lucide-react";
 import { supabase as sb } from "../supabase";
-import { calcPoints, nextThreshold, getPointSettings } from "./Members";
-import RedeemModal from "./RedeemModal";
 
 export default function MobilePOS({ 
   products = [], 
@@ -21,15 +19,19 @@ export default function MobilePOS({
   modifierGroups = [],
   memberPhone = "",
   setMemberPhone,
+  itemDiscounts = {},
+  setItemDiscounts,
 }) {
   const [showCart, setShowCart] = useState(false);
   const [refValue, setRefValue] = useState("");
-  const [showRedeem, setShowRedeem] = useState(false);
+  const [expandedItem, setExpandedItem] = useState(null);
+  const [billDiscountVal, setBillDiscountVal] = useState("");
+  const [billDiscountType, setBillDiscountType] = useState("%");
 
-  // member state
+  // member lookup state
   const [memberInput, setMemberInput] = useState("");
-  const [memberInfo, setMemberInfo] = useState(null);
-  const [memberStatus, setMemberStatus] = useState("idle");
+  const [memberInfo, setMemberInfo] = useState(null);   // { nickname, points, ... }
+  const [memberStatus, setMemberStatus] = useState("idle"); // idle | found | notfound | loading
   const [showRegister, setShowRegister] = useState(false);
   const [regNickname, setRegNickname] = useState("");
 
@@ -38,20 +40,20 @@ export default function MobilePOS({
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [tempSelection, setTempSelection] = useState([]);
 
-  // ── bonus points calculation ──
-  const { rate, tiers } = getPointSettings();
-  const pointsWillEarn = memberPhone ? calcPoints(total, rate, tiers) : 0;
-  const nextTier = nextThreshold(total, tiers);
-  const needMore = nextTier ? nextTier.minSpend - total : null;
-
+  // --- Member Lookup ---
   const lookupMember = async (phone) => {
     if (phone.length < 9) return;
     setMemberStatus("loading");
     try {
       const { data } = await sb.from("members").select("*").eq("phone", phone).single();
-      if (data) { setMemberInfo(data); setMemberStatus("found"); setMemberPhone(phone); }
-      else { setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone(""); }
-    } catch { setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone(""); }
+      if (data) {
+        setMemberInfo(data); setMemberStatus("found"); setMemberPhone(phone);
+      } else {
+        setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone("");
+      }
+    } catch {
+      setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone("");
+    }
   };
 
   const registerMember = async () => {
@@ -97,26 +99,27 @@ export default function MobilePOS({
       setSelectedProductId(product.id);
       setShowModifierPopup(true);
     } else {
-      addToCart(product);
+      addToCart({ ...product, price: getDisplayPrice(product) });
     }
   };
 
-  const toggleModifier = (groupId, opt) => {
-    const selectionKey = `${groupId}:${opt.id}`;
+  const toggleModifier = (opt) => {
     setTempSelection(prev => {
-      const isExist = prev.find(item => item.key === selectionKey);
-      if (isExist) return prev.filter(item => item.key !== selectionKey);
-      return [...prev, { ...opt, key: selectionKey, groupId }];
+      const isExist = prev.find(item => item.id === opt.id);
+      if (isExist) return prev.filter(item => item.id !== opt.id);
+      return [...prev, opt];
     });
   };
 
   const handleConfirmModifier = () => {
     if (!selectedProduct) return;
+    const basePrice = getDisplayPrice(selectedProduct);
     const totalModPrice = tempSelection.reduce((sum, m) => sum + Number(m.price), 0);
     addToCart({
       ...selectedProduct,
+      price: basePrice + totalModPrice,
       selectedModifier: tempSelection.length > 0 ? {
-        id: [...tempSelection].map(m => m.key).sort().join("|"),
+        id: tempSelection.map(m => m.id).join("-"),
         name: tempSelection.map(m => m.name).join(", "),
         price: totalModPrice
       } : null
@@ -125,11 +128,33 @@ export default function MobilePOS({
     setTempSelection([]);
   };
 
+  // ── คำนวณส่วนลด ──
+  const itemKey = (item, index) => `${item.id}-${index}`;
+  const setItemDisc = (key, type, val) => setItemDiscounts?.(prev => ({ ...prev, [key]: { type, val } }));
+  const clearItemDisc = (key) => setItemDiscounts?.(prev => { const n = { ...prev }; delete n[key]; return n; });
+
+  const itemDiscountedTotal = cart.reduce((sum, item, index) => {
+    const key = itemKey(item, index);
+    const d = itemDiscounts?.[key];
+    const lineTotal = item.price * item.qty;
+    if (!d || !d.val) return sum + lineTotal;
+    const disc = d.type === "%" ? lineTotal * (parseFloat(d.val) / 100) : parseFloat(d.val);
+    return sum + Math.max(0, lineTotal - disc);
+  }, 0);
+
+  const billDiscNum = parseFloat(billDiscountVal) || 0;
+  const billDiscAmount = billDiscountType === "%" ? itemDiscountedTotal * (billDiscNum / 100) : billDiscNum;
+  const finalTotal = Math.max(0, Math.round(itemDiscountedTotal - billDiscAmount));
+  const totalSaved = Math.round(total - finalTotal);
+
   const handleConfirmCheckout = (type) => {
     let finalRef = refValue;
     if (type === "grab" && refValue) finalRef = `GF-${refValue}`;
-    onCheckout(type, finalRef);
+    const discountInfo = { itemDiscounts, billDiscount: { val: billDiscountVal, type: billDiscountType, amount: billDiscAmount }, totalSaved, finalTotal };
+    onCheckout(type, finalRef, undefined, discountInfo);
     setRefValue("");
+    setBillDiscountVal("");
+    setItemDiscounts?.({});
     setShowCart(false);
   };
 
@@ -198,71 +223,61 @@ export default function MobilePOS({
         </div>
       )}
 
-      {/* ── Member Bar (POS only) ── */}
+      {/* 2.6 ช่องสมาชิก — เฉพาะ POS channel */}
       {priceChannel === "pos" && (
-        <div style={{ padding: "8px 12px", backgroundColor: "#0a0a0a", borderBottom: "1px solid #1a1a1a" }}>
+        <div style={{ padding: "8px 12px", backgroundColor: "#0a0a0a", borderBottom: "1px solid #222" }}>
           {memberStatus === "found" && memberInfo ? (
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1 }}>
-                  <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: 13 }}>👤 {memberInfo.nickname}</span>
-                  <span style={{ color: "#666", fontSize: 12, marginLeft: 8 }}>⭐ {memberInfo.points} แต้ม</span>
-                </div>
-                <button onClick={() => setShowRedeem(true)}
-                  style={{ background: "#f5c518", border: "none", color: "#000", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: "bold", cursor: "pointer", marginRight: 4 }}>
-                  🎁 แลก
-                </button>
-                <button onClick={clearMember} style={{ background: "none", border: "1px solid #333", color: "#666", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>เปลี่ยน</button>
+            // แสดงข้อมูลสมาชิกที่เจอ
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: 14 }}>
+                  👤 {memberInfo.nickname}
+                </span>
+                <span style={{ color: "#888", fontSize: 12, marginLeft: 8 }}>
+                  ⭐ {memberInfo.points} แต้ม · {memberInfo.tier}
+                </span>
               </div>
-              {/* Bonus Progress Bar */}
-              {total > 0 && (
-                <div style={{ marginTop: 6 }}>
-                  {nextTier ? (
-                    <div>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                        <span style={{ fontSize: 11, color: "#f5c518" }}>
-                          ⭐ จะได้ {pointsWillEarn} แต้ม
-                          {calcPoints(total, rate, tiers) > calcPoints(total, rate, []) && (
-                            <span style={{ color: "#ff9800", marginLeft: 4 }}>
-                              ({tiers.sort((a,b)=>b.minSpend-a.minSpend).find(t=>total>=t.minSpend)?.multiplier || 1}x!)
-                            </span>
-                          )}
-                        </span>
-                        <span style={{ fontSize: 11, color: "#ff9800" }}>อีก ฿{needMore} → {nextTier.multiplier}x 🚀</span>
-                      </div>
-                      <div style={{ height: 4, background: "#222", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{ height: "100%", borderRadius: 4, background: "linear-gradient(90deg,#f5c518,#ff9800)",
-                          width: `${Math.min(100, (total / nextTier.minSpend) * 100)}%`, transition: "width 0.3s" }} />
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: 11, color: "#f5c518" }}>
-                      ⭐ จะได้ {pointsWillEarn} แต้ม
-                      {calcPoints(total, rate, tiers) > calcPoints(total, rate, []) && " 🔥 MAX BONUS!"}
-                    </div>
-                  )}
-                </div>
-              )}
+              <button onClick={clearMember}
+                style={{ background: "none", border: "1px solid #444", color: "#888", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>
+                เปลี่ยน
+              </button>
             </div>
           ) : showRegister ? (
+            // ฟอร์มสมัครสมาชิก
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ fontSize: 12, color: "#ff9800" }}>✨ สมัครสมาชิกใหม่ · {memberInput}</div>
               <div style={{ display: "flex", gap: 6 }}>
-                <input placeholder="ชื่อเล่น" value={regNickname} onChange={e => setRegNickname(e.target.value)}
-                  style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }} autoFocus />
-                <button onClick={registerMember} style={{ background: "#4caf50", border: "none", color: "#000", borderRadius: 8, padding: "8px 14px", fontWeight: "bold", cursor: "pointer" }}>บันทึก</button>
-                <button onClick={clearMember} style={{ background: "#222", border: "1px solid #444", color: "#888", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}>✕</button>
+                <input
+                  placeholder="ชื่อเล่น"
+                  value={regNickname}
+                  onChange={e => setRegNickname(e.target.value)}
+                  style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }}
+                  autoFocus
+                />
+                <button onClick={registerMember}
+                  style={{ background: "#4caf50", border: "none", color: "#000", borderRadius: 8, padding: "8px 14px", fontWeight: "bold", cursor: "pointer" }}>
+                  บันทึก
+                </button>
+                <button onClick={clearMember}
+                  style={{ background: "#222", border: "1px solid #444", color: "#888", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}>
+                  ✕
+                </button>
               </div>
             </div>
           ) : (
+            // ช่องค้นหาเบอร์
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input type="tel" inputMode="numeric" placeholder="👤 เบอร์สมาชิก (optional)"
+              <input
+                type="tel"
+                inputMode="numeric"
+                placeholder="👤 เบอร์สมาชิก (optional)"
                 value={memberInput}
                 onChange={e => { setMemberInput(e.target.value); setMemberStatus("idle"); }}
                 onBlur={e => lookupMember(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && lookupMember(memberInput)}
-                style={{ flex: 1, background: "#1a1a1a", border: "1px solid #222", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }} />
-              {memberStatus === "loading" && <span style={{ color: "#666", fontSize: 12 }}>🔍</span>}
+                style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }}
+              />
+              {memberStatus === "loading" && <span style={{ color: "#888", fontSize: 12 }}>🔍</span>}
               {memberStatus === "notfound" && memberInput.length >= 9 && (
                 <button onClick={() => setShowRegister(true)}
                   style={{ background: "#ff9800", border: "none", color: "#000", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
@@ -319,12 +334,24 @@ export default function MobilePOS({
           </div>
 
           <div style={styles.cartList}>
-            {cart.map((item, idx) => (
-              <div key={`${item.id}-${idx}`} style={styles.cartItem}>
+            {cart.map((item, idx) => {
+              const key = itemKey(item, idx);
+              const lineTotal = item.price * item.qty;
+              const d = itemDiscounts?.[key];
+              const discAmt = d?.val ? (d.type === "%" ? lineTotal * (parseFloat(d.val)/100) : parseFloat(d.val)) : 0;
+              const lineFinal = Math.max(0, lineTotal - discAmt);
+              const isExpanded = expandedItem === key;
+              return (
+              <div key={key} style={styles.cartItem}>
                 {/* ชื่อ + ราคา */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: "bold", fontSize: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {item.name}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}
+                    onClick={() => setExpandedItem(isExpanded ? null : key)}>
+                    <span style={{ fontWeight: "bold", fontSize: "15px", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.name}
+                    </span>
+                    {discAmt > 0 && <span style={{ fontSize: 10, background: "#e53935", color: "#fff", padding: "1px 5px", borderRadius: 4, flexShrink: 0 }}>-฿{Math.round(discAmt)}</span>}
+                    <span style={{ fontSize: 11, color: "#555", flexShrink: 0 }}>{isExpanded ? "▲" : "▼"}</span>
                   </div>
                   {item.selectedModifier && (
                     <div style={{ fontSize: "12px", color: "#aaa", fontStyle: "italic" }}>
@@ -332,28 +359,43 @@ export default function MobilePOS({
                     </div>
                   )}
                   <div style={{ fontSize: "13px", color: "#888", marginTop: 2 }}>
-                    ฿{item.price.toLocaleString()} × {item.qty} = <strong style={{ color: "#fff" }}>฿{(item.price * item.qty).toLocaleString()}</strong>
+                    ฿{item.price.toLocaleString()} × {item.qty} = <strong style={{ color: discAmt > 0 ? "#e53935" : "#fff" }}>฿{Math.round(lineFinal).toLocaleString()}</strong>
+                    {discAmt > 0 && <span style={{ textDecoration: "line-through", color: "#555", fontSize: 11, marginLeft: 4 }}>฿{lineTotal}</span>}
                   </div>
+                  {/* Expand: ส่วนลดต่อรายการ */}
+                  {isExpanded && (
+                    <div style={{ marginTop: 8, padding: "8px 10px", background: "#1a1a1a", borderRadius: 8, border: "1px solid #333" }}>
+                      <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>✂️ ส่วนลดรายการนี้</div>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <button onClick={() => setItemDisc(key, "%", d?.type === "%" ? d.val : "")}
+                          style={{ padding: "4px 10px", borderRadius: 6, border: "none", fontWeight: "bold", cursor: "pointer",
+                            background: !d || d.type === "%" ? "#fff" : "#333", color: !d || d.type === "%" ? "#000" : "#aaa", fontSize: 13 }}>%</button>
+                        <button onClick={() => setItemDisc(key, "฿", d?.type === "฿" ? d.val : "")}
+                          style={{ padding: "4px 10px", borderRadius: 6, border: "none", fontWeight: "bold", cursor: "pointer",
+                            background: d?.type === "฿" ? "#fff" : "#333", color: d?.type === "฿" ? "#000" : "#aaa", fontSize: 13 }}>฿</button>
+                        <input type="number" min="0" placeholder={!d || d.type === "%" ? "เช่น 10" : "เช่น 20"}
+                          value={d?.val || ""}
+                          onChange={e => setItemDisc(key, d?.type || "%", e.target.value)}
+                          style={{ flex: 1, background: "#222", border: "1px solid #444", color: "#fff", borderRadius: 6, padding: "5px 8px", fontSize: 13, outline: "none" }} />
+                        {d?.val && <button onClick={() => clearItemDisc(key)}
+                          style={{ background: "none", border: "none", color: "#e53935", fontSize: 16, cursor: "pointer", padding: "0 4px" }}>✕</button>}
+                      </div>
+                      {d?.val && discAmt > 0 && (
+                        <div style={{ fontSize: 11, color: "#e53935", marginTop: 4 }}>ลด ฿{Math.round(discAmt)} → เหลือ ฿{Math.round(lineFinal)}</div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* ปุ่ม - จำนวน + (FIX: layout ตรง + ใช้ increaseQty แทน addToCart) */}
+                {/* ปุ่ม - จำนวน + */}
                 <div style={styles.qtyControl}>
-                  <button
-                    onClick={() => decreaseQty(item.id, item.channel, item.selectedModifier?.id)}
-                    style={styles.qtyBtn}
-                  >
-                    −
-                  </button>
+                  <button onClick={() => decreaseQty(item.id, item.channel, item.selectedModifier?.id)} style={styles.qtyBtn}>−</button>
                   <span style={styles.qtyNumber}>{item.qty}</span>
-                  <button
-                    onClick={() => increaseQty(item.id, item.channel, item.selectedModifier?.id)}
-                    style={styles.qtyBtn}
-                  >
-                    +
-                  </button>
+                  <button onClick={() => increaseQty(item.id, item.channel, item.selectedModifier?.id)} style={styles.qtyBtn}>+</button>
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             {cart.length > 0 && (
               <button onClick={onClearCart} style={styles.btnClear}>
@@ -363,10 +405,32 @@ export default function MobilePOS({
           </div>
 
           <div style={styles.cartFooter}>
+            {/* ส่วนลดทั้งบิล */}
+            <div style={{ marginBottom: 10, background: "#1a1a1a", borderRadius: 10, padding: "8px 12px", border: "1px solid #333" }}>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>✂️ ส่วนลดทั้งบิล (optional)</div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <button onClick={() => setBillDiscountType("%")}
+                  style={{ padding: "4px 10px", borderRadius: 6, border: "none", fontWeight: "bold", cursor: "pointer",
+                    background: billDiscountType === "%" ? "#fff" : "#333", color: billDiscountType === "%" ? "#000" : "#aaa", fontSize: 13 }}>%</button>
+                <button onClick={() => setBillDiscountType("฿")}
+                  style={{ padding: "4px 10px", borderRadius: 6, border: "none", fontWeight: "bold", cursor: "pointer",
+                    background: billDiscountType === "฿" ? "#fff" : "#333", color: billDiscountType === "฿" ? "#000" : "#aaa", fontSize: 13 }}>฿</button>
+                <input type="number" min="0" placeholder={billDiscountType === "%" ? "เช่น 10" : "เช่น 50"}
+                  value={billDiscountVal}
+                  onChange={e => setBillDiscountVal(e.target.value)}
+                  style={{ flex: 1, background: "#222", border: "1px solid #444", color: "#fff", borderRadius: 6, padding: "5px 8px", fontSize: 13, outline: "none" }} />
+                {billDiscountVal && <button onClick={() => setBillDiscountVal("")}
+                  style={{ background: "none", border: "none", color: "#e53935", fontSize: 16, cursor: "pointer" }}>✕</button>}
+              </div>
+              {billDiscAmount > 0 && <div style={{ fontSize: 11, color: "#e53935", marginTop: 4 }}>ลด ฿{Math.round(billDiscAmount)}</div>}
+            </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <span style={{ fontSize: "18px", fontWeight: "bold" }}>รวมทั้งหมด</span>
-              <span style={{ fontSize: "24px", fontWeight: "bold", color: "#4caf50" }}>฿{total.toLocaleString()}</span>
+              <div style={{ textAlign: "right" }}>
+                {totalSaved > 0 && <div style={{ fontSize: 12, color: "#e53935" }}>ประหยัด ฿{totalSaved.toLocaleString()}</div>}
+                <span style={{ fontSize: "24px", fontWeight: "bold", color: "#4caf50" }}>฿{finalTotal.toLocaleString()}</span>
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: priceChannel === "pos" ? "1fr 1fr" : "1fr", gap: "12px" }}>
@@ -408,12 +472,11 @@ export default function MobilePOS({
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                     {group.options && group.options.map(opt => {
-                      const optionKey = `${group.id}:${opt.id}`;
-                      const isSelected = tempSelection.find(s => s.key === optionKey);
+                      const isSelected = tempSelection.find(s => s.id === opt.id);
                       return (
                         <button
                           key={opt.id}
-                          onClick={() => toggleModifier(group.id, opt)}
+                          onClick={() => toggleModifier(opt)}
                           style={{
                             padding: "14px 10px",
                             backgroundColor: isSelected ? "#4caf50" : "#2a2a2a",
@@ -459,28 +522,6 @@ export default function MobilePOS({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Redeem Modal */}
-      {showRedeem && memberInfo && (
-        <RedeemModal
-          memberPhone={memberPhone}
-          memberInfo={memberInfo}
-          onSuccess={(updatedMember, reward) => {
-            setMemberInfo(updatedMember);
-            // เพิ่ม reward เข้าตะกร้าราคา ฿0
-            addToCart({
-              id: `reward-${reward.id}`,
-              name: `🎁 ${reward.name}`,
-              price: 0,
-              qty: 1,
-              category: "reward",
-              modifierGroups: [],
-            });
-            setShowRedeem(false);
-          }}
-          onClose={() => setShowRedeem(false)}
-        />
       )}
     </div>
   );
