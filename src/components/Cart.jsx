@@ -1,344 +1,418 @@
-import React, { useState } from "react";
-import { Trash2 } from "lucide-react";
-import { supabase as sb } from "../supabase";
-import { calcPoints, nextThreshold, getPointSettings } from "./Members";
-import RedeemModal from "./RedeemModal";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 
-export default function Cart({
-  cart = [], decreaseQty, increaseQty, addToCart, total = 0,
-  onCheckout, onClearCart, priceChannel = "pos",
-  memberPhone = "", setMemberPhone,
-}) {
-  const [showPayment, setShowPayment] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [cashReceived, setCashReceived] = useState("");
-  const [deliveryRef, setDeliveryRef] = useState("");
-  const [showRedeem, setShowRedeem] = useState(false);
+import Products from "./components/Products";
+import Cart from "./components/Cart";
+import MenuManager from "./components/MenuManager";
+import Dashboard from "./components/Dashboard";
+import Orders from "./components/Orders";
+import ModifierManager from "./components/ModifierManager";
+import MobilePOS from "./components/MobilePOS";
+import Members from "./components/Members";
+import { supabase as sb } from "./supabase";
 
-  // member state
-  const [memberInput, setMemberInput] = useState("");
-  const [memberInfo, setMemberInfo] = useState(null);
-  const [memberStatus, setMemberStatus] = useState("idle");
-  const [showRegister, setShowRegister] = useState(false);
-  const [regNickname, setRegNickname] = useState("");
+// storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
+import db, { isUsingSupabase } from "./storage";
 
-  const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
-  const receivedNumber = Number(cashReceived) || 0;
-  const change = receivedNumber - total;
+function App() {
+  const [view, setView] = useState("pos");
+  const [priceChannel, setPriceChannel] = useState("pos");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [loading, setLoading] = useState(true);
 
-  // ── bonus points ──
-  const { rate, tiers } = getPointSettings();
-  const pointsWillEarn = memberPhone ? calcPoints(total, rate, tiers) : 0;
-  const nextTier = nextThreshold(total, tiers);
-  const needMore = nextTier ? nextTier.minSpend - total : null;
-  const currentMultiplier = [...tiers].sort((a,b) => b.minSpend - a.minSpend).find(t => total >= t.minSpend)?.multiplier || 1;
-  const isBonus = currentMultiplier > 1;
+  const [cart, setCart] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState(["All"]);
+  const [modifierGroups, setModifierGroups] = useState([]);
+  const [memberPhone, setMemberPhone] = useState(""); // เบอร์สมาชิกที่เลือกตอนขาย
+  const [itemDiscounts, setItemDiscounts] = useState({});
 
-  React.useEffect(() => {
-    if (showPayment) {
-      setDeliveryRef(priceChannel === "grab" ? "GF-" : "");
-      setCashReceived("");
+  // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
+  useEffect(() => {
+    async function loadAll() {
+      try {
+        const [cats, prods, mods, ords] = await Promise.all([
+          db.fetchCategories(),
+          db.fetchProducts(),
+          db.fetchModifierGroups(),
+          db.fetchOrders(),
+        ]);
+
+        // FIX: รวม categories จาก DB + categories ที่มีใน products จริงๆ
+        // ป้องกันกรณี categories table ไม่ครบแต่ products มีอยู่แล้ว
+        const dbCats = new Set(cats.filter(c => c !== "All"));
+        const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
+        const merged = ["All", ...new Set([...dbCats, ...prodCats])];
+
+        // save categories ที่หายไปกลับเข้า DB ด้วย (auto-repair)
+        for (const cat of prodCats) {
+          if (!dbCats.has(cat)) {
+            try { await db.addCategory(cat); } catch {}
+          }
+        }
+
+        setCategories(merged);
+        setProducts(prods);
+        setModifierGroups(mods);
+        setOrders(ords);
+      } catch (err) {
+        console.error("โหลดข้อมูลไม่ได้:", err);
+        alert("❌ โหลดข้อมูลไม่ได้ กรุณา refresh");
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [showPayment, priceChannel]);
+    loadAll();
+  }, []);
 
-  // member lookup
-  const lookupMember = async (phone) => {
-    if (phone.length < 9) return;
-    setMemberStatus("loading");
-    try {
-      const { data } = await sb.from("members").select("*").eq("phone", phone).single();
-      if (data) { setMemberInfo(data); setMemberStatus("found"); setMemberPhone(phone); }
-      else { setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone(""); }
-    } catch { setMemberInfo(null); setMemberStatus("notfound"); setMemberPhone(""); }
-  };
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-  const registerMember = async () => {
-    if (!memberInput || !regNickname) return;
-    try {
-      const { data } = await sb.from("members").insert({ phone: memberInput, nickname: regNickname }).select().single();
-      setMemberInfo(data); setMemberStatus("found"); setMemberPhone(memberInput);
-      setShowRegister(false); setRegNickname("");
-    } catch (e) { alert("สมัครไม่สำเร็จ: " + e.message); }
-  };
+  // CATEGORIES
+  const addCategory = useCallback(async (name) => {
+    if (!name || categories.includes(name)) return;
+    await db.addCategory(name);
+    setCategories(prev => [...prev, name]);
+  }, [categories]);
 
-  const clearMember = () => {
-    setMemberInput(""); setMemberInfo(null);
-    setMemberStatus("idle"); setMemberPhone("");
-    setShowRegister(false); setRegNickname("");
-  };
+  const deleteCategory = useCallback(async (catName) => {
+    if (!window.confirm(`ลบหมวดหมู่ "${catName}"?`)) return;
+    await db.deleteCategory(catName);
+    setCategories(prev => prev.filter(c => c !== catName));
+  }, []);
 
-  const handleRefChange = (val) => {
-    if (priceChannel === "grab") {
-      if (val.startsWith("GF-")) setDeliveryRef(val.toUpperCase());
-    } else if (priceChannel === "lineman") {
-      if (val.length <= 4) setDeliveryRef(val);
-    } else {
-      setDeliveryRef(val);
-    }
-  };
+  // PRODUCTS
+  const addProduct = useCallback(async (newProductData) => {
+    const cat = newProductData.category || "ทั่วไป";
+    const saved = await db.addProduct({ ...newProductData, category: cat });
+    setProducts(prev => [...prev, saved]);
+    await addCategory(cat);
+  }, [addCategory]);
 
-  const handleFinalConfirm = () => {
-    if (isDelivery) { onCheckout("transfer", deliveryRef); }
-    else { onCheckout(paymentMethod); }
-    setShowPayment(false); setCashReceived(""); setDeliveryRef("");
-    clearMember();
-  };
+  const updateProduct = useCallback(async (id, fields) => {
+    await db.updateProduct(id, fields);
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...fields } : p));
+  }, []);
 
-  const isConfirmDisabled =
-    (!isDelivery && paymentMethod === "cash" && (cashReceived === "" || change < 0)) ||
-    (isDelivery && (
-      !deliveryRef ||
-      (priceChannel === "grab" && (deliveryRef === "GF-" || deliveryRef.length < 4)) ||
-      (priceChannel === "lineman" && deliveryRef.length < 4)
+  const deleteProduct = useCallback(async (id) => {
+    if (!window.confirm("ยืนยันการลบสินค้า?")) return;
+    await db.deleteProduct(id);
+    setProducts(prev => prev.filter(p => p.id !== id));
+  }, []);
+
+  // MODIFIERS
+  const addModifierGroup = useCallback(async (name) => {
+    const newGroup = await db.addModifierGroup(name);
+    setModifierGroups(prev => [...prev, newGroup]);
+  }, []);
+
+  const deleteModifierGroup = useCallback(async (groupId) => {
+    if (!window.confirm("ลบกลุ่มตัวเลือกนี้?")) return;
+    await db.deleteModifierGroup(groupId);
+    setModifierGroups(prev => prev.filter(g => g.id !== groupId));
+    const affected = products.filter(p => p.modifierGroups?.includes(groupId));
+    setProducts(prev => prev.map(p => ({
+      ...p,
+      modifierGroups: p.modifierGroups?.filter(id => id !== groupId) || []
+    })));
+    affected.forEach(p => db.updateProduct(p.id, {
+      modifierGroups: p.modifierGroups.filter(id => id !== groupId)
+    }));
+  }, [products]);
+
+  const addOptionToGroup = useCallback(async (groupId, optionName, optionPrice) => {
+    const newOpt = await db.addOptionToGroup(groupId, optionName, optionPrice);
+    setModifierGroups(prev => prev.map(g =>
+      g.id === groupId ? { ...g, options: [...(g.options || []), newOpt] } : g
     ));
+  }, []);
+
+  const deleteOption = useCallback(async (groupId, optionId) => {
+    await db.deleteOption(groupId, optionId);
+    setModifierGroups(prev => prev.map(g =>
+      g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g
+    ));
+  }, []);
+
+  // POS LOGIC
+  const visibleProducts = useMemo(() =>
+    (!selectedCategory || selectedCategory === "All")
+      ? products
+      : products.filter(p => p.category === selectedCategory),
+    [products, selectedCategory]
+  );
+
+  const total = useMemo(() =>
+    cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+    [cart]
+  );
+
+  const addToCart = useCallback((product, channel = priceChannel) => {
+    setCart(prev => {
+      const modId = product.selectedModifier?.id || null;
+      const idx = prev.findIndex(i =>
+        i.id === product.id && i.channel === channel && (i.selectedModifier?.id || null) === modId
+      );
+      if (idx > -1) {
+        const newCart = [...prev];
+        newCart[idx].qty += 1;
+        return newCart;
+      }
+      const base = Number(product[`${channel}Price`] ?? product.price) || 0;
+      const modPrice = Number(product.selectedModifier?.price) || 0;
+      return [...prev, {
+        ...product, price: base + modPrice, qty: 1, channel,
+        selectedModifier: product.selectedModifier || null
+      }];
+    });
+  }, [priceChannel]);
+
+  const decreaseQty = useCallback((id, channel, modId = null) => {
+    setCart(prev => prev.map(item =>
+      (item.id === id && item.channel === channel && (item.selectedModifier?.id || null) === modId)
+        ? { ...item, qty: item.qty - 1 } : item
+    ).filter(i => i.qty > 0));
+  }, []);
+
+  const increaseQty = useCallback((id, channel, modId = null) => {
+    setCart(prev => prev.map(item =>
+      (item.id === id && item.channel === channel && (item.selectedModifier?.id || null) === modId)
+        ? { ...item, qty: item.qty + 1 } : item
+    ));
+  }, []);
+
+  const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone, discountInfo = null) => {
+    if (cart.length === 0) return;
+    const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
+    const finalTotal = discountInfo?.finalTotal ?? total;
+    const totalSaved = discountInfo?.totalSaved ?? 0;
+    try {
+      const saved = await db.addOrder({
+        time: new Date().toISOString(),
+        items: [...cart],
+        total: finalTotal,
+        originalTotal: total,
+        discount: totalSaved,
+        payment: isDelivery ? "transfer" : paymentMethod,
+        channel: priceChannel,
+        refId,
+        isSettled: !isDelivery,
+        actualAmount: isDelivery ? 0 : finalTotal,
+        member_phone: phone || null,
+      });
+      setOrders(prev => [saved, ...prev]);
+
+      // อัพเดทแต้มและยอดใช้จ่ายของสมาชิก
+      if (phone) {
+        try {
+          const pointsEarned = Math.floor(total / 10);
+          await sb.rpc("increment_member_points", {
+            p_phone: phone, p_points: pointsEarned, p_spent: total,
+          });
+        } catch (e) { console.warn("member update failed", e); }
+      }
+
+      setCart([]);
+      setItemDiscounts({});
+      setMemberPhone("");
+      alert(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "ชำระเงินเรียบร้อย");
+    } catch (err) {
+      console.error(err);
+      alert("❌ บันทึกออเดอร์ไม่ได้ กรุณาลองใหม่");
+    }
+  };
+
+  const handleUpdateActual = async (orderId, value) => {
+    const amount = parseFloat(value) || 0;
+    await db.updateOrder(orderId, { actualAmount: amount, isSettled: true });
+    setOrders(prev => prev.map(o =>
+      o.id === orderId ? { ...o, actualAmount: amount, isSettled: true } : o
+    ));
+  };
+
+  const handleCloseDay = async () => {
+    if (orders.length === 0) return alert("ไม่มีข้อมูลการขายสำหรับวันนี้");
+    const totalSales = orders.reduce((sum, o) => sum + (o.actualAmount || 0), 0);
+    if (window.confirm(`สรุปยอดขายวันนี้: ฿${totalSales.toLocaleString()}\nยืนยันการปิดยอดวัน?`)) {
+      try {
+        await db.closeDayOrders();
+        setOrders([]);
+        alert("✅ ปิดยอดวันเรียบร้อย");
+      } catch {
+        alert("❌ ปิดยอดไม่ได้ กรุณาลองใหม่");
+      }
+    }
+  };
+
+  const menuManagerProps = {
+    products, setProducts, updateProduct, deleteProduct, addProduct,
+    categories, setCategories, addCategory, deleteCategory, modifierGroups,
+    // สำหรับปุ่ม "ล้างทั้งหมด" — มี confirm 2 ชั้น
+    clearAllProducts: async () => {
+      if (!window.confirm("ลบเมนูทั้งหมด?")) return;
+      if (!window.confirm("ยืนยันครั้งสุดท้าย?")) return;
+      await db.clearAllProducts();
+      setProducts([]);
+    },
+    // สำหรับ Load Menu — ไม่มี confirm (user confirm ตอน import แล้ว)
+    clearAllProductsSilent: async () => {
+      await db.clearAllProducts();
+      setProducts([]);
+    },
+  };
+
+  const modifierManagerProps = {
+    modifierGroups, addModifierGroup, deleteModifierGroup, addOptionToGroup, deleteOption,
+  };
+
+  const CHANNELS = [
+    { key: "pos", label: "POS", color: "#4a4a4a" },
+    { key: "grab", label: "Grab", color: "#00B14F" },
+    { key: "lineman", label: "Lineman", color: "#00A84F" },
+    { key: "shopee", label: "Shopee", color: "#EE4D2D" },
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff", gap: 16 }}>
+        <div style={{ fontSize: 40 }}>🍖</div>
+        <div style={{ fontSize: 20, fontWeight: "bold" }}>KATKAT POS</div>
+        <div style={{ color: "#666", fontSize: 14 }}>กำลังโหลดข้อมูล...</div>
+        {!isUsingSupabase && (
+          <div style={{ color: "#444", fontSize: 12, marginTop: 8 }}>[ Local Mode ]</div>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div style={S.container}>
-      {/* Header */}
-      <div style={S.header}>
-        <h2 style={{ margin: 0, color: "#213547", fontSize: "1.1rem" }}>รายการขาย</h2>
-        <button onClick={() => cart.length > 0 && onClearCart()} style={S.btnClear}>ล้างตะกร้า</button>
-      </div>
-
-      {/* ── Member Section (POS only) ── */}
-      {!isDelivery && (
-        <div style={S.memberSection}>
-          {memberStatus === "found" && memberInfo ? (
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: total > 0 ? 8 : 0 }}>
-                <div style={{ flex: 1 }}>
-                  <span style={{ color: "#2e7d32", fontWeight: "bold", fontSize: 13 }}>
-                    👤 {memberInfo.nickname}
-                  </span>
-                  <span style={{ color: "#888", fontSize: 12, marginLeft: 8 }}>
-                    ⭐ {memberInfo.points} แต้ม · {memberInfo.tier || "Standard"}
-                  </span>
-                </div>
-                <button onClick={() => setShowRedeem(true)}
-                  style={{ ...S.btnSmall, background: "#f5c518", border: "none", fontWeight: "bold", marginRight: 4 }}>
-                  🎁 แลก
-                </button>
-                <button onClick={clearMember} style={S.btnSmall}>เปลี่ยน</button>
-              </div>
-
-              {/* Bonus Progress Bar */}
-              {total > 0 && (
-                <div style={{ background: "#f9f9f9", borderRadius: 10, padding: "8px 12px" }}>
-                  {nextTier ? (
-                    <>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, color: isBonus ? "#e65100" : "#555" }}>
-                          ⭐ จะได้ <strong>{pointsWillEarn}</strong> แต้ม
-                          {isBonus && <span style={{ color: "#e65100", marginLeft: 4 }}>({currentMultiplier}x 🔥)</span>}
-                        </span>
-                        <span style={{ fontSize: 12, color: "#ff9800", fontWeight: "bold" }}>
-                          อีก ฿{needMore} → {nextTier.multiplier}x 🚀
-                        </span>
-                      </div>
-                      <div style={{ height: 6, background: "#e0e0e0", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{
-                          height: "100%", borderRadius: 4,
-                          background: isBonus ? "linear-gradient(90deg,#ff9800,#f5c518)" : "linear-gradient(90deg,#4caf50,#8bc34a)",
-                          width: `${Math.min(100, (total / nextTier.minSpend) * 100)}%`,
-                          transition: "width 0.3s ease"
-                        }} />
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: 12, color: "#e65100", fontWeight: "bold" }}>
-                      ⭐ จะได้ {pointsWillEarn} แต้ม · {currentMultiplier}x 🔥 MAX BONUS!
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : showRegister ? (
-            <div>
-              <div style={{ fontSize: 12, color: "#e65100", marginBottom: 6 }}>✨ สมัครสมาชิกใหม่ · {memberInput}</div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <input placeholder="ชื่อเล่น" value={regNickname} onChange={e => setRegNickname(e.target.value)}
-                  style={{ ...S.input, flex: 1 }} autoFocus />
-                <button onClick={registerMember} style={{ ...S.btnSmall, background: "#2e7d32", color: "#fff", border: "none" }}>บันทึก</button>
-                <button onClick={clearMember} style={S.btnSmall}>✕</button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input type="tel" inputMode="numeric" placeholder="👤 เบอร์สมาชิก (optional)"
-                value={memberInput}
-                onChange={e => { setMemberInput(e.target.value); setMemberStatus("idle"); }}
-                onBlur={e => lookupMember(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && lookupMember(memberInput)}
-                style={{ ...S.input, flex: 1 }} />
-              {memberStatus === "loading" && <span style={{ fontSize: 12, color: "#aaa" }}>🔍</span>}
-              {memberStatus === "notfound" && memberInput.length >= 9 && (
-                <button onClick={() => setShowRegister(true)} style={{ ...S.btnSmall, background: "#ff9800", color: "#fff", border: "none", whiteSpace: "nowrap" }}>
-                  + สมัคร
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Item List */}
-      <div style={S.cartList}>
-        {cart.length === 0 && <div style={S.emptyText}>ไม่มีสินค้าในตะกร้า</div>}
-        {cart.map((item, index) => (
-          <div key={`${item.id}-${index}`} style={S.cartItem}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-                <span style={S.itemName}>{item.name}</span>
-                <span style={S.badge}>{item.channel?.toUpperCase()}</span>
-              </div>
-              {item.selectedModifier && <div style={S.modifierText}>• {item.selectedModifier.name}</div>}
-              <div style={S.itemDetail}>
-                ฿{item.price.toLocaleString()} × {item.qty} = <strong>฿{(item.qty * item.price).toLocaleString()}</strong>
-              </div>
-            </div>
-            <div style={S.itemActions}>
-              <div style={S.qtyControl}>
-                <button onClick={() => decreaseQty(item.id, item.channel, item.selectedModifier?.id)} style={S.qtyBtn}>−</button>
-                <span style={S.qtyNumber}>{item.qty}</span>
-                <button onClick={() => increaseQty(item.id, item.channel, item.selectedModifier?.id)} style={S.qtyBtn}>+</button>
-              </div>
-              <button onClick={() => { for (let i = 0; i < item.qty; i++) decreaseQty(item.id, item.channel, item.selectedModifier?.id); }} style={S.btnDelete}>
-                <Trash2 size={16} color="#d32f2f" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Footer */}
-      <div style={S.footer}>
-        <div style={S.totalRow}>
-          <span>รวมทั้งหมด:</span>
-          <span>฿{total.toLocaleString()}</span>
-        </div>
-        <button style={{ ...S.btnPay, backgroundColor: cart.length > 0 ? "#213547" : "#999", cursor: cart.length > 0 ? "pointer" : "not-allowed" }}
-          onClick={() => cart.length > 0 && setShowPayment(true)}>
-          {isDelivery ? `💾 บันทึก ${priceChannel.toUpperCase()}` : "💰 ชำระเงิน"}
-        </button>
-      </div>
-
-      {/* Payment Modal */}
-      {showPayment && (
-        <div style={S.modalOverlay} onClick={() => setShowPayment(false)}>
-          <div style={S.modalContent} onClick={e => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>{isDelivery ? "ยืนยันการบันทึก" : "การชำระเงิน"}</h3>
-
-            <div style={S.totalDisplay}>
-              <div style={{ fontSize: 13, color: "#888" }}>ยอดชำระสุทธิ</div>
-              <div style={{ fontSize: 30, fontWeight: "bold" }}>฿{total.toLocaleString()}</div>
-              {/* แสดงแต้มที่จะได้ใน modal */}
-              {memberPhone && pointsWillEarn > 0 && (
-                <div style={{ marginTop: 6, fontSize: 13, color: isBonus ? "#e65100" : "#555",
-                  background: isBonus ? "#fff3e0" : "#f5f5f5", borderRadius: 8, padding: "4px 10px", display: "inline-block" }}>
-                  ⭐ +{pointsWillEarn} แต้ม {isBonus ? `(${currentMultiplier}x 🔥)` : ""}
-                </div>
-              )}
-            </div>
-
-            {!isDelivery ? (
-              <>
-                <div style={{ display: "flex", gap: 10, marginBottom: 15 }}>
-                  {["cash", "promptpay"].map(m => (
-                    <button key={m} onClick={() => setPaymentMethod(m)} style={{
-                      ...S.btnMethod,
-                      backgroundColor: paymentMethod === m ? "#213547" : "#eee",
-                      color: paymentMethod === m ? "#fff" : "#000",
-                    }}>
-                      {m === "cash" ? "💵 เงินสด" : "📱 สแกนจ่าย"}
-                    </button>
-                  ))}
-                </div>
-                {paymentMethod === "cash" && (
-                  <div style={{ marginBottom: 15 }}>
-                    <input type="number" placeholder="รับเงินมา..." style={S.inputModal}
-                      value={cashReceived} onChange={e => setCashReceived(e.target.value)} autoFocus />
-                    {cashReceived !== "" && (
-                      <div style={{ textAlign: "center", marginTop: 10, fontWeight: "bold", fontSize: 16 }}>
-                        เงินทอน: <span style={{ color: change >= 0 ? "#2e7d32" : "#c62828" }}>฿{change.toLocaleString()}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div style={{ marginBottom: 20 }}>
-                <p style={{ textAlign: "center", color: "#888", fontSize: 13, marginBottom: 10 }}>
-                  ระบุเลขอ้างอิง {priceChannel.toUpperCase()}
-                </p>
-                <input type="text" placeholder={priceChannel === "lineman" ? "เลข 4 หลัก" : "ระบุเลขอ้างอิง"}
-                  style={S.inputModal} value={deliveryRef} onChange={e => handleRefChange(e.target.value)} autoFocus />
-                <p style={{ textAlign: "center", color: "#bbb", fontSize: 11, marginTop: 8 }}>
-                  ออเดอร์จะไปรอที่ Dashboard เพื่อใส่ยอดรับจริง
-                </p>
+    <div style={{ height: "100vh", width: "100vw", backgroundColor: "#1a1a1a", color: "#fff", overflow: "hidden" }}>
+      {isMobile ? (
+        <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+          <main style={{ flex: 1, overflowY: "auto", paddingBottom: "80px" }}>
+            {view === "pos" && (
+              <MobilePOS
+                products={products} addToCart={addToCart}
+                increaseQty={increaseQty} decreaseQty={decreaseQty}
+                categories={categories} selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory} cart={cart} total={total}
+                onCheckout={handleCheckout} priceChannel={priceChannel}
+                setPriceChannel={setPriceChannel} onClearCart={() => { setCart([]); setItemDiscounts({}); }}
+                modifierGroups={modifierGroups}
+                memberPhone={memberPhone} setMemberPhone={setMemberPhone}
+                itemDiscounts={itemDiscounts} setItemDiscounts={setItemDiscounts}
+              />
+            )}
+            {view === "dashboard" && (
+              <Dashboard orders={orders} setOrders={setOrders}
+                onCloseDay={handleCloseDay} onUpdateActual={handleUpdateActual} />
+            )}
+            {view === "orders" && (
+              <Orders orders={orders}
+                onDeleteOrder={async (id) => { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); }}
+                onClearAll={async () => { await db.clearOrders(); setOrders([]); }} />
+            )}
+            {view === "menu" && (
+              <div style={{ padding: "10px" }}>
+                <MenuManager {...menuManagerProps} />
+                <hr style={{ margin: "30px 0", borderColor: "#333" }} />
+                <ModifierManager {...modifierManagerProps} />
               </div>
             )}
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowPayment(false)} style={S.btnCancel}>ยกเลิก</button>
-              <button disabled={isConfirmDisabled} onClick={handleFinalConfirm} style={{
-                ...S.btnConfirm, opacity: isConfirmDisabled ? 0.4 : 1,
-                cursor: isConfirmDisabled ? "not-allowed" : "pointer",
-              }}>ยืนยัน</button>
-            </div>
-          </div>
+            {view === "members" && (
+              <div style={{ height: "calc(100vh - 150px)" }}>
+                <Members orders={orders} />
+              </div>
+            )}
+          </main>
+          <nav style={styles.bottomNav}>
+            <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
+            <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>
+            <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>
+            <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>
+            <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>
+          </nav>
         </div>
-      )}
-      {showRedeem && memberInfo && (
-        <RedeemModal
-          memberPhone={memberPhone}
-          memberInfo={memberInfo}
-          onSuccess={(updatedMember, reward) => {
-            setMemberInfo(updatedMember);
-            // เพิ่ม reward เข้าตะกร้าราคา ฿0
-            addToCart?.({
-              id: `reward-${reward.id}`,
-              name: `🎁 ${reward.name}`,
-              price: 0,
-              qty: 1,
-              category: "reward",
-              modifierGroups: [],
-            });
-            setShowRedeem(false);
-          }}
-          onClose={() => setShowRedeem(false)}
-        />
+      ) : (
+        <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+          <header style={styles.desktopHeader}>
+            <h2 style={{ margin: 0 }}>KATKAT POS</h2>
+            <nav style={{ display: "flex", gap: 10 }}>
+              {["pos", "menu", "dashboard", "orders", "members"].map((v) => (
+                <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
+                  {v === "pos" ? "ขายหน้าร้าน" : v === "menu" ? "จัดการเมนู" : v === "members" ? "👥 สมาชิก" : v.toUpperCase()}
+                </button>
+              ))}
+            </nav>
+          </header>
+          <div style={styles.desktopChannelBar}>
+            <span style={{ fontSize: "12px", color: "#888" }}>ช่องทางราคา:</span>
+            {CHANNELS.map((ch) => (
+              <button key={ch.key} onClick={() => setPriceChannel(ch.key)} style={styles.channelBtn(priceChannel === ch.key, ch.color)}>
+                {ch.label}
+              </button>
+            ))}
+          </div>
+          <main style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+            {view === "pos" && (
+              <>
+                <section style={{ flex: 1, overflowY: "auto", padding: "15px", borderRight: "1px solid #333" }}>
+                  <Products products={products} addToCart={addToCart} categories={categories}
+                    selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}
+                    priceChannel={priceChannel} modifierGroups={modifierGroups} />
+                </section>
+                <aside style={{ width: "400px" }}>
+                  <Cart cart={cart} addToCart={addToCart} increaseQty={increaseQty}
+                    decreaseQty={decreaseQty} total={total} onCheckout={handleCheckout}
+                    onClearCart={() => { setCart([]); setItemDiscounts({}); }} priceChannel={priceChannel}
+                    memberPhone={memberPhone} setMemberPhone={setMemberPhone}
+                    itemDiscounts={itemDiscounts} setItemDiscounts={setItemDiscounts} />
+                </aside>
+              </>
+            )}
+            {view === "menu" && (
+              <div style={{ flex: 1, overflowY: "auto", padding: "30px" }}>
+                <MenuManager {...menuManagerProps} />
+                <hr style={{ margin: "40px 0", borderColor: "#333" }} />
+                <ModifierManager {...modifierManagerProps} />
+              </div>
+            )}
+            {view === "dashboard" && (
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                <Dashboard orders={orders} setOrders={setOrders}
+                  onCloseDay={handleCloseDay} onUpdateActual={handleUpdateActual} />
+              </div>
+            )}
+            {view === "orders" && (
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                <Orders orders={orders}
+                  onDeleteOrder={async (id) => { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); }}
+                  onClearAll={async () => { await db.clearOrders(); setOrders([]); }} />
+              </div>
+            )}
+            {view === "members" && (
+              <div style={{ flex: 1, overflow: "hidden" }}>
+                <Members orders={orders} />
+              </div>
+            )}
+          </main>
+        </div>
       )}
     </div>
   );
 }
 
-const S = {
-  container: { display: "flex", flexDirection: "column", height: "100%", padding: "15px", backgroundColor: "#ff9800", boxSizing: "border-box" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" },
-  btnClear: { background: "rgba(255,255,255,0.3)", border: "1px solid #213547", padding: "4px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" },
-  memberSection: { background: "rgba(255,255,255,0.9)", borderRadius: 12, padding: "10px 12px", marginBottom: 10 },
-  cartList: { flex: 1, overflowY: "auto", marginBottom: "10px" },
-  emptyText: { textAlign: "center", marginTop: "50px", color: "rgba(33,53,71,0.45)", fontSize: "15px" },
-  cartItem: { backgroundColor: "#fff", padding: "10px 12px", borderRadius: "10px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "10px", color: "#333" },
-  itemName: { fontWeight: "bold", fontSize: "14px" },
-  badge: { fontSize: "10px", background: "#213547", color: "#fff", padding: "2px 6px", borderRadius: "4px" },
-  modifierText: { fontSize: "11px", color: "#888", fontStyle: "italic", marginTop: "2px" },
-  itemDetail: { fontSize: "13px", color: "#555", marginTop: "3px" },
-  itemActions: { display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 },
-  qtyControl: { display: "flex", alignItems: "center", backgroundColor: "#f0f0f0", borderRadius: "8px", border: "1px solid #ddd", overflow: "hidden" },
-  qtyBtn: { width: "30px", height: "30px", background: "none", border: "none", color: "#213547", fontSize: "18px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0 },
-  qtyNumber: { minWidth: "28px", textAlign: "center", fontWeight: "bold", fontSize: "14px", color: "#213547", borderLeft: "1px solid #ddd", borderRight: "1px solid #ddd", height: "30px", display: "flex", alignItems: "center", justifyContent: "center" },
-  btnDelete: { background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px", borderRadius: "6px" },
-  footer: { backgroundColor: "rgba(255,255,255,0.2)", padding: "14px", borderRadius: "14px" },
-  totalRow: { display: "flex", justifyContent: "space-between", fontSize: "1.3rem", fontWeight: "bold", color: "#213547", marginBottom: "12px" },
-  btnPay: { width: "100%", padding: "14px", borderRadius: "10px", border: "none", color: "#fff", fontSize: "1.1rem", fontWeight: "bold" },
-  input: { padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14, outline: "none", boxSizing: "border-box" },
-  inputModal: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "18px", textAlign: "center", boxSizing: "border-box" },
-  btnSmall: { background: "#fff", border: "1px solid #ddd", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" },
-  modalOverlay: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
-  modalContent: { backgroundColor: "#fff", padding: "24px", borderRadius: "18px", width: "320px", color: "#333" },
-  totalDisplay: { backgroundColor: "#f5f5f5", padding: "14px", borderRadius: "10px", textAlign: "center", marginBottom: "18px" },
-  btnMethod: { flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontWeight: "bold", cursor: "pointer" },
-  btnConfirm: { flex: 2, padding: "12px", borderRadius: "8px", border: "none", backgroundColor: "#213547", color: "#fff", fontWeight: "bold" },
-  btnCancel: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #ddd", backgroundColor: "#fff", cursor: "pointer" },
+const styles = {
+  bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
+  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer", padding: "0 4px" }),
+  desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
+  desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
+  desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10, alignItems: "center" },
+  channelBtn: (isActive, color) => ({ padding: "6px 18px", borderRadius: "20px", border: "none", background: isActive ? color : "#262626", color: "#fff", cursor: "pointer", transition: "0.2s", fontSize: "12px" }),
 };
+
+export default App;
