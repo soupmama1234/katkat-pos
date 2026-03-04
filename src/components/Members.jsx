@@ -3,6 +3,7 @@ import { supabase as sb } from "../supabase";
 import RewardManager from "./RewardManager";
 import {
   calcPoints,
+  getPointSettings,
   loadRate,
   loadTiers,
   saveRate,
