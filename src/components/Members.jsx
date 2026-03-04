@@ -19,25 +19,6 @@ const defaultTiers = [
   { id: 2, minSpend: 350, multiplier: 3 },
 ];
 
-export const loadRate = () => {
-  try {
-    return JSON.parse(localStorage.getItem(RATE_KEY)) || defaultRate;
-  } catch {
-    return defaultRate;
-  }
-};
-
-export const loadTiers = () => {
-  try {
-    return JSON.parse(localStorage.getItem(TIERS_KEY)) || defaultTiers;
-  } catch {
-    return defaultTiers;
-  }
-};
-
-export const saveRate = (rate) => localStorage.setItem(RATE_KEY, JSON.stringify(rate));
-export const saveTiers = (tiers) => localStorage.setItem(TIERS_KEY, JSON.stringify(tiers));
-
 export const calcPoints = (total, rate, tiers) => {
   const base = Math.floor(total / rate.baht) * rate.points;
   const sorted = [...tiers].sort((a, b) => b.minSpend - a.minSpend);
