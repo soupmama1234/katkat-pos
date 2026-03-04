@@ -20,7 +20,7 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
     try {
       setClearing(true);
       await onClearAll();
-    } catch (err) {
+    } catch {
       alert("❌ ลบไม่ได้ กรุณาลองใหม่");
     } finally {
       setClearing(false);
@@ -32,7 +32,7 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
     try {
       setDeletingId(id);
       await onDeleteOrder(id);
-    } catch (err) {
+    } catch {
       alert("❌ ลบไม่ได้ กรุณาลองใหม่");
     } finally {
       setDeletingId(null);

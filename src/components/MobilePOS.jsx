@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from "react";
 import { Trash2 } from "lucide-react";
 import { supabase as sb } from "../supabase";
-import { calcPoints, nextThreshold, getPointSettings } from "./Members";
+import { calcPoints, nextThreshold, getPointSettings } from "../utils/points";
 import RedeemModal from "./RedeemModal";
+import { parseRewardDiscount } from "../utils/discounts";
 
 export default function MobilePOS({ 
   products = [], 
@@ -21,6 +22,12 @@ export default function MobilePOS({
   modifierGroups = [],
   memberPhone = "",
   setMemberPhone,
+  subtotal = 0,
+  discountTotal = 0,
+  discounts = [],
+  onApplyRewardDiscount,
+  onRemoveDiscount,
+  onClearDiscounts,
 }) {
   const [showCart, setShowCart] = useState(false);
   const [refValue, setRefValue] = useState("");
@@ -97,27 +104,26 @@ export default function MobilePOS({
       setSelectedProductId(product.id);
       setShowModifierPopup(true);
     } else {
-      addToCart({ ...product, price: getDisplayPrice(product) });
+      addToCart(product);
     }
   };
 
-  const toggleModifier = (opt) => {
+  const toggleModifier = (groupId, opt) => {
+    const selectionKey = `${groupId}:${opt.id}`;
     setTempSelection(prev => {
-      const isExist = prev.find(item => item.id === opt.id);
-      if (isExist) return prev.filter(item => item.id !== opt.id);
-      return [...prev, opt];
+      const isExist = prev.find(item => item.key === selectionKey);
+      if (isExist) return prev.filter(item => item.key !== selectionKey);
+      return [...prev, { ...opt, key: selectionKey, groupId }];
     });
   };
 
   const handleConfirmModifier = () => {
     if (!selectedProduct) return;
-    const basePrice = getDisplayPrice(selectedProduct);
     const totalModPrice = tempSelection.reduce((sum, m) => sum + Number(m.price), 0);
     addToCart({
       ...selectedProduct,
-      price: basePrice + totalModPrice,
       selectedModifier: tempSelection.length > 0 ? {
-        id: tempSelection.map(m => m.id).join("-"),
+        id: [...tempSelection].map(m => m.key).sort().join("|"),
         name: tempSelection.map(m => m.name).join(", "),
         price: totalModPrice
       } : null
@@ -364,6 +370,26 @@ export default function MobilePOS({
           </div>
 
           <div style={styles.cartFooter}>
+            {discountTotal > 0 && (
+              <div style={{ fontSize: 12, color: "#aaa", marginBottom: 4, display: "flex", justifyContent: "space-between" }}>
+                <span>ยอดก่อนลด</span><span>฿{subtotal.toLocaleString()}</span>
+              </div>
+            )}
+            {discountTotal > 0 && (
+              <div style={{ fontSize: 12, color: "#8bc34a", marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
+                <span>ส่วนลดรวม</span><span>-฿{discountTotal.toLocaleString()}</span>
+              </div>
+            )}
+            {discounts.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                {discounts.map((d) => (
+                  <button key={d.id} onClick={() => onRemoveDiscount?.(d.id)} style={styles.discountChip}>
+                    {d.label || "ส่วนลด"} · {d.mode === "percent" ? `${d.value}%` : `฿${d.value}`} ✕
+                  </button>
+                ))}
+                <button onClick={() => onClearDiscounts?.()} style={styles.discountClearBtn}>ล้างส่วนลด</button>
+              </div>
+            )}
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <span style={{ fontSize: "18px", fontWeight: "bold" }}>รวมทั้งหมด</span>
@@ -409,11 +435,12 @@ export default function MobilePOS({
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                     {group.options && group.options.map(opt => {
-                      const isSelected = tempSelection.find(s => s.id === opt.id);
+                      const optionKey = `${group.id}:${opt.id}`;
+                      const isSelected = tempSelection.find(s => s.key === optionKey);
                       return (
                         <button
                           key={opt.id}
-                          onClick={() => toggleModifier(opt)}
+                          onClick={() => toggleModifier(group.id, opt)}
                           style={{
                             padding: "14px 10px",
                             backgroundColor: isSelected ? "#4caf50" : "#2a2a2a",
@@ -468,15 +495,19 @@ export default function MobilePOS({
           memberInfo={memberInfo}
           onSuccess={(updatedMember, reward) => {
             setMemberInfo(updatedMember);
-            // เพิ่ม reward เข้าตะกร้าราคา ฿0
-            addToCart({
-              id: `reward-${reward.id}`,
-              name: `🎁 ${reward.name}`,
-              price: 0,
-              qty: 1,
-              category: "reward",
-              modifierGroups: [],
-            });
+            const rewardDiscount = parseRewardDiscount(reward);
+            if (rewardDiscount) {
+              onApplyRewardDiscount?.(rewardDiscount);
+            } else {
+              addToCart({
+                id: `reward-${reward.id}`,
+                name: `🎁 ${reward.name}`,
+                price: 0,
+                qty: 1,
+                category: "reward",
+                modifierGroups: [],
+              });
+            }
             setShowRedeem(false);
           }}
           onClose={() => setShowRedeem(false)}
@@ -546,6 +577,8 @@ const styles = {
   prefixLabel: { color: "#00B14F", fontSize: "18px", fontWeight: "bold", marginRight: "5px" },
   innerInput: { flex: 1, padding: "14px 0", backgroundColor: "transparent", border: "none", color: "#fff", fontSize: "18px", outline: "none" },
   payBtn: { border: "none", padding: "18px", borderRadius: "12px", color: "#fff", fontWeight: "bold", fontSize: "16px", cursor: "pointer" },
+  discountChip: { background: "#222", border: "1px solid #3a3a3a", color: "#ddd", borderRadius: 12, padding: "4px 8px", fontSize: 11, cursor: "pointer" },
+  discountClearBtn: { background: "transparent", border: "1px solid #444", color: "#aaa", borderRadius: 12, padding: "4px 8px", fontSize: 11, cursor: "pointer" },
   modifierOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-end", zIndex: 3000 },
   modifierModal: { background: "#1a1a1a", borderRadius: "20px 20px 0 0", padding: "24px", width: "100%", maxHeight: "85vh", display: "flex", flexDirection: "column", borderTop: "1px solid #333" },
 };
