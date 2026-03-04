@@ -7,22 +7,11 @@ import Dashboard from "./components/Dashboard";
 import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
-import Members, { calcPoints, getPointSettings } from "./components/Members";
+import Members from "./components/Members";
 import { supabase as sb } from "./supabase";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
-
-const sortCategoriesWithAllFirst = (cats = []) => {
-  const unique = [...new Set((cats || []).filter(Boolean))];
-  const withoutAll = unique.filter(c => c !== "All");
-  const sorted = withoutAll.sort((a, b) => a.localeCompare(b, "th", { numeric: true, sensitivity: "base" }));
-  return ["All", ...sorted];
-};
-
-
-const APP_LOGO_SRC = "/kat%20kat%20katsu%20-%20Logo-07.png";
-const BRAND_BG = "#ff970d";
 
 function App() {
   const [view, setView] = useState("pos");
@@ -36,50 +25,25 @@ function App() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [modifierGroups, setModifierGroups] = useState([]);
-  const [members, setMembers] = useState([]);
-  const [memberPhone, setMemberPhone] = useState("");
-
-  const cleanupInvalidModifierLinks = useCallback(async (prods, mods) => {
-    const validGroupIds = new Set((mods || []).map(g => g.id));
-    const fixedProducts = [];
-
-    for (const p of prods || []) {
-      const original = Array.isArray(p.modifierGroups) ? p.modifierGroups : [];
-      const filtered = original.filter(id => validGroupIds.has(id));
-      if (filtered.length !== original.length) {
-        fixedProducts.push({ ...p, modifierGroups: filtered });
-      }
-    }
-
-    if (fixedProducts.length > 0) {
-      await Promise.all(
-        fixedProducts.map((p) => db.updateProduct(p.id, { modifierGroups: p.modifierGroups }))
-      );
-    }
-
-    return (prods || []).map((p) => {
-      const fixed = fixedProducts.find(fp => fp.id === p.id);
-      return fixed || p;
-    });
-  }, []);
+  const [memberPhone, setMemberPhone] = useState(""); // เบอร์สมาชิกที่เลือกตอนขาย
+  const [itemDiscounts, setItemDiscounts] = useState({});
 
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
   useEffect(() => {
     async function loadAll() {
       try {
-        const [cats, prods, mods, ords, mems] = await Promise.all([
+        const [cats, prods, mods, ords] = await Promise.all([
           db.fetchCategories(),
           db.fetchProducts(),
           db.fetchModifierGroups(),
           db.fetchOrders(),
-          db.fetchMembers(),
         ]);
 
         // FIX: รวม categories จาก DB + categories ที่มีใน products จริงๆ
         // ป้องกันกรณี categories table ไม่ครบแต่ products มีอยู่แล้ว
         const dbCats = new Set(cats.filter(c => c !== "All"));
         const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
-        const merged = sortCategoriesWithAllFirst([...dbCats, ...prodCats]);
+        const merged = ["All", ...new Set([...dbCats, ...prodCats])];
 
         // save categories ที่หายไปกลับเข้า DB ด้วย (auto-repair)
         for (const cat of prodCats) {
@@ -88,13 +52,10 @@ function App() {
           }
         }
 
-        const normalizedProducts = await cleanupInvalidModifierLinks(prods, mods);
-
         setCategories(merged);
-        setProducts(normalizedProducts);
+        setProducts(prods);
         setModifierGroups(mods);
         setOrders(ords);
-        setMembers(mems || []);
       } catch (err) {
         console.error("โหลดข้อมูลไม่ได้:", err);
         alert("❌ โหลดข้อมูลไม่ได้ กรุณา refresh");
@@ -103,7 +64,7 @@ function App() {
       }
     }
     loadAll();
-  }, [cleanupInvalidModifierLinks]);
+  }, []);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -115,7 +76,7 @@ function App() {
   const addCategory = useCallback(async (name) => {
     if (!name || categories.includes(name)) return;
     await db.addCategory(name);
-    setCategories(prev => sortCategoriesWithAllFirst([...prev, name]));
+    setCategories(prev => [...prev, name]);
   }, [categories]);
 
   const deleteCategory = useCallback(async (catName) => {
@@ -177,24 +138,6 @@ function App() {
     ));
   }, []);
 
-  const cleanupUnusedModifierGroups = useCallback(async () => {
-    const usedGroupIds = new Set(
-      products.flatMap((p) => Array.isArray(p.modifierGroups) ? p.modifierGroups : [])
-    );
-    const unusedGroups = modifierGroups.filter(g => !usedGroupIds.has(g.id));
-
-    if (unusedGroups.length === 0) {
-      alert("ไม่พบกลุ่มเมนูเสริมที่ไม่ได้ใช้งาน");
-      return;
-    }
-
-    if (!window.confirm(`พบ ${unusedGroups.length} กลุ่มที่ไม่ได้ใช้งาน ต้องการลบหรือไม่?`)) return;
-
-    await Promise.all(unusedGroups.map(g => db.deleteModifierGroup(g.id)));
-    setModifierGroups(prev => prev.filter(g => usedGroupIds.has(g.id)));
-    alert(`ลบกลุ่มเมนูเสริมที่ไม่ได้ใช้งานแล้ว ${unusedGroups.length} กลุ่ม`);
-  }, [modifierGroups, products]);
-
   // POS LOGIC
   const visibleProducts = useMemo(() =>
     (!selectedCategory || selectedCategory === "All")
@@ -242,40 +185,39 @@ function App() {
     ));
   }, []);
 
-  const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
+  const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone, discountInfo = null) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
+    const finalTotal = discountInfo?.finalTotal ?? total;
+    const totalSaved = discountInfo?.totalSaved ?? 0;
     try {
       const saved = await db.addOrder({
         time: new Date().toISOString(),
         items: [...cart],
-        total,
+        total: finalTotal,
+        originalTotal: total,
+        discount: totalSaved,
         payment: isDelivery ? "transfer" : paymentMethod,
         channel: priceChannel,
         refId,
         isSettled: !isDelivery,
-        actualAmount: isDelivery ? 0 : total,
+        actualAmount: isDelivery ? 0 : finalTotal,
         member_phone: phone || null,
       });
       setOrders(prev => [saved, ...prev]);
 
-      // สะสมแต้ม
+      // อัพเดทแต้มและยอดใช้จ่ายของสมาชิก
       if (phone) {
         try {
-          const { rate, tiers } = getPointSettings();
-          const pointsEarned = calcPoints(total, rate, tiers);
+          const pointsEarned = Math.floor(total / 10);
           await sb.rpc("increment_member_points", {
             p_phone: phone, p_points: pointsEarned, p_spent: total,
           });
-          setMembers(prev => prev.map(m =>
-            m.phone === phone
-              ? { ...m, points: (m.points || 0) + pointsEarned, total_spent: (m.total_spent || 0) + total }
-              : m
-          ));
         } catch (e) { console.warn("member update failed", e); }
       }
 
       setCart([]);
+      setItemDiscounts({});
       setMemberPhone("");
       alert(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "ชำระเงินเรียบร้อย");
     } catch (err) {
@@ -325,7 +267,6 @@ function App() {
 
   const modifierManagerProps = {
     modifierGroups, addModifierGroup, deleteModifierGroup, addOptionToGroup, deleteOption,
-    cleanupUnusedModifierGroups,
   };
 
   const CHANNELS = [
@@ -337,7 +278,8 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: BRAND_BG, color: "#fff", gap: 16 }}>
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff", gap: 16 }}>
+        <div style={{ fontSize: 40 }}>🍖</div>
         <div style={{ fontSize: 20, fontWeight: "bold" }}>KATKAT POS</div>
         <div style={{ color: "#666", fontSize: 14 }}>กำลังโหลดข้อมูล...</div>
         {!isUsingSupabase && (
@@ -359,9 +301,10 @@ function App() {
                 categories={categories} selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory} cart={cart} total={total}
                 onCheckout={handleCheckout} priceChannel={priceChannel}
-                setPriceChannel={setPriceChannel} onClearCart={() => setCart([])}
+                setPriceChannel={setPriceChannel} onClearCart={() => { setCart([]); setItemDiscounts({}); }}
                 modifierGroups={modifierGroups}
                 memberPhone={memberPhone} setMemberPhone={setMemberPhone}
+                itemDiscounts={itemDiscounts} setItemDiscounts={setItemDiscounts}
               />
             )}
             {view === "dashboard" && (
@@ -382,7 +325,7 @@ function App() {
             )}
             {view === "members" && (
               <div style={{ height: "calc(100vh - 150px)" }}>
-                <Members orders={orders} members={members} />
+                <Members orders={orders} />
               </div>
             )}
           </main>
@@ -397,10 +340,7 @@ function App() {
       ) : (
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <header style={styles.desktopHeader}>
-            <div style={styles.brandWrap}>
-              <img src={APP_LOGO_SRC} alt="KATKAT logo" onError={(e) => { e.currentTarget.src = "/vite.svg"; }} style={styles.brandLogo} />
-              <h2 style={{ margin: 0 }}>KATKAT POS</h2>
-            </div>
+            <h2 style={{ margin: 0 }}>KATKAT POS</h2>
             <nav style={{ display: "flex", gap: 10 }}>
               {["pos", "menu", "dashboard", "orders", "members"].map((v) => (
                 <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
@@ -428,8 +368,9 @@ function App() {
                 <aside style={{ width: "400px" }}>
                   <Cart cart={cart} addToCart={addToCart} increaseQty={increaseQty}
                     decreaseQty={decreaseQty} total={total} onCheckout={handleCheckout}
-                    onClearCart={() => setCart([])} priceChannel={priceChannel}
-                    memberPhone={memberPhone} setMemberPhone={setMemberPhone} />
+                    onClearCart={() => { setCart([]); setItemDiscounts({}); }} priceChannel={priceChannel}
+                    memberPhone={memberPhone} setMemberPhone={setMemberPhone}
+                    itemDiscounts={itemDiscounts} setItemDiscounts={setItemDiscounts} />
                 </aside>
               </>
             )}
@@ -455,7 +396,7 @@ function App() {
             )}
             {view === "members" && (
               <div style={{ flex: 1, overflow: "hidden" }}>
-                <Members orders={orders} members={members} />
+                <Members orders={orders} />
               </div>
             )}
           </main>
@@ -466,11 +407,9 @@ function App() {
 }
 
 const styles = {
-  brandWrap: { display: "flex", alignItems: "center", gap: 10 },
-  brandLogo: { width: 34, height: 34, borderRadius: 8, border: "1px solid #333", background: "#222" },
-  bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000, overflow: "hidden" },
-  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer" }),
-  desktopHeader: { padding: "15px 25px", backgroundColor: BRAND_BG, borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
+  bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
+  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer", padding: "0 4px" }),
+  desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
   desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
   desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10, alignItems: "center" },
   channelBtn: (isActive, color) => ({ padding: "6px 18px", borderRadius: "20px", border: "none", background: isActive ? color : "#262626", color: "#fff", cursor: "pointer", transition: "0.2s", fontSize: "12px" }),
