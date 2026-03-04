@@ -16,6 +16,17 @@ import { computeDiscountTotal } from "./utils/discounts";
 import { calcPoints, getPointSettings } from "./utils/points";
 import { BRAND_BG, sortCategoriesWithAllFirst, repairInvalidModifierLinks } from "./utils/appConfig";
 
+const sortCategoriesWithAllFirst = (cats = []) => {
+  const unique = [...new Set((cats || []).filter(Boolean))];
+  const withoutAll = unique.filter(c => c !== "All");
+  const sorted = withoutAll.sort((a, b) => a.localeCompare(b, "th", { numeric: true, sensitivity: "base" }));
+  return ["All", ...sorted];
+};
+
+
+const APP_LOGO_SRC = "/kat%20kat%20katsu%20-%20Logo-07.png";
+const BRAND_BG = "#ff970d";
+
 function App() {
   const [view, setView] = useState("pos");
   const [priceChannel, setPriceChannel] = useState("pos");
@@ -31,6 +42,30 @@ function App() {
   const [members, setMembers] = useState([]);
   const [memberPhone, setMemberPhone] = useState("");
   const [discounts, setDiscounts] = useState([]);
+
+  const cleanupInvalidModifierLinks = useCallback(async (prods, mods) => {
+    const validGroupIds = new Set((mods || []).map(g => g.id));
+    const fixedProducts = [];
+
+    for (const p of prods || []) {
+      const original = Array.isArray(p.modifierGroups) ? p.modifierGroups : [];
+      const filtered = original.filter(id => validGroupIds.has(id));
+      if (filtered.length !== original.length) {
+        fixedProducts.push({ ...p, modifierGroups: filtered });
+      }
+    }
+
+    if (fixedProducts.length > 0) {
+      await Promise.all(
+        fixedProducts.map((p) => db.updateProduct(p.id, { modifierGroups: p.modifierGroups }))
+      );
+    }
+
+    return (prods || []).map((p) => {
+      const fixed = fixedProducts.find(fp => fp.id === p.id);
+      return fixed || p;
+    });
+  }, []);
 
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
   useEffect(() => {
@@ -72,7 +107,7 @@ function App() {
       }
     }
     loadAll();
-  }, []);
+  }, [cleanupInvalidModifierLinks]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -425,7 +460,10 @@ function App() {
       ) : (
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <header style={styles.desktopHeader}>
-            <h2 style={{ margin: 0 }}>KATKAT POS</h2>
+            <div style={styles.brandWrap}>
+              <img src={APP_LOGO_SRC} alt="KATKAT logo" onError={(e) => { e.currentTarget.src = "/vite.svg"; }} style={styles.brandLogo} />
+              <h2 style={{ margin: 0 }}>KATKAT POS</h2>
+            </div>
             <nav style={{ display: "flex", gap: 10 }}>
               {["pos", "menu", "dashboard", "orders", "members"].map((v) => (
                 <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
@@ -496,6 +534,8 @@ function App() {
 }
 
 const styles = {
+  brandWrap: { display: "flex", alignItems: "center", gap: 10 },
+  brandLogo: { width: 34, height: 34, borderRadius: 8, border: "1px solid #333", background: "#222" },
   bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000, overflow: "hidden" },
   navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer" }),
   desktopHeader: { padding: "15px 25px", backgroundColor: BRAND_BG, borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
