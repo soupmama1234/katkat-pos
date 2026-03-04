@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import { supabase as sb } from "../supabase";
 import RewardManager from "./RewardManager";
 import {
-  calcPoints,
   loadRate,
   loadTiers,
   saveRate,
