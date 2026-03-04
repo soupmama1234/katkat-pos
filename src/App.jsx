@@ -7,7 +7,7 @@ import Dashboard from "./components/Dashboard";
 import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
-import Members, { calcPoints, getPointSettings } from "./components/Member";
+import Members, { calcPoints, getPointSettings } from "./components/Members";
 import { BRAND_BG, sortCategoriesWithAllFirst, repairInvalidModifierLinks } from "./utils/appConfig";
 import { supabase as sb } from "./supabase";
 
