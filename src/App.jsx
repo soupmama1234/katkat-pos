@@ -7,23 +7,11 @@ import Dashboard from "./components/Dashboard";
 import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
-import Members from "./components/Members";
+import Members, { calcPoints, getPointSettings } from "./components/Members";
 import { supabase as sb } from "./supabase";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
-import { computeDiscountTotal } from "./utils/discounts";
-import { calcPoints, getPointSettings } from "./utils/points";
-
-const sortCategoriesWithAllFirst = (cats = []) => {
-  const unique = [...new Set((cats || []).filter(Boolean))];
-  const withoutAll = unique.filter(c => c !== "All");
-  const sorted = withoutAll.sort((a, b) => a.localeCompare(b, "th", { numeric: true, sensitivity: "base" }));
-  return ["All", ...sorted];
-};
-
-
-const BRAND_BG = "#161616";
 
 const sortCategoriesWithAllFirst = (cats = []) => {
   const unique = [...new Set((cats || []).filter(Boolean))];
@@ -50,31 +38,6 @@ function App() {
   const [modifierGroups, setModifierGroups] = useState([]);
   const [members, setMembers] = useState([]);
   const [memberPhone, setMemberPhone] = useState("");
-  const [discounts, setDiscounts] = useState([]);
-
-  const cleanupInvalidModifierLinks = useCallback(async (prods, mods) => {
-    const validGroupIds = new Set((mods || []).map(g => g.id));
-    const fixedProducts = [];
-
-    for (const p of prods || []) {
-      const original = Array.isArray(p.modifierGroups) ? p.modifierGroups : [];
-      const filtered = original.filter(id => validGroupIds.has(id));
-      if (filtered.length !== original.length) {
-        fixedProducts.push({ ...p, modifierGroups: filtered });
-      }
-    }
-
-    if (fixedProducts.length > 0) {
-      await Promise.all(
-        fixedProducts.map((p) => db.updateProduct(p.id, { modifierGroups: p.modifierGroups }))
-      );
-    }
-
-    return (prods || []).map((p) => {
-      const fixed = fixedProducts.find(fp => fp.id === p.id);
-      return fixed || p;
-    });
-  }, []);
 
   const cleanupInvalidModifierLinks = useCallback(async (prods, mods) => {
     const validGroupIds = new Set((mods || []).map(g => g.id));
@@ -121,7 +84,7 @@ function App() {
         // save categories ที่หายไปกลับเข้า DB ด้วย (auto-repair)
         for (const cat of prodCats) {
           if (!dbCats.has(cat)) {
-            try { await db.addCategory(cat); } catch (err) { console.warn("addCategory skipped", err); }
+            try { await db.addCategory(cat); } catch {}
           }
         }
 
@@ -233,19 +196,16 @@ function App() {
   }, [modifierGroups, products]);
 
   // POS LOGIC
-  const subtotal = useMemo(() =>
-    cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
-    [cart]
-  );
-
-  const discountTotal = useMemo(() =>
-    computeDiscountTotal(subtotal, discounts),
-    [subtotal, discounts]
+  const visibleProducts = useMemo(() =>
+    (!selectedCategory || selectedCategory === "All")
+      ? products
+      : products.filter(p => p.category === selectedCategory),
+    [products, selectedCategory]
   );
 
   const total = useMemo(() =>
-    Math.max(0, subtotal - discountTotal),
-    [subtotal, discountTotal]
+    cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+    [cart]
   );
 
   const addToCart = useCallback((product, channel = priceChannel) => {
@@ -282,56 +242,6 @@ function App() {
     ));
   }, []);
 
-
-  const applyManualDiscount = useCallback((discount) => {
-    const mode = discount?.mode;
-    const value = Number(discount?.value) || 0;
-    if (!["amount", "percent"].includes(mode) || value <= 0) return;
-    setDiscounts(prev => [
-      ...prev,
-      {
-        id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        source: "manual",
-        mode,
-        value,
-        label: discount?.label || (mode === "percent" ? `ส่วนลด ${value}%` : `ส่วนลด ฿${value}`),
-      },
-    ]);
-  }, []);
-
-  const applyRewardDiscount = useCallback((discount) => {
-    const mode = discount?.mode;
-    const value = Number(discount?.value) || 0;
-    if (!["amount", "percent"].includes(mode) || value <= 0) return;
-    setDiscounts(prev => {
-      if (discount.rewardId && prev.some(d => d.rewardId === discount.rewardId)) return prev;
-      return [
-        ...prev,
-        {
-          id: discount?.id || `reward-${discount?.rewardId || Date.now()}`,
-          source: "reward",
-          mode,
-          value,
-          label: discount?.label || "🎁 Reward Discount",
-          rewardId: discount?.rewardId,
-        },
-      ];
-    });
-  }, []);
-
-  const removeDiscount = useCallback((id) => {
-    setDiscounts(prev => prev.filter(d => d.id !== id));
-  }, []);
-
-  const clearDiscounts = useCallback(() => {
-    setDiscounts([]);
-  }, []);
-
-  const clearCartAll = useCallback(() => {
-    setCart([]);
-    setDiscounts([]);
-  }, []);
-
   const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
@@ -366,7 +276,6 @@ function App() {
       }
 
       setCart([]);
-      setDiscounts([]);
       setMemberPhone("");
       alert(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "ชำระเงินเรียบร้อย");
     } catch (err) {
@@ -450,14 +359,9 @@ function App() {
                 categories={categories} selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory} cart={cart} total={total}
                 onCheckout={handleCheckout} priceChannel={priceChannel}
-                setPriceChannel={setPriceChannel} onClearCart={clearCartAll}
+                setPriceChannel={setPriceChannel} onClearCart={() => setCart([])}
                 modifierGroups={modifierGroups}
                 memberPhone={memberPhone} setMemberPhone={setMemberPhone}
-                subtotal={subtotal} discountTotal={discountTotal} discounts={discounts}
-                onApplyManualDiscount={applyManualDiscount}
-                onApplyRewardDiscount={applyRewardDiscount}
-                onRemoveDiscount={removeDiscount}
-                onClearDiscounts={clearDiscounts}
               />
             )}
             {view === "dashboard" && (
@@ -524,13 +428,8 @@ function App() {
                 <aside style={{ width: "400px" }}>
                   <Cart cart={cart} addToCart={addToCart} increaseQty={increaseQty}
                     decreaseQty={decreaseQty} total={total} onCheckout={handleCheckout}
-                    onClearCart={clearCartAll} priceChannel={priceChannel}
-                    memberPhone={memberPhone} setMemberPhone={setMemberPhone}
-                    subtotal={subtotal} discountTotal={discountTotal} discounts={discounts}
-                    onApplyManualDiscount={applyManualDiscount}
-                    onApplyRewardDiscount={applyRewardDiscount}
-                    onRemoveDiscount={removeDiscount}
-                    onClearDiscounts={clearDiscounts} />
+                    onClearCart={() => setCart([])} priceChannel={priceChannel}
+                    memberPhone={memberPhone} setMemberPhone={setMemberPhone} />
                 </aside>
               </>
             )}
@@ -567,6 +466,8 @@ function App() {
 }
 
 const styles = {
+  brandWrap: { display: "flex", alignItems: "center", gap: 10 },
+  brandLogo: { width: 34, height: 34, borderRadius: 8, border: "1px solid #333", background: "#222" },
   bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000, overflow: "hidden" },
   navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer" }),
   desktopHeader: { padding: "15px 25px", backgroundColor: BRAND_BG, borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
