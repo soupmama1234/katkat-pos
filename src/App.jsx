@@ -7,11 +7,23 @@ import Dashboard from "./components/Dashboard";
 import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
-import Members, { calcPoints, getPointSettings } from "./components/Members";
+import Members from "./components/Members";
 import { supabase as sb } from "./supabase";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
+import { computeDiscountTotal } from "./utils/discounts";
+import { calcPoints, getPointSettings } from "./utils/points";
+
+const sortCategoriesWithAllFirst = (cats = []) => {
+  const unique = [...new Set((cats || []).filter(Boolean))];
+  const withoutAll = unique.filter(c => c !== "All");
+  const sorted = withoutAll.sort((a, b) => a.localeCompare(b, "th", { numeric: true, sensitivity: "base" }));
+  return ["All", ...sorted];
+};
+
+
+const BRAND_BG = "#161616";
 
 function App() {
   const [view, setView] = useState("pos");
@@ -27,6 +39,7 @@ function App() {
   const [modifierGroups, setModifierGroups] = useState([]);
   const [members, setMembers] = useState([]);
   const [memberPhone, setMemberPhone] = useState("");
+  const [discounts, setDiscounts] = useState([]);
 
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
   useEffect(() => {
@@ -44,17 +57,39 @@ function App() {
         // ป้องกันกรณี categories table ไม่ครบแต่ products มีอยู่แล้ว
         const dbCats = new Set(cats.filter(c => c !== "All"));
         const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
-        const merged = ["All", ...new Set([...dbCats, ...prodCats])];
+        const merged = sortCategoriesWithAllFirst([...dbCats, ...prodCats]);
 
         // save categories ที่หายไปกลับเข้า DB ด้วย (auto-repair)
         for (const cat of prodCats) {
           if (!dbCats.has(cat)) {
-            try { await db.addCategory(cat); } catch {}
+            try { await db.addCategory(cat); } catch (err) { console.warn("addCategory skipped", err); }
           }
         }
 
+        // แก้ product ที่อ้าง modifierGroups ที่ถูกลบไปแล้ว (auto-repair)
+        const validGroupIds = new Set((mods || []).map((g) => g.id));
+        const fixedProducts = (prods || []).reduce((acc, p) => {
+          const original = Array.isArray(p.modifierGroups) ? p.modifierGroups : [];
+          const filtered = original.filter((id) => validGroupIds.has(id));
+          if (filtered.length !== original.length) {
+            acc.push({ ...p, modifierGroups: filtered });
+          }
+          return acc;
+        }, []);
+
+        if (fixedProducts.length > 0) {
+          await Promise.all(
+            fixedProducts.map((p) => db.updateProduct(p.id, { modifierGroups: p.modifierGroups }))
+          );
+        }
+
+        const normalizedProducts = (prods || []).map((p) => {
+          const fixed = fixedProducts.find((fp) => fp.id === p.id);
+          return fixed || p;
+        });
+
         setCategories(merged);
-        setProducts(prods);
+        setProducts(normalizedProducts);
         setModifierGroups(mods);
         setOrders(ords);
         setMembers(mems || []);
@@ -78,7 +113,7 @@ function App() {
   const addCategory = useCallback(async (name) => {
     if (!name || categories.includes(name)) return;
     await db.addCategory(name);
-    setCategories(prev => [...prev, name]);
+    setCategories(prev => sortCategoriesWithAllFirst([...prev, name]));
   }, [categories]);
 
   const deleteCategory = useCallback(async (catName) => {
@@ -140,17 +175,38 @@ function App() {
     ));
   }, []);
 
+  const cleanupUnusedModifierGroups = useCallback(async () => {
+    const usedGroupIds = new Set(
+      products.flatMap((p) => Array.isArray(p.modifierGroups) ? p.modifierGroups : [])
+    );
+    const unusedGroups = modifierGroups.filter(g => !usedGroupIds.has(g.id));
+
+    if (unusedGroups.length === 0) {
+      alert("ไม่พบกลุ่มเมนูเสริมที่ไม่ได้ใช้งาน");
+      return;
+    }
+
+    if (!window.confirm(`พบ ${unusedGroups.length} กลุ่มที่ไม่ได้ใช้งาน ต้องการลบหรือไม่?`)) return;
+
+    await Promise.all(unusedGroups.map(g => db.deleteModifierGroup(g.id)));
+    setModifierGroups(prev => prev.filter(g => usedGroupIds.has(g.id)));
+    alert(`ลบกลุ่มเมนูเสริมที่ไม่ได้ใช้งานแล้ว ${unusedGroups.length} กลุ่ม`);
+  }, [modifierGroups, products]);
+
   // POS LOGIC
-  const visibleProducts = useMemo(() =>
-    (!selectedCategory || selectedCategory === "All")
-      ? products
-      : products.filter(p => p.category === selectedCategory),
-    [products, selectedCategory]
+  const subtotal = useMemo(() =>
+    cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+    [cart]
+  );
+
+  const discountTotal = useMemo(() =>
+    computeDiscountTotal(subtotal, discounts),
+    [subtotal, discounts]
   );
 
   const total = useMemo(() =>
-    cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
-    [cart]
+    Math.max(0, subtotal - discountTotal),
+    [subtotal, discountTotal]
   );
 
   const addToCart = useCallback((product, channel = priceChannel) => {
@@ -187,6 +243,56 @@ function App() {
     ));
   }, []);
 
+
+  const applyManualDiscount = useCallback((discount) => {
+    const mode = discount?.mode;
+    const value = Number(discount?.value) || 0;
+    if (!["amount", "percent"].includes(mode) || value <= 0) return;
+    setDiscounts(prev => [
+      ...prev,
+      {
+        id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        source: "manual",
+        mode,
+        value,
+        label: discount?.label || (mode === "percent" ? `ส่วนลด ${value}%` : `ส่วนลด ฿${value}`),
+      },
+    ]);
+  }, []);
+
+  const applyRewardDiscount = useCallback((discount) => {
+    const mode = discount?.mode;
+    const value = Number(discount?.value) || 0;
+    if (!["amount", "percent"].includes(mode) || value <= 0) return;
+    setDiscounts(prev => {
+      if (discount.rewardId && prev.some(d => d.rewardId === discount.rewardId)) return prev;
+      return [
+        ...prev,
+        {
+          id: discount?.id || `reward-${discount?.rewardId || Date.now()}`,
+          source: "reward",
+          mode,
+          value,
+          label: discount?.label || "🎁 Reward Discount",
+          rewardId: discount?.rewardId,
+        },
+      ];
+    });
+  }, []);
+
+  const removeDiscount = useCallback((id) => {
+    setDiscounts(prev => prev.filter(d => d.id !== id));
+  }, []);
+
+  const clearDiscounts = useCallback(() => {
+    setDiscounts([]);
+  }, []);
+
+  const clearCartAll = useCallback(() => {
+    setCart([]);
+    setDiscounts([]);
+  }, []);
+
   const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
@@ -221,6 +327,7 @@ function App() {
       }
 
       setCart([]);
+      setDiscounts([]);
       setMemberPhone("");
       alert(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "ชำระเงินเรียบร้อย");
     } catch (err) {
@@ -270,6 +377,7 @@ function App() {
 
   const modifierManagerProps = {
     modifierGroups, addModifierGroup, deleteModifierGroup, addOptionToGroup, deleteOption,
+    cleanupUnusedModifierGroups,
   };
 
   const CHANNELS = [
@@ -281,8 +389,7 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff", gap: 16 }}>
-        <div style={{ fontSize: 40 }}>🍖</div>
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: BRAND_BG, color: "#fff", gap: 16 }}>
         <div style={{ fontSize: 20, fontWeight: "bold" }}>KATKAT POS</div>
         <div style={{ color: "#666", fontSize: 14 }}>กำลังโหลดข้อมูล...</div>
         {!isUsingSupabase && (
@@ -304,9 +411,14 @@ function App() {
                 categories={categories} selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory} cart={cart} total={total}
                 onCheckout={handleCheckout} priceChannel={priceChannel}
-                setPriceChannel={setPriceChannel} onClearCart={() => setCart([])}
+                setPriceChannel={setPriceChannel} onClearCart={clearCartAll}
                 modifierGroups={modifierGroups}
                 memberPhone={memberPhone} setMemberPhone={setMemberPhone}
+                subtotal={subtotal} discountTotal={discountTotal} discounts={discounts}
+                onApplyManualDiscount={applyManualDiscount}
+                onApplyRewardDiscount={applyRewardDiscount}
+                onRemoveDiscount={removeDiscount}
+                onClearDiscounts={clearDiscounts}
               />
             )}
             {view === "dashboard" && (
@@ -370,8 +482,13 @@ function App() {
                 <aside style={{ width: "400px" }}>
                   <Cart cart={cart} addToCart={addToCart} increaseQty={increaseQty}
                     decreaseQty={decreaseQty} total={total} onCheckout={handleCheckout}
-                    onClearCart={() => setCart([])} priceChannel={priceChannel}
-                    memberPhone={memberPhone} setMemberPhone={setMemberPhone} />
+                    onClearCart={clearCartAll} priceChannel={priceChannel}
+                    memberPhone={memberPhone} setMemberPhone={setMemberPhone}
+                    subtotal={subtotal} discountTotal={discountTotal} discounts={discounts}
+                    onApplyManualDiscount={applyManualDiscount}
+                    onApplyRewardDiscount={applyRewardDiscount}
+                    onRemoveDiscount={removeDiscount}
+                    onClearDiscounts={clearDiscounts} />
                 </aside>
               </>
             )}
@@ -408,9 +525,9 @@ function App() {
 }
 
 const styles = {
-  bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
+  bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000, overflow: "hidden" },
   navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer" }),
-  desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
+  desktopHeader: { padding: "15px 25px", backgroundColor: BRAND_BG, borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
   desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
   desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10, alignItems: "center" },
   channelBtn: (isActive, color) => ({ padding: "6px 18px", borderRadius: "20px", border: "none", background: isActive ? color : "#262626", color: "#fff", cursor: "pointer", transition: "0.2s", fontSize: "12px" }),

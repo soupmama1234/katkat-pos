@@ -7,14 +7,16 @@ export default function RewardManager() {
   const [form, setForm] = useState({ name: "", points_required: "", description: "" });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { fetchRewards(); }, []);
-
-  const fetchRewards = async () => {
-    setLoading(true);
-    const { data } = await sb.from("rewards").select("*").order("points_required");
-    setRewards(data || []);
-    setLoading(false);
-  };
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await sb.from("rewards").select("*").order("points_required");
+      if (!active) return;
+      setRewards(data || []);
+      setLoading(false);
+    })();
+    return () => { active = false; };
+  }, []);
 
   const handleAdd = async () => {
     if (!form.name || !form.points_required) return;

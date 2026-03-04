@@ -22,7 +22,7 @@ const ls = {
     } catch { return fallback; }
   },
   set: (key, value) => {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (err) { console.warn("localStorage set failed", key, err); }
   },
 };
 
