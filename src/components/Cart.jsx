@@ -3,11 +3,14 @@ import { Trash2 } from "lucide-react";
 import { supabase as sb } from "../supabase";
 import { calcPoints, nextThreshold, getPointSettings } from "./Members";
 import RedeemModal from "./RedeemModal";
+import { parseRewardDiscount } from "../utils/discounts";
 
 export default function Cart({
   cart = [], decreaseQty, increaseQty, addToCart, total = 0,
   onCheckout, onClearCart, priceChannel = "pos",
   memberPhone = "", setMemberPhone,
+  subtotal = 0, discountTotal = 0, discounts = [],
+  onApplyManualDiscount, onApplyRewardDiscount, onRemoveDiscount, onClearDiscounts,
 }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -21,6 +24,8 @@ export default function Cart({
   const [memberStatus, setMemberStatus] = useState("idle");
   const [showRegister, setShowRegister] = useState(false);
   const [regNickname, setRegNickname] = useState("");
+  const [discountMode, setDiscountMode] = useState("amount");
+  const [discountInput, setDiscountInput] = useState("");
 
   const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
   const receivedNumber = Number(cashReceived) || 0;
@@ -65,6 +70,14 @@ export default function Cart({
     setMemberInput(""); setMemberInfo(null);
     setMemberStatus("idle"); setMemberPhone("");
     setShowRegister(false); setRegNickname("");
+  };
+
+
+  const handleApplyManualDiscount = () => {
+    const value = Number(discountInput);
+    if (!(value > 0)) return;
+    onApplyManualDiscount?.({ mode: discountMode, value });
+    setDiscountInput("");
   };
 
   const handleRefChange = (val) => {
@@ -212,10 +225,38 @@ export default function Cart({
 
       {/* Footer */}
       <div style={S.footer}>
+        {discountTotal > 0 && (
+          <div style={{ fontSize: 12, color: "#213547", marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
+            <span>ยอดก่อนลด</span><span>฿{subtotal.toLocaleString()}</span>
+          </div>
+        )}
+        {discountTotal > 0 && (
+          <div style={{ fontSize: 12, color: "#2e7d32", marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
+            <span>ส่วนลดรวม</span><span>-฿{discountTotal.toLocaleString()}</span>
+          </div>
+        )}
         <div style={S.totalRow}>
           <span>รวมทั้งหมด:</span>
           <span>฿{total.toLocaleString()}</span>
         </div>
+        <div style={{ display: "grid", gridTemplateColumns: "100px 1fr auto auto", gap: 6, marginBottom: 8 }}>
+          <select value={discountMode} onChange={(e) => setDiscountMode(e.target.value)} style={{ ...S.input, padding: "6px 8px" }}>
+            <option value="amount">฿ ลด</option>
+            <option value="percent">% ลด</option>
+          </select>
+          <input value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} placeholder={discountMode === "percent" ? "เช่น 10" : "เช่น 20"} type="number" inputMode="decimal" style={{ ...S.input, padding: "6px 8px" }} />
+          <button onClick={handleApplyManualDiscount} style={{ ...S.btnSmall, background: "#213547", color: "#fff", border: "none" }}>ใช้</button>
+          <button onClick={() => onClearDiscounts?.()} style={S.btnSmall}>ล้าง</button>
+        </div>
+        {discounts.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+            {discounts.map((d) => (
+              <button key={d.id} onClick={() => onRemoveDiscount?.(d.id)} style={{ background: "#f3f3f3", border: "1px solid #ddd", borderRadius: 14, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>
+                {d.label || "ส่วนลด"} · {d.mode === "percent" ? `${d.value}%` : `฿${d.value}`} ✕
+              </button>
+            ))}
+          </div>
+        )}
         <button style={{ ...S.btnPay, backgroundColor: cart.length > 0 ? "#213547" : "#999", cursor: cart.length > 0 ? "pointer" : "not-allowed" }}
           onClick={() => cart.length > 0 && setShowPayment(true)}>
           {isDelivery ? `💾 บันทึก ${priceChannel.toUpperCase()}` : "💰 ชำระเงิน"}
@@ -294,15 +335,19 @@ export default function Cart({
           memberInfo={memberInfo}
           onSuccess={(updatedMember, reward) => {
             setMemberInfo(updatedMember);
-            // เพิ่ม reward เข้าตะกร้าราคา ฿0
-            addToCart?.({
-              id: `reward-${reward.id}`,
-              name: `🎁 ${reward.name}`,
-              price: 0,
-              qty: 1,
-              category: "reward",
-              modifierGroups: [],
-            });
+            const rewardDiscount = parseRewardDiscount(reward);
+            if (rewardDiscount) {
+              onApplyRewardDiscount?.(rewardDiscount);
+            } else {
+              addToCart?.({
+                id: `reward-${reward.id}`,
+                name: `🎁 ${reward.name}`,
+                price: 0,
+                qty: 1,
+                category: "reward",
+                modifierGroups: [],
+              });
+            }
             setShowRedeem(false);
           }}
           onClose={() => setShowRedeem(false)}
