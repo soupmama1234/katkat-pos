@@ -3,7 +3,6 @@ import { supabase as sb } from "../supabase";
 import RewardManager from "./RewardManager";
 import {
   calcPoints,
-  getPointSettings,
   loadRate,
   loadTiers,
   saveRate,
@@ -11,8 +10,6 @@ import {
 } from "../utils/points";
 
 const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards"];
-export const calcPoints = (spend, rate, tiers) => { /* โค้ดคำนวณของคุณ */ };
-export const getPointSettings = () => { /* โค้ดดึงค่าคอนฟิกของคุณ */ };
 // ────────────────────────────────────────────────
 export default function Members({ orders = [], members: initMembers = [], onMembersChange }) {
   const [tab, setTab] = useState("ภาพรวม");
