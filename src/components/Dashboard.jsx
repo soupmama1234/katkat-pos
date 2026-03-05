@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 
-export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActual }) {
+export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActual, showToast }) {
 
   const getChannelColor = (ch) => {
     const colors = { pos: "#ffffff", grab: "#00B14F", lineman: "#00A84F", shopee: "#EE4D2D" };
@@ -23,8 +23,10 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
   };
 
   const exportToCSV = (data, fileName) => {
-    if (!data || data.length === 0) return alert("ไม่มีข้อมูลให้ Export ครับ");
+    if (!data || data.length === 0) return showToast?.("ไม่มีข้อมูลให้ Export ครับ", "info");
     const headers = ["วันที่/เวลา", "เลขอ้างอิง", "ช่องทาง", "รายการสินค้า", "ยอดรวมเมนู", "ยอดรับจริง", "ประเภทชำระเงิน"];
+
+
     const rows = data.map(o => {
       const itemsSummary = o.items.map(i => `${i.name}x${i.qty}`).join(" | ");
       return [

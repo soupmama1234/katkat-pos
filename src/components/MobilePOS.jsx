@@ -77,7 +77,10 @@ export default function MobilePOS({
       const { data } = await sb.from("members").insert({ phone: memberInput, nickname: regNickname }).select().single();
       setMemberInfo(data); setMemberStatus("found"); setMemberPhone(memberInput);
       setShowRegister(false); setRegNickname("");
-    } catch (e) { alert("สมัครไม่สำเร็จ: " + e.message); }
+      showToast?.("สมัครสมาชิกเรียบร้อย ✨");
+    } catch (e) { 
+      showToast?.("สมัครไม่สำเร็จ: " + e.message, "error"); 
+    }
   };
 
   const clearMember = () => {
@@ -527,6 +530,8 @@ export default function MobilePOS({
         <RedeemModal
           memberPhone={memberPhone}
           memberInfo={memberInfo}
+          showToast={showToast}
+          showConfirm={showConfirm}
           onSuccess={(updatedMember, reward) => {
             setMemberInfo(updatedMember);
             // เพิ่ม reward เข้าตะกร้าราคา ฿0

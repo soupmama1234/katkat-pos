@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { supabase as sb } from "../supabase";
 
 // Modal แลกแต้ม — เรียกใช้จาก MobilePOS และ Cart
-// props: memberPhone, memberInfo, onSuccess(updatedMember), onClose
-export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClose }) {
+// props: memberPhone, memberInfo, onSuccess(updatedMember), onClose, showToast, showConfirm
+export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClose, showToast, showConfirm }) {
   const [rewards, setRewards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState(null);
@@ -15,7 +15,15 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
 
   const handleRedeem = async (reward) => {
     if (memberInfo.points < reward.points_required) return;
-    if (!window.confirm(`แลก "${reward.name}" ใช้ ${reward.points_required} แต้ม? (รางวัลจะถูกเก็บไว้ในบัญชีของคุณ)`)) return;
+    
+    const ok = await showConfirm?.(
+      "ยืนยันการแลก?", 
+      `แลก "${reward.name}" ใช้ ${reward.points_required} แต้ม?\n(รางวัลจะถูกเก็บไว้ในบัญชีของคุณ)`,
+      null,
+      "primary"
+    );
+    if (!ok) return;
+
     setRedeeming(reward.id);
     try {
       const newPoints = memberInfo.points - reward.points_required;
@@ -53,11 +61,11 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
         reward_id: reward.id,
       });
 
-      alert(`✅ แลกสำเร็จ! "${reward.name}" อยู่ในบัญชีสมาชิกแล้ว`);
+      showToast?.(`✅ แลกสำเร็จ! "${reward.name}" อยู่ในบัญชีแล้ว`);
       onSuccess(updatedMember, reward); 
       onClose();
     } catch (e) {
-      alert("แลกแต้มไม่สำเร็จ: " + e.message);
+      showToast?.("แลกแต้มไม่สำเร็จ: " + e.message, "error");
     }
     setRedeeming(null);
   };

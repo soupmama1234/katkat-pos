@@ -27,7 +27,7 @@ export default function RewardManager({ showToast, showConfirm }) {
   }, []);
 
   const handleAdd = async () => {
-    if (!form.name || !form.points_required) return;
+    if (!form.name || !form.points_required) return showToast?.("กรุณากรอกชื่อและแต้มที่ใช้", "warning");
     setSaving(true);
     try {
       const payload = {
@@ -44,31 +44,33 @@ export default function RewardManager({ showToast, showConfirm }) {
       
       setRewards(prev => [...prev, data].sort((a,b) => a.points_required - b.points_required));
       setForm({ name: "", points_required: "", description: "", type: "item", discount_amount: "", discount_type: "amount" });
-      if (showToast) showToast("เพิ่ม Reward เรียบร้อย");
+      showToast?.("✨ เพิ่ม Reward ใหม่เรียบร้อย");
     } catch (e) {
-      if (showToast) showToast("เพิ่มไม่สำเร็จ: " + e.message, "error");
+      showToast?.("เพิ่มไม่สำเร็จ: " + e.message, "error");
     }
     setSaving(false);
   };
 
   const toggleActive = async (r) => {
-    await sb.from("rewards").update({ is_active: !r.is_active }).eq("id", r.id);
-    setRewards(prev => prev.map(x => x.id === r.id ? { ...x, is_active: !x.is_active } : x));
-    if (showToast) showToast(`เปลี่ยนสถานะ "${r.name}" แล้ว`);
+    try {
+      await sb.from("rewards").update({ is_active: !r.is_active }).eq("id", r.id);
+      setRewards(prev => prev.map(x => x.id === r.id ? { ...x, is_active: !x.is_active } : x));
+      showToast?.(`เปลี่ยนสถานะ "${r.name}" เป็น ${!r.is_active ? "เปิด" : "ปิด"} แล้ว`);
+    } catch (e) {
+      showToast?.("เปลี่ยนสถานะไม่สำเร็จ", "error");
+    }
   };
 
   const handleDelete = async (id) => {
-    const ok = showConfirm 
-      ? await showConfirm("ลบ Reward?", "ยืนยันการลบรายการรางวัลนี้?")
-      : window.confirm("ลบ reward นี้?");
+    const ok = await showConfirm?.("ลบ Reward?", "ยืนยันการลบรายการรางวัลนี้?", null, "danger");
     if (!ok) return;
     
     try {
       await sb.from("rewards").delete().eq("id", id);
       setRewards(prev => prev.filter(r => r.id !== id));
-      if (showToast) showToast("ลบ Reward เรียบร้อย");
+      showToast?.("🗑️ ลบ Reward เรียบร้อย");
     } catch (e) {
-      if (showToast) showToast("ลบไม่สำเร็จ", "error");
+      showToast?.("ลบไม่สำเร็จ", "error");
     }
   };
 
