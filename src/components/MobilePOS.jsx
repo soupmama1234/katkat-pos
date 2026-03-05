@@ -3,7 +3,7 @@ import { Trash2 } from "lucide-react";
 import { supabase as sb } from "../supabase";
 import { calcPoints, nextThreshold, getPointSettings } from "../utils/points";
 import RedeemModal from "./RedeemModal";
-import { parseRewardDiscount } from "../utils/discounts";
+
 import { groupAvailableCoupons } from "../utils/coupons";
 
 export default function MobilePOS({ 
@@ -162,11 +162,6 @@ export default function MobilePOS({
 
   const totalQty = cart.reduce((sum, i) => sum + i.qty, 0);
 
-  const couponGroups = useMemo(() => 
-    groupAvailableCoupons(memberInfo?.redeemed_rewards),
-    [memberInfo?.redeemed_rewards]
-  );
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", backgroundColor: "#000", position: "relative" }}>
       
@@ -248,42 +243,47 @@ export default function MobilePOS({
                 </div>
 
                 {/* Available Coupons */}
-                {couponGroups.length > 0 && (
-                  <div style={{ marginTop: 8, padding: 8, background: "#111", borderRadius: 10, border: "1px solid #222" }}>
-                    <div style={{ fontSize: 10, color: "#555", fontWeight: "bold", marginBottom: 6, textTransform: "uppercase" }}>คูปองที่แลกไว้</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      {couponGroups.map((group, idx) => (
-                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0a0a0a", padding: "6px 8px", borderRadius: 8, border: "1px solid #1a1a1a" }}>
-                          <span style={{ fontSize: 12, color: "#4caf50", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginRight: 8 }}>
-                            🎁 {group.name} {group.count > 1 && <span style={{ color: "#fff" }}>x{group.count}</span>}
-                          </span>
-                          <button 
-                            onClick={() => {
-                              const coupon = group.sampleReward;
-                              const rewardDiscount = parseRewardDiscount(coupon);
-                              if (rewardDiscount) {
-                                onApplyRewardDiscount?.({ ...rewardDiscount, couponId: coupon.id });
-                              } else {
-                                addToCart?.({
-                                  id: `coupon-${coupon.id}`,
-                                  name: `🎁 ${coupon.name}`,
-                                  price: 0,
-                                  qty: 1,
-                                  category: "reward",
-                                  modifierGroups: [],
-                                  couponId: coupon.id
-                                });
-                              }
-                            }}
-                            style={{ background: "#4caf50", color: "#000", border: "none", borderRadius: 6, padding: "3px 12px", fontSize: 11, fontWeight: "bold" }}
-                          >
-                            ใช้
-                          </button>
-                        </div>
-                      ))}
+                {(() => {
+                  const couponGroups = groupAvailableCoupons(memberInfo.redeemed_rewards);
+                  if (couponGroups.length === 0) return null;
+                  return (
+                    <div style={{ marginTop: 8, padding: 8, background: "#111", borderRadius: 10, border: "1px solid #222" }}>
+                      <div style={{ fontSize: 10, color: "#555", fontWeight: "bold", marginBottom: 6, textTransform: "uppercase" }}>คูปองที่แลกไว้</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                        {couponGroups.map((group, idx) => (
+                          <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0a0a0a", padding: "6px 8px", borderRadius: 8, border: "1px solid #1a1a1a" }}>
+                            <span style={{ fontSize: 12, color: "#4caf50", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginRight: 8 }}>
+                              🎁 {group.name} {group.count > 1 && <span style={{ color: "#fff" }}>x{group.count}</span>}
+                            </span>
+                            <button 
+                              onClick={() => {
+                                const coupon = group.sampleReward;
+                                const { parseRewardDiscount } = require("../utils/discounts");
+                                const rewardDiscount = parseRewardDiscount(coupon);
+                                if (rewardDiscount) {
+                                  onApplyRewardDiscount?.({ ...rewardDiscount, couponId: coupon.id });
+                                } else {
+                                  addToCart?.({
+                                    id: `coupon-${coupon.id}`,
+                                    name: `🎁 ${coupon.name}`,
+                                    price: 0,
+                                    qty: 1,
+                                    category: "reward",
+                                    modifierGroups: [],
+                                    couponId: coupon.id
+                                  });
+                                }
+                              }}
+                              style={{ background: "#4caf50", color: "#000", border: "none", borderRadius: 6, padding: "3px 12px", fontSize: 11, fontWeight: "bold" }}
+                            >
+                              ใช้
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {/* Bonus Progress Bar */}
 
               {total > 0 && (
