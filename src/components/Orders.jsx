@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-export default function Orders({ orders = [], onDeleteOrder, onClearAll, showToast, showConfirm }) {
+export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
   const [deletingId, setDeletingId] = useState(null);
   const [clearing, setClearing] = useState(false);
 
@@ -15,19 +15,13 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll, showToa
 
   // BUG FIX: await async onClearAll (Supabase)
   const handleClearRequest = async () => {
-    const ok = await showConfirm?.(
-      "⚠️ ยืนยันการลบ?", 
-      "คุณต้องการลบประวัติการขายทั้งหมดใช่หรือไม่?\n(ข้อมูลจะหายถาวร)",
-      null,
-      "danger"
-    );
-    if (!ok) return;
+    const confirmBox = window.confirm("⚠️ คุณต้องการลบประวัติการขายทั้งหมดใช่หรือไม่? (ข้อมูลจะหายถาวร)");
+    if (!confirmBox) return;
     try {
       setClearing(true);
       await onClearAll();
-      showToast?.("🗑️ ลบประวัติการขายทั้งหมดเรียบร้อย");
     } catch {
-      showToast?.("❌ ลบไม่ได้ กรุณาลองใหม่", "error");
+      alert("❌ ลบไม่ได้ กรุณาลองใหม่");
     } finally {
       setClearing(false);
     }
@@ -35,14 +29,11 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll, showToa
 
   // BUG FIX: await async onDeleteOrder (Supabase)
   const handleDelete = async (id) => {
-    const ok = await showConfirm?.("ลบออเดอร์นี้?", "ยืนยันการลบออเดอร์ที่เลือก?", null, "danger");
-    if (!ok) return;
     try {
       setDeletingId(id);
       await onDeleteOrder(id);
-      showToast?.("✅ ลบออเดอร์เรียบร้อย");
     } catch {
-      showToast?.("❌ ลบไม่ได้ กรุณาลองใหม่", "error");
+      alert("❌ ลบไม่ได้ กรุณาลองใหม่");
     } finally {
       setDeletingId(null);
     }

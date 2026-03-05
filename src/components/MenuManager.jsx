@@ -52,8 +52,6 @@ export default function MenuManager({
   setCategories,
   clearAllProducts,
   clearAllProductsSilent,
-  showToast,
-  showConfirm,
 }) {
   const initialForm = { name: "", price: "", grabPrice: "", linemanPrice: "", shopeePrice: "", category: "ทั่วไป" };
 
@@ -86,7 +84,6 @@ export default function MenuManager({
     a.download = `menu_backup_${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast?.("✅ ส่งออกข้อมูลเมนูเรียบร้อย");
   };
 
   const handleImport = (e) => {
@@ -96,13 +93,7 @@ export default function MenuManager({
     reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target.result);
-        const ok = await showConfirm?.(
-          "ยืนยันการนำเข้า?", 
-          "การนำเข้าจะทับข้อมูลปัจจุบันทั้งหมด ยืนยันหรือไม่?",
-          null,
-          "danger"
-        );
-        if (!ok) return;
+        if (!window.confirm("การนำเข้าจะทับข้อมูลปัจจุบันทั้งหมด ยืนยันหรือไม่?")) return;
 
         const normalized = normalizeImportedProducts(json.products || []);
 
@@ -142,31 +133,26 @@ export default function MenuManager({
         setOpenDropdownId(null);
         setShowEditModal(false);
         e.target.value = "";
-        showToast?.(`✅ โหลดสำเร็จ ${count}/${normalized.length} รายการ`);
+        alert(`✅ โหลดสำเร็จ ${count}/${normalized.length} รายการ — refresh เพื่อโหลดเมนูจาก Supabase`);
       } catch (err) {
         console.error(err);
-        showToast?.("❌ ไฟล์ไม่ถูกต้อง หรือ save ไม่สำเร็จ", "error");
+        alert("❌ ไฟล์ไม่ถูกต้อง หรือ save ไม่สำเร็จ");
       }
     };
     reader.readAsText(file);
   };
 
-  const handleClearAll = async () => {
-    const ok = await showConfirm?.(
-      "!!! ลบทั้งหมด !!!", 
-      "ยืนยันการลบเมนูและหมวดหมู่ทั้งหมดหรือไม่?",
-      null,
-      "danger"
-    );
-    if (!ok) return;
-
+  const handleClearAll = () => {
     if (clearAllProducts) {
-      await clearAllProducts();
+      clearAllProducts();
     } else {
-      setProducts([]);
-      setCategories([]);
+      if (window.confirm("!!! ลบเมนูและหมวดหมู่ทั้งหมดหรือไม่?")) {
+        if (window.confirm("ยืนยันครั้งสุดท้าย")) {
+          setProducts([]);
+          setCategories([]);
+        }
+      }
     }
-    showToast?.("🗑️ ล้างข้อมูลเมนูทั้งหมดเรียบร้อย");
   };
 
   const handleInputChange = (e, isEdit = false) => {
@@ -176,7 +162,7 @@ export default function MenuManager({
   };
 
   const handleSubmit = () => {
-    if (!formData.name || !formData.price) return showToast?.("กรุณาใส่ชื่อและราคา", "warning");
+    if (!formData.name || !formData.price) return alert("กรุณาใส่ชื่อและราคา");
     addProduct({
       ...formData,
       id: Date.now(),
@@ -187,11 +173,10 @@ export default function MenuManager({
       modifierGroups: [],
     });
     setFormData({ ...initialForm, category: formData.category });
-    showToast?.("✨ เพิ่มเมนูเรียบร้อย");
   };
 
   const handleUpdate = () => {
-    if (!editFields.name || !editFields.price) return showToast?.("กรุณาใส่ชื่อและราคา", "warning");
+    if (!editFields.name || !editFields.price) return alert("กรุณาใส่ชื่อและราคา");
     updateProduct(editFields.id, {
       name: editFields.name,
       category: editFields.category,
@@ -201,7 +186,6 @@ export default function MenuManager({
       shopeePrice: editFields.shopeePrice ? Number(editFields.shopeePrice) : null,
     });
     setShowEditModal(false);
-    showToast?.("✅ อัปเดตเมนูเรียบร้อย");
   };
 
   const toggleProductModifier = (productId, groupId) => {
