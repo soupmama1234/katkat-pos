@@ -11,7 +11,7 @@ import Members from "./components/Members";
 import { computeDiscountTotal } from "./utils/discounts";
 import { calcPoints, getPointSettings } from "./utils/points";
 import { supabase as sb } from "./supabase";
-import { Trash2, ShoppingCart, Clock, LayoutGrid } from "lucide-react";
+import { Trash2, ShoppingCart, Clock, LayoutGrid, Users, UtensilsCrossed } from "lucide-react";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
@@ -100,7 +100,7 @@ function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // CATEGORIES & PRODUCTS Logic (ใช้ db. methods)
+  // CATEGORIES & PRODUCTS Logic
   const addCategory = useCallback(async (name) => {
     if (!name || categories.includes(name)) return;
     await db.addCategory(name);
@@ -169,7 +169,7 @@ function App() {
         member_phone: phone || null,
         status: "settled",
         order_type: orderType,
-        table_no: orderType === "dine_in" ? tableNo : null
+        table_no: tableNo || null
       };
       const saved = await db.addOrder(orderData);
       setOrders(prev => [saved, ...prev]);
@@ -192,7 +192,6 @@ function App() {
 
   const handleSavePending = async () => {
     if (cart.length === 0) return;
-    if (orderType === "dine_in" && !tableNo) return showToast("กรุณาระบุเลขโต๊ะ", "error");
     try {
       const orderData = {
         time: new Date().toISOString(),
@@ -203,7 +202,7 @@ function App() {
         channel: priceChannel,
         status: "pending",
         order_type: orderType,
-        table_no: orderType === "dine_in" ? tableNo : null,
+        table_no: tableNo || null,
         member_phone: memberPhone || null
       };
       const { data, error } = await sb.from("orders").insert(orderData).select().single();
@@ -248,9 +247,27 @@ function App() {
         </div>
       ) : (
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-          {/* ── Pending Indicator (Mobile) ── */}
+          
+          {/* ── Desktop Header ── */}
+          {!isMobile && (
+            <header style={styles.desktopHeader}>
+              <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+                <h2 style={{ margin: 0, color: "#f5c518" }}>KATKAT POS</h2>
+                <nav style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setView("pos")} style={styles.desktopNavBtn(view === "pos")}><ShoppingCart size={18} /> ขาย</button>
+                  <button onClick={() => setView("pending")} style={styles.desktopNavBtn(view === "pending")}><Clock size={18} /> บิลค้าง ({pendingOrders.length})</button>
+                  <button onClick={() => setView("dashboard")} style={styles.desktopNavBtn(view === "dashboard")}><LayoutGrid size={18} /> สรุปยอด</button>
+                  <button onClick={() => setView("members")} style={styles.desktopNavBtn(view === "members")}><Users size={18} /> สมาชิก</button>
+                  <button onClick={() => setView("menu")} style={styles.desktopNavBtn(view === "menu")}><UtensilsCrossed size={18} /> จัดการเมนู</button>
+                </nav>
+              </div>
+              <div style={{ fontSize: 14, color: "#666" }}>{new Date().toLocaleDateString("th-TH", { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+            </header>
+          )}
+
+          {/* ── Pending Indicator (Mobile Only) ── */}
           {isMobile && pendingOrders.length > 0 && view === "pos" && (
-            <button onClick={() => setView("pending")} style={{ background: "#f5c518", color: "#000", border: "none", padding: "6px", fontSize: 11, fontWeight: "bold" }}>
+            <button onClick={() => setView("pending")} style={{ background: "#f5c518", color: "#000", border: "none", padding: "8px", fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>
               ⚠️ มีบิลค้าง {pendingOrders.length} รายการ (แตะเพื่อดู)
             </button>
           )}
@@ -264,13 +281,8 @@ function App() {
               ) : (
                 <div style={{ display: "flex", height: "100%" }}>
                   <section style={{ flex: 1, overflowY: "auto", padding: "15px", borderRight: "1px solid #222" }}>
-                    {/* Desktop Table Map / Quick Actions */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 }}>
-                       <div style={{ display: "flex", gap: 10 }}>
-                          <button onClick={() => setView("pending")} style={{ background: "#222", border: "1px solid #333", color: "#f5c518", padding: "8px 15px", borderRadius: 8, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                            <Clock size={16} /> บิลค้าง ({pendingOrders.length})
-                          </button>
-                       </div>
+                       <div style={{ fontWeight: "bold", color: "#888" }}>รายการอาหาร</div>
                        <div style={{ display: "flex", gap: 8 }}>
                           {["pos", "grab", "lineman", "shopee"].map(ch => (
                             <button key={ch} onClick={() => setPriceChannel(ch)} style={{ padding: "6px 12px", borderRadius: 20, border: "none", background: priceChannel === ch ? "#fff" : "#222", color: priceChannel === ch ? "#000" : "#666", fontSize: 11, fontWeight: "bold", cursor: "pointer" }}>
@@ -292,7 +304,7 @@ function App() {
               <div style={{ padding: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                   <h2 style={{ margin: 0 }}>📋 รายการบิลค้าง</h2>
-                  <button onClick={() => setView("pos")} style={{ background: "#fff", color: "#000", border: "none", padding: "8px 16px", borderRadius: 8, fontWeight: "bold" }}>กลับหน้าขาย</button>
+                  <button onClick={() => setView("pos")} style={{ background: "#fff", color: "#000", border: "none", padding: "8px 16px", borderRadius: 8, fontWeight: "bold", cursor: "pointer" }}>กลับหน้าขาย</button>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 15 }}>
                   {pendingOrders.map(o => (
@@ -317,7 +329,7 @@ function App() {
 
             {view === "dashboard" && <Dashboard orders={orders} setOrders={setOrders} onCloseDay={async () => { await db.closeDayOrders(); setOrders([]); showToast("ปิดยอดวันแล้ว"); }} />}
             {view === "orders" && <Orders orders={orders} onDeleteOrder={async id => { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); }} onClearAll={async () => { await db.clearOrders(); setOrders([]); }} />}
-            {view === "menu" && <div style={{ padding: 20 }}><MenuManager products={products} categories={categories} addProduct={addProduct} deleteProduct={deleteProduct} updateProduct={updateProduct} addCategory={addCategory} deleteCategory={deleteCategory} /><ModifierManager {...modifierGroups} /></div>}
+            {view === "menu" && <div style={{ padding: 20 }}><MenuManager products={products} categories={categories} addProduct={addProduct} deleteProduct={deleteProduct} updateProduct={updateProduct} addCategory={addCategory} deleteCategory={deleteCategory} /><ModifierManager modifierGroups={modifierGroups} /></div>}
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
           </main>
 
@@ -326,8 +338,8 @@ function App() {
               <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><ShoppingCart size={20} /> ขาย</button>
               <button onClick={() => setView("pending")} style={styles.navBtn(view === "pending")}><Clock size={20} /> บิลค้าง</button>
               <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><LayoutGrid size={20} /> สรุป</button>
-              <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>
-              <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>
+              <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><Users size={20} /> สมาชิก</button>
+              <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><UtensilsCrossed size={20} /> เมนู</button>
             </nav>
           )}
         </div>
@@ -340,17 +352,22 @@ function App() {
             <h3 style={{ margin: "0 0 10px" }}>{confirm.title}</h3>
             <p style={{ color: "#888", marginBottom: 20 }}>{confirm.message}</p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={confirm.onCancel} style={{ flex: 1, padding: 12, borderRadius: 10, border: "1px solid #333", background: "none", color: "#666" }}>ยกเลิก</button>
-              <button onClick={confirm.onConfirm} style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: confirm.type === "danger" ? "#ff4444" : "#4caf50", color: "#fff", fontWeight: "bold" }}>ตกลง</button>
+              <button onClick={confirm.onCancel} style={{ flex: 1, padding: 12, borderRadius: 10, border: "1px solid #333", background: "none", color: "#666", cursor: "pointer" }}>ยกเลิก</button>
+              <button onClick={confirm.onConfirm} style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: confirm.type === "danger" ? "#ff4444" : "#4caf50", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>ตกลง</button>
             </div>
           </div>
         </div>
       )}
       {toast && (
-        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: "#222", padding: "12px 24px", borderRadius: 12, zIndex: 10000, border: "1px solid #444", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: "#222", padding: "12px 24px", borderRadius: 12, zIndex: 10000, border: "1px solid #444", display: "flex", alignItems: "center", gap: 10, animation: "toastIn 0.3s ease-out" }}>
           {toast.type === "error" ? "❌" : "✅"} {toast.message}
         </div>
       )}
+      <style>{`
+        @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
@@ -358,8 +375,8 @@ function App() {
 const styles = {
   bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#000", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #111", zIndex: 1000 },
   navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#444", fontSize: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", cursor: "pointer" }),
-  desktopHeader: { padding: "15px 25px", backgroundColor: "#000", borderBottom: "1px solid #111", display: "flex", alignItems: "center", justifyContent: "space-between" },
-  desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: 8, background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #222", fontWeight: "bold", cursor: "pointer" }),
+  desktopHeader: { padding: "12px 25px", backgroundColor: "#000", borderBottom: "1px solid #111", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 },
+  desktopNavBtn: (isActive) => ({ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 8, background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#666", border: isActive ? "none" : "1px solid transparent", fontWeight: "bold", cursor: "pointer", fontSize: "14px", transition: "0.2s" }),
 };
 
 export default App;
