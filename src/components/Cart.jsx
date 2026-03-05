@@ -377,21 +377,8 @@ export default function Cart({
         <RedeemModal
           memberPhone={memberPhone}
           memberInfo={memberInfo}
-          onSuccess={(updatedMember, reward) => {
+          onSuccess={(updatedMember) => {
             setMemberInfo(updatedMember);
-            const rewardDiscount = parseRewardDiscount(reward);
-            if (rewardDiscount) {
-              onApplyRewardDiscount?.(rewardDiscount);
-            } else {
-              addToCart?.({
-                id: `reward-${reward.id}`,
-                name: `🎁 ${reward.name}`,
-                price: 0,
-                qty: 1,
-                category: "reward",
-                modifierGroups: [],
-              });
-            }
             setShowRedeem(false);
           }}
           onClose={() => setShowRedeem(false)}
