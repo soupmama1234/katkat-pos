@@ -47,7 +47,7 @@ function App() {
         // ป้องกันกรณี categories table ไม่ครบแต่ products มีอยู่แล้ว
         const dbCats = new Set(cats.filter(c => c !== "All"));
         const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
-        const merged = ["All", ...new Set([...dbCats, ...prodCats])];
+        const merged = ["All", ...[...new Set([...dbCats, ...prodCats])].sort((a, b) => a.localeCompare(b, 'th'))];
 
         // save categories ที่หายไปกลับเข้า DB ด้วย (auto-repair)
         for (const cat of prodCats) {
@@ -57,7 +57,7 @@ function App() {
         }
 
         setCategories(merged);
-        setProducts(prods);
+        setProducts(prods.sort((a, b) => a.name.localeCompare(b.name, 'th')));
         setModifierGroups(mods);
         setOrders(ords);
         setMembers(mems);
@@ -81,7 +81,11 @@ function App() {
   const addCategory = useCallback(async (name) => {
     if (!name || categories.includes(name)) return;
     await db.addCategory(name);
-    setCategories(prev => [...prev, name]);
+    setCategories(prev => {
+      const newCats = [...prev, name];
+      const others = newCats.filter(c => c !== "All");
+      return ["All", ...others.sort((a, b) => a.localeCompare(b, 'th'))];
+    });
   }, [categories]);
 
   const deleteCategory = useCallback(async (catName) => {
@@ -94,7 +98,7 @@ function App() {
   const addProduct = useCallback(async (newProductData) => {
     const cat = newProductData.category || "ทั่วไป";
     const saved = await db.addProduct({ ...newProductData, category: cat });
-    setProducts(prev => [...prev, saved]);
+    setProducts(prev => [...prev, saved].sort((a, b) => a.name.localeCompare(b.name, 'th')));
     await addCategory(cat);
   }, [addCategory]);
 

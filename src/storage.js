@@ -84,7 +84,7 @@ const supabaseDriver = {
   // CATEGORIES
   async fetchCategories() {
     const sb = getSupabase();
-    const { data, error } = await sb.from("categories").select("name").order("sort_order");
+    const { data, error } = await sb.from("categories").select("name").order("name");
     if (error) throw error;
     return ["All", ...data.map(c => c.name)];
   },
@@ -102,7 +102,7 @@ const supabaseDriver = {
   // PRODUCTS
   async fetchProducts() {
     const sb = getSupabase();
-    const { data, error } = await sb.from("products").select("*").order("created_at");
+    const { data, error } = await sb.from("products").select("*").order("name");
     if (error) throw error;
     return data.map(dbToProduct);
   },
@@ -241,7 +241,9 @@ const supabaseDriver = {
 // =============================================
 const localDriver = {
   async fetchCategories() {
-    return ls.get("katkat_categories", ["All", "A ชุดข้าว"]);
+    const cats = ls.get("katkat_categories", ["All", "A ชุดข้าว"]);
+    const filtered = [...new Set(cats.filter(c => c !== "All"))];
+    return ["All", ...filtered.sort((a, b) => a.localeCompare(b, 'th'))];
   },
   async addCategory(name) {
     const cats = ls.get("katkat_categories", ["All"]);
@@ -253,7 +255,8 @@ const localDriver = {
   },
 
   async fetchProducts() {
-    return ls.get("katkat_products", INITIAL_PRODUCTS);
+    const prods = ls.get("katkat_products", INITIAL_PRODUCTS);
+    return prods.sort((a, b) => a.name.localeCompare(b.name, 'th'));
   },
   async addProduct(p) {
     const saved = { ...p, id: Date.now(), modifierGroups: p.modifierGroups || [] };
