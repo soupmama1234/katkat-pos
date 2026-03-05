@@ -131,7 +131,7 @@ export default function Cart({
                   style={{ ...S.btnSmall, background: "#f5c518", border: "none", fontWeight: "bold", marginRight: 4 }}>
                   🎁 แลก
                 </button>
-                <button onClick={clearMember} style={S.btnSmall}>เปลี่ยน</button>
+                <button onClick={clearMember} style={{ ...S.btnSmall, background: "#eee", border: "1px solid #bbb", color: "#333", fontWeight: "bold" }}>เปลี่ยน</button>
               </div>
 
               {/* Available Coupons */}
