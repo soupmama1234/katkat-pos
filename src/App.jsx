@@ -233,14 +233,44 @@ function App() {
         try {
           const { rate, tiers } = getPointSettings();
           const pointsEarned = calcPoints(total, rate, tiers);
+          
+          // หา reward ที่ถูกใช้ในออเดอร์นี้
+          const usedRewardIds = [
+            ...cart.filter(i => i.storage_id).map(i => i.storage_id),
+            ...discounts.filter(d => d.source === 'reward_storage').map(d => d.id)
+          ];
+
+          if (usedRewardIds.length > 0) {
+            // โหลดข้อมูล member ล่าสุดมาแก้
+            const { data: mem } = await sb.from("members").select("redeemed_rewards").eq("phone", phone).single();
+            if (mem && mem.redeemed_rewards) {
+              const updated = mem.redeemed_rewards.map(r => 
+                usedRewardIds.includes(r.id) ? { ...r, used_at: new Date().toISOString() } : r
+              );
+              await sb.from("members").update({ redeemed_rewards: updated }).eq("phone", phone);
+            }
+          }
+
           await sb.rpc("increment_member_points", {
             p_phone: phone, p_points: pointsEarned, p_spent: total,
           });
-          setMembers(prev => prev.map(m =>
-            m.phone === phone
-              ? { ...m, points: (m.points || 0) + pointsEarned, total_spent: (m.total_spent || 0) + total }
-              : m
-          ));
+          
+          // อัปเดต state ท้องถิ่น (รวมถึงรางวัลที่ถูกใช้)
+          setMembers(prev => prev.map(m => {
+            if (m.phone === phone) {
+              const currentRewards = m.redeemed_rewards || [];
+              const updatedRewards = currentRewards.map(r => 
+                usedRewardIds.includes(r.id) ? { ...r, used_at: new Date().toISOString() } : r
+              );
+              return { 
+                ...m, 
+                points: (m.points || 0) + pointsEarned, 
+                total_spent: (m.total_spent || 0) + total,
+                redeemed_rewards: updatedRewards
+              };
+            }
+            return m;
+          }));
         } catch (e) { console.warn("member update failed", e); }
       }
 

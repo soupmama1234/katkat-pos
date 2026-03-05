@@ -129,10 +129,49 @@ export default function Cart({
                 </div>
                 <button onClick={() => setShowRedeem(true)}
                   style={{ ...S.btnSmall, background: "#f5c518", border: "none", fontWeight: "bold", marginRight: 4 }}>
-                  🎁 แลก
+                  🎁 แลกแต้ม
                 </button>
                 <button onClick={clearMember} style={S.btnSmall}>เปลี่ยน</button>
               </div>
+
+              {/* Stored Rewards (desktop) */}
+              {memberInfo.redeemed_rewards?.filter(r => !r.used_at).length > 0 && (
+                <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap", padding: "8px", background: "rgba(245,197,24,0.05)", borderRadius: 8, border: "1px dashed #f5c51844" }}>
+                  <div style={{ fontSize: 11, color: "#888", width: "100%", marginBottom: 2 }}>รางวัลที่แลกไว้:</div>
+                  {memberInfo.redeemed_rewards.filter(r => !r.used_at).map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        if (r.type === 'discount') {
+                          onApplyRewardDiscount?.({
+                            id: r.id,
+                            mode: r.discount_type || 'amount',
+                            value: r.discount_amount || 0,
+                            label: r.name,
+                            source: 'reward_storage'
+                          });
+                        } else {
+                          addToCart?.({
+                            id: `reward-${r.id}`,
+                            name: `🎁 ${r.name}`,
+                            price: 0,
+                            qty: 1,
+                            category: "reward",
+                            modifierGroups: [],
+                            storage_id: r.id
+                          });
+                        }
+                      }}
+                      style={{
+                        background: "#fff", border: "1px solid #f5c518", color: "#b8860b",
+                        padding: "3px 8px", borderRadius: 12, fontSize: 11, fontWeight: "bold", cursor: "pointer"
+                      }}
+                    >
+                      🎟️ {r.name}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Bonus Progress Bar */}
               {total > 0 && (

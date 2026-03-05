@@ -15,23 +15,49 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
 
   const handleRedeem = async (reward) => {
     if (memberInfo.points < reward.points_required) return;
-    if (!window.confirm(`แลก "${reward.name}" ใช้ ${reward.points_required} แต้ม?`)) return;
+    if (!window.confirm(`แลก "${reward.name}" ใช้ ${reward.points_required} แต้ม? (รางวัลจะถูกเก็บไว้ในบัญชีของคุณ)`)) return;
     setRedeeming(reward.id);
     try {
-      // หักแต้ม
       const newPoints = memberInfo.points - reward.points_required;
-      await sb.from("members").update({ points: newPoints }).eq("phone", memberPhone);
+      
+      // เตรียมข้อมูล reward ที่จะเก็บ
+      const newRewardItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        reward_id: reward.id,
+        name: reward.name,
+        type: reward.type || 'item',
+        discount_amount: reward.discount_amount || 0,
+        discount_type: reward.discount_type || 'amount',
+        redeemed_at: new Date().toISOString(),
+        used_at: null
+      };
+
+      const currentRewards = Array.isArray(memberInfo.redeemed_rewards) ? memberInfo.redeemed_rewards : [];
+      const updatedRewards = [newRewardItem, ...currentRewards];
+
+      // อัปเดตสมาชิก
+      const { data: updatedMember, error } = await sb.from("members")
+        .update({ 
+          points: newPoints,
+          redeemed_rewards: updatedRewards
+        })
+        .eq("phone", memberPhone)
+        .select()
+        .single();
+
+      if (error) throw error;
 
       // บันทึก history
       await sb.from("point_history").insert({
         member_phone: memberPhone,
         type: "redeem",
         points: -reward.points_required,
-        note: `แลก: ${reward.name}`,
+        note: `แลก: ${reward.name} (เก็บไว้ใช้งานภายหลัง)`,
         reward_id: reward.id,
       });
 
-      onSuccess({ ...memberInfo, points: newPoints }, reward);
+      alert(`✅ แลกสำเร็จ! "${reward.name}" ถูกเก็บไว้ในบัญชีของคุณแล้ว`);
+      onSuccess(updatedMember, null); // ส่ง updatedMember กลับไป
       onClose();
     } catch (e) {
       alert("แลกแต้มไม่สำเร็จ: " + e.message);

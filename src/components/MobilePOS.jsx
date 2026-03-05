@@ -226,10 +226,50 @@ export default function MobilePOS({
                 </div>
                 <button onClick={() => setShowRedeem(true)}
                   style={{ background: "#f5c518", border: "none", color: "#000", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: "bold", cursor: "pointer", marginRight: 4 }}>
-                  🎁 แลก
+                  🎁 แลกแต้ม
                 </button>
                 <button onClick={clearMember} style={{ background: "none", border: "1px solid #333", color: "#666", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>เปลี่ยน</button>
               </div>
+
+              {/* Stored Rewards */}
+              {memberInfo.redeemed_rewards?.filter(r => !r.used_at).length > 0 && (
+                <div style={{ marginTop: 8, display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+                  {memberInfo.redeemed_rewards.filter(r => !r.used_at).map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        if (r.type === 'discount') {
+                          onApplyRewardDiscount?.({
+                            id: r.id,
+                            mode: r.discount_type || 'amount',
+                            value: r.discount_amount || 0,
+                            label: r.name,
+                            source: 'reward_storage'
+                          });
+                        } else {
+                          addToCart({
+                            id: `reward-${r.id}`,
+                            name: `🎁 ${r.name}`,
+                            price: 0,
+                            qty: 1,
+                            category: "reward",
+                            modifierGroups: [],
+                            storage_id: r.id
+                          });
+                        }
+                        showToast?.(`ใช้: ${r.name}`);
+                      }}
+                      style={{
+                        flexShrink: 0, background: "#1a1a1a", border: "1px solid #f5c518", color: "#f5c518",
+                        padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: "bold", cursor: "pointer"
+                      }}
+                    >
+                      🎟️ {r.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Bonus Progress Bar */}
               {total > 0 && (
                 <div style={{ marginTop: 6 }}>
