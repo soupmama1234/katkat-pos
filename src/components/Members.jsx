@@ -10,7 +10,6 @@ import {
 } from "../utils/points";
 
 const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards"];
-// ────────────────────────────────────────────────
 
 export default function Members({ orders = [], members: initMembers = [], onMembersChange }) {
   const [tab, setTab] = useState("ภาพรวม");
@@ -23,7 +22,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const [tiersInput, setTiersInput] = useState(tiers);
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState(null);
-  const [adjusting, setAdjusting] = useState(null); // { phone, nickname, points }
+  const [adjusting, setAdjusting] = useState(null); 
   const [adjustVal, setAdjustVal] = useState("");
   const [adjustNote, setAdjustNote] = useState("");
   const [adjustSaving, setAdjustSaving] = useState(false);
@@ -31,6 +30,11 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const [historyLoading, setHistoryLoading] = useState(false);
 
   React.useEffect(() => { setMembers(initMembers); }, [initMembers]);
+
+  // Step 1: Auto-fetch history
+  React.useEffect(() => {
+    if (tab === "ประวัติ") fetchHistory();
+  }, [tab]);
 
   const memberOrders = useMemo(() => orders.filter(o => o.member_phone), [orders]);
   const statsMap = useMemo(() => {
@@ -115,9 +119,13 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     setHistoryLoading(false);
   };
 
+  // Step 1: Delete history
   const deleteHistory = async (id) => {
-    await sb.from("point_history").delete().eq("id", id);
-    setHistory(prev => prev.filter(h => h.id !== id));
+    if (!window.confirm("ลบรายการประวัตินี้?")) return;
+    try {
+      await sb.from("point_history").delete().eq("id", id);
+      setHistory(prev => prev.filter(h => h.id !== id));
+    } catch (e) { alert("ลบประวัติไม่สำเร็จ"); }
   };
 
   const handleSaveTiers = () => {
@@ -144,7 +152,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     onAdjust: () => { setAdjusting(m); setAdjustVal(""); setAdjustNote(""); },
   });
 
-  // preview คำนวณแต้มตัวอย่าง
   const previewPoints = (spend) => calcPoints(spend, pointRate, tiers);
 
   return (
@@ -161,8 +168,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
       </div>
 
       <div style={S.content}>
-
-        {/* ══ ภาพรวม ══ */}
         {tab === "ภาพรวม" && (
           <div>
             <div style={S.grid4}>
@@ -172,7 +177,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
               <StatCard icon="💰" label="ยอดเฉลี่ย" value={`฿${avgSpent.toLocaleString()}`} color="#4D96FF" />
             </div>
 
-            {/* ── อัตราแต้มพื้นฐาน ── */}
             <div style={S.section}>
               <div style={S.sectionHeader}>
                 <div style={S.sectionTitle}>⭐ อัตราแต้มพื้นฐาน</div>
@@ -196,7 +200,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
               )}
             </div>
 
-            {/* ── Bonus Tiers ── */}
             <div style={S.section}>
               <div style={S.sectionHeader}>
                 <div style={S.sectionTitle}>🚀 Bonus Tiers</div>
@@ -204,7 +207,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
                   {editTiers ? "✕" : "✏️"}
                 </button>
               </div>
-
               {editTiers ? (
                 <div style={{ marginTop: 10 }}>
                   {tiersInput.map((t, i) => (
@@ -227,49 +229,21 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
                 </div>
               ) : (
                 <div style={{ marginTop: 8 }}>
-                  {/* แสดง tiers ปัจจุบัน */}
                   {[...tiers].sort((a, b) => a.minSpend - b.minSpend).map((t, i) => (
                     <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
                       padding: "8px 12px", background: "#181818", borderRadius: 10, marginBottom: 6 }}>
                       <div>
-                        <span style={{ color: i === 0 ? "#4D96FF" : "#f5c518", fontWeight: "bold" }}>
-                          {t.multiplier}x
-                        </span>
-                        <span style={{ color: "#666", fontSize: 13, marginLeft: 8 }}>
-                          ยอด ≥ ฿{t.minSpend.toLocaleString()}
-                        </span>
+                        <span style={{ color: i === 0 ? "#4D96FF" : "#f5c518", fontWeight: "bold" }}>{t.multiplier}x</span>
+                        <span style={{ color: "#666", fontSize: 13, marginLeft: 8 }}>ยอด ≥ ฿{t.minSpend.toLocaleString()}</span>
                       </div>
-                      <div style={{ fontSize: 12, color: "#555" }}>
-                        ฿{t.minSpend} → {calcPoints(t.minSpend, pointRate, tiers)} แต้ม
-                      </div>
+                      <div style={{ fontSize: 12, color: "#555" }}>฿{t.minSpend} → {calcPoints(t.minSpend, pointRate, tiers)} แต้ม</div>
                     </div>
                   ))}
                   {tiers.length === 0 && <div style={{ color: "#444", fontSize: 13 }}>ยังไม่มี bonus tier</div>}
-
-                  {/* preview ตาราง */}
-                  <div style={{ marginTop: 12, borderTop: "1px solid #1a1a1a", paddingTop: 10 }}>
-                    <div style={{ fontSize: 11, color: "#555", marginBottom: 6 }}>ตัวอย่างแต้มที่ได้</div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {[100, 150, 200, 300, 350, 500].map(amt => (
-                        <div key={amt} style={{ background: "#181818", borderRadius: 8, padding: "5px 10px", textAlign: "center" }}>
-                          <div style={{ fontSize: 11, color: "#555" }}>฿{amt}</div>
-                          <div style={{ fontWeight: "bold", color: previewPoints(amt) > calcPoints(amt, pointRate, []) ? "#f5c518" : "#fff" }}>
-                            {previewPoints(amt)} ⭐
-                            {previewPoints(amt) > calcPoints(amt, pointRate, []) && (
-                              <span style={{ fontSize: 10, color: "#f5c518", marginLeft: 3 }}>
-                                {Math.round(tiers.sort((a,b)=>b.minSpend-a.minSpend).find(t=>amt>=t.minSpend)?.multiplier || 1)}x
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
 
-            {/* สมาชิกล่าสุด */}
             <div style={S.section}>
               <div style={S.sectionTitle}>สมาชิกล่าสุด</div>
               {members.slice(0, 5).map(m => <MemberRow key={m.phone} {...rowProps(m)} />)}
@@ -278,33 +252,23 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
           </div>
         )}
 
-        {/* ══ สมาชิก ══ */}
         {tab === "สมาชิก" && (
           <div>
             <input placeholder="🔍 ค้นหาชื่อหรือเบอร์..." value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ ...S.input, width: "100%", marginBottom: 10, fontSize: 15 }} />
-            <div style={{ fontSize: 12, color: "#444", marginBottom: 8 }}>
-              แสดง {Math.min(filtered.length, 50)} / {members.length} คน
-            </div>
-            <div style={S.section}>
-              {filtered.slice(0, 50).map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
-              {filtered.length === 0 && <Empty text="ไม่พบสมาชิก" />}
-            </div>
+            <div style={S.section}>{filtered.slice(0, 50).map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}</div>
           </div>
         )}
 
-        {/* ══ VIP ══ */}
         {tab === "VIP" && (
           <div style={S.section}>
             <div style={S.sectionTitle}>เรียงตามยอดใช้จ่าย</div>
             {[...members].sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
               .map((m, i) => <MemberRow key={m.phone} {...rowProps(m)} rank={i + 1} showDelete />)}
-            {members.length === 0 && <Empty text="ยังไม่มีสมาชิก" />}
           </div>
         )}
 
-        {/* ══ หายไป ══ */}
         {tab === "หายไป" && (
           <div>
             {goneMems.length > 0 && (
@@ -319,46 +283,29 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
                 {neverCome.map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
               </div>
             )}
-            {goneMems.length === 0 && neverCome.length === 0 && <Empty text="สมาชิกทุกคนยังมาสม่ำเสมอ 👍" />}
           </div>
         )}
 
-        {/* ══ ประวัติแต้ม ══ */}
         {tab === "ประวัติ" && (
           <div>
-            <button onClick={fetchHistory} style={{ ...S.btnEdit, marginBottom: 12, color: "#4D96FF", borderColor: "#4D96FF" }}>
-              🔄 โหลดประวัติล่าสุด
-            </button>
-            {historyLoading ? <Empty text="กำลังโหลด..." /> : history.length === 0 ? (
-              <Empty text="กด 'โหลดประวัติล่าสุด' เพื่อดูข้อมูล" />
-            ) : (
+            <button onClick={fetchHistory} style={{ ...S.btnEdit, marginBottom: 12, color: "#4D96FF", borderColor: "#4D96FF" }}>🔄 โหลดประวัติล่าสุด</button>
+            {historyLoading ? <Empty text="กำลังโหลด..." /> : (
               <div style={S.section}>
                 <div style={S.sectionTitle}>100 รายการล่าสุด</div>
                 {history.map(h => (
                   <div key={h.id} style={S.memberRow}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 16 }}>
-                          {h.type === "earn" ? "⭐" : h.type === "redeem" ? "🎁" : "✏️"}
-                        </span>
-                        <span style={{ fontWeight: "bold", fontSize: 13 }}>
-                          {h.members?.nickname || h.member_phone}
-                        </span>
+                        <span style={{ fontSize: 16 }}>{h.type === "earn" ? "⭐" : h.type === "redeem" ? "🎁" : "✏️"}</span>
+                        <span style={{ fontWeight: "bold", fontSize: 13 }}>{h.members?.nickname || h.member_phone}</span>
                         <span style={{ fontSize: 11, color: "#555" }}>{h.member_phone}</span>
                       </div>
                       <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{h.note || h.type}</div>
-                      <div style={{ fontSize: 11, color: "#444", marginTop: 1 }}>
-                        {new Date(h.created_at).toLocaleString("th-TH")}
-                      </div>
+                      <div style={{ fontSize: 11, color: "#444" }}>{new Date(h.created_at).toLocaleString("th-TH")}</div>
                     </div>
-                    <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                      <span style={{ fontWeight: "bold", color: h.points > 0 ? "#4caf50" : "#ff6b6b", fontSize: 15 }}>
-                        {h.points > 0 ? "+" : ""}{h.points} ⭐
-                      </span>
-                      <button onClick={() => deleteHistory(h.id)}
-                        style={{ background: "none", border: "none", color: "#333", fontSize: 14, cursor: "pointer", padding: "2px 4px" }}>
-                        🗑️
-                      </button>
+                    <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                      <span style={{ fontWeight: "bold", color: h.points > 0 ? "#4caf50" : "#ff6b6b", fontSize: 15 }}>{h.points > 0 ? "+" : ""}{h.points} ⭐</span>
+                      <button onClick={() => deleteHistory(h.id)} style={{ background: "none", border: "none", color: "#333", cursor: "pointer", padding: "2px 4px" }}>🗑️</button>
                     </div>
                   </div>
                 ))}
@@ -367,19 +314,15 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
           </div>
         )}
 
-        {/* ══ Rewards ══ */}
         {tab === "Rewards" && <RewardManager />}
       </div>
 
-      {/* Confirm Delete */}
       {deleting && (
         <div style={S.overlay} onClick={() => setDeleting(null)}>
           <div style={S.modal} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 44, marginBottom: 8 }}>🗑️</div>
             <div style={{ fontWeight: "bold", fontSize: 16, marginBottom: 6 }}>ลบสมาชิก?</div>
-            <div style={{ color: "#666", fontSize: 13, marginBottom: 20 }}>
-              {members.find(m => m.phone === deleting)?.nickname} · {deleting}
-            </div>
+            <div style={{ color: "#666", fontSize: 13, marginBottom: 20 }}>{members.find(m => m.phone === deleting)?.nickname} · {deleting}</div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setDeleting(null)} style={S.btnCancel}>ยกเลิก</button>
               <button onClick={() => handleDelete(deleting)} style={S.btnDeleteConfirm}>ลบเลย</button>
@@ -388,48 +331,20 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
         </div>
       )}
 
-      {/* Adjust Points Modal */}
       {adjusting && (
         <div style={S.overlay} onClick={() => setAdjusting(null)}>
           <div style={{ ...S.modal, width: 320, textAlign: "left" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontWeight: "bold", fontSize: 16, marginBottom: 4 }}>✏️ แก้ไขแต้ม</div>
-            <div style={{ color: "#888", fontSize: 13, marginBottom: 16 }}>
-              {adjusting.nickname} · ⭐ {adjusting.points || 0} แต้ม
-            </div>
-
-            <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>เพิ่ม/ลด แต้ม (ใส่ - เพื่อลด)</div>
+            <div style={{ color: "#888", fontSize: 13, marginBottom: 16 }}>{adjusting.nickname} · ⭐ {adjusting.points || 0} แต้ม</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              {[-50, -10, +10, +50, +100].map(v => (
-                <button key={v} onClick={() => setAdjustVal(String(v))}
-                  style={{ flex: 1, padding: "6px 0", background: v < 0 ? "#2a1a1a" : "#1a2a1a",
-                    border: `1px solid ${v < 0 ? "#ff4444" : "#4caf50"}33`,
-                    color: v < 0 ? "#ff6b6b" : "#4caf50", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>
-                  {v > 0 ? "+" : ""}{v}
-                </button>
+              {[-50, -10, +10, +50].map(v => (
+                <button key={v} onClick={() => setAdjustVal(String(v))} style={{ flex: 1, padding: "6px 0", background: v < 0 ? "#2a1a1a" : "#1a2a1a", border: `1px solid ${v < 0 ? "#ff4444" : "#4caf50"}33`, color: v < 0 ? "#ff6b6b" : "#4caf50", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>{v > 0 ? "+" : ""}{v}</button>
               ))}
             </div>
-            <input type="number" placeholder="หรือใส่จำนวนเอง เช่น +30 หรือ -20"
-              value={adjustVal} onChange={e => setAdjustVal(e.target.value)}
-              style={{ ...S.input, width: "100%", marginBottom: 8 }} />
-            <input placeholder="หมายเหตุ (optional)" value={adjustNote}
-              onChange={e => setAdjustNote(e.target.value)}
-              style={{ ...S.input, width: "100%", marginBottom: 14 }} />
-
-            {adjustVal !== "" && !isNaN(Number(adjustVal)) && (
-              <div style={{ fontSize: 13, color: "#888", marginBottom: 12, textAlign: "center" }}>
-                แต้มใหม่จะเป็น:{" "}
-                <span style={{ color: "#f5c518", fontWeight: "bold", fontSize: 16 }}>
-                  ⭐ {Math.max(0, (adjusting.points || 0) + Number(adjustVal))}
-                </span>
-              </div>
-            )}
-
+            <input type="number" value={adjustVal} onChange={e => setAdjustVal(e.target.value)} style={{ ...S.input, width: "100%", marginBottom: 14 }} />
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setAdjusting(null)} style={S.btnCancel}>ยกเลิก</button>
-              <button onClick={handleAdjustPoints} disabled={adjustSaving || adjustVal === ""}
-                style={{ ...S.btnSave, flex: 2, opacity: adjustVal === "" ? 0.5 : 1 }}>
-                {adjustSaving ? "กำลังบันทึก..." : "💾 บันทึก"}
-              </button>
+              <button onClick={handleAdjustPoints} disabled={adjustSaving || adjustVal === ""} style={S.btnSave}>{adjustSaving ? "⏳" : "💾 บันทึก"}</button>
             </div>
           </div>
         </div>
@@ -438,49 +353,24 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   );
 }
 
-function MemberRow({ m, stats, fav = [], tierColor, daysSince, daysUntil, isExpired, expiringSoon, rank, onDelete, onAdjust, showDelete }) {
-  const expired = isExpired(m);
-  const soon = expiringSoon(m);
-  const dLeft = daysUntil(m.expires_at);
+function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, onAdjust, showDelete }) {
   const visits = stats?.count || 0;
   return (
-    <div style={{ ...S.memberRow, opacity: expired ? 0.55 : 1 }}>
-      {rank && (
-        <div style={{ width: 30, textAlign: "center", fontSize: 16, flexShrink: 0 }}>
-          {rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : <span style={{ color: "#333", fontSize: 12 }}>#{rank}</span>}
-        </div>
-      )}
+    <div style={S.memberRow}>
+      {rank && <div style={{ width: 24, textAlign: "center", fontSize: 14, flexShrink: 0 }}>{rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`}</div>}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontWeight: "bold" }}>{m.nickname}</span>
-          <span style={{ fontSize: 11, color: tierColor(m.tier), background: "#181818", padding: "2px 8px", borderRadius: 10, border: `1px solid ${tierColor(m.tier)}33` }}>
-            {m.tier || "Standard"}
-          </span>
-          {expired && <span style={{ fontSize: 10, background: "#ff4444", color: "#fff", padding: "2px 7px", borderRadius: 8 }}>หมดอายุ</span>}
-          {soon && !expired && <span style={{ fontSize: 10, background: "#ff9800", color: "#000", padding: "2px 7px", borderRadius: 8 }}>หมดใน {dLeft} วัน</span>}
+          <span style={{ fontSize: 10, color: tierColor(m.tier), background: "#181818", padding: "1px 6px", borderRadius: 10, border: `1px solid ${tierColor(m.tier)}33` }}>{m.tier || "Standard"}</span>
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>
-          {m.phone} · <span style={{ color: "#4D96FF" }}>✅ {visits} ครั้ง</span>
-          {stats?.lastVisit && <span> · {daysSince(stats.lastVisit)} วันที่แล้ว</span>}
-        </div>
-        {m.expires_at && (
-          <div style={{ fontSize: 11, color: expired ? "#ff4444" : soon ? "#ff9800" : "#333", marginTop: 2 }}>
-            🗓 หมดอายุ {new Date(m.expires_at).toLocaleDateString("th-TH")}
-          </div>
-        )}
-        {fav?.length > 0 && (
-          <div style={{ marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {fav.map(([name, cnt]) => <span key={name} style={S.tag}>🍽 {name} ×{cnt}</span>)}
-          </div>
-        )}
+        <div style={{ fontSize: 12, color: "#555" }}>{m.phone} · <span style={{ color: "#4D96FF" }}>✅ {visits} ครั้ง</span>{stats?.lastVisit && <span> · {daysSince(stats.lastVisit)} วันที่แล้ว</span>}</div>
       </div>
-      <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
         <div style={{ color: "#f5c518", fontWeight: "bold" }}>⭐ {(m.points || 0).toLocaleString()}</div>
-        <div style={{ color: "#4caf50", fontSize: 12 }}>฿{(m.total_spent || 0).toLocaleString()}</div>
         {showDelete && (
-          <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
-            <button onClick={onAdjust} style={{ ...S.btnDelete, color: "#4D96FF", fontSize: 14 }} title="แก้ไขแต้ม">✏️</button>
-            <button onClick={onDelete} style={S.btnDelete} title="ลบสมาชิก">🗑️</button>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+            <button onClick={onAdjust} style={{ background: "none", border: "none", color: "#4D96FF", cursor: "pointer", fontSize: 14 }}>✏️</button>
+            <button onClick={onDelete} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 14 }}>🗑️</button>
           </div>
         )}
       </div>
@@ -491,9 +381,9 @@ function MemberRow({ m, stats, fav = [], tierColor, daysSince, daysUntil, isExpi
 function StatCard({ icon, label, value, unit, color = "#fff" }) {
   return (
     <div style={S.statCard}>
-      <div style={{ fontSize: 22 }}>{icon}</div>
-      <div style={{ color, fontWeight: "bold", fontSize: 18, margin: "4px 0" }}>{value} <span style={{ fontSize: 12, fontWeight: "normal" }}>{unit}</span></div>
-      <div style={{ fontSize: 11, color: "#444" }}>{label}</div>
+      <div style={{ fontSize: 20 }}>{icon}</div>
+      <div style={{ color, fontWeight: "bold", fontSize: 16, margin: "2px 0" }}>{value} <span style={{ fontSize: 10, fontWeight: "normal" }}>{unit}</span></div>
+      <div style={{ fontSize: 10, color: "#444" }}>{label}</div>
     </div>
   );
 }
@@ -507,19 +397,17 @@ const S = {
   badge: { position: "absolute", top: -4, right: -4, background: "#ff4444", color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" },
   content: { flex: 1, overflowY: "auto", padding: "14px" },
   grid4: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 },
-  statCard: { background: "#111", borderRadius: 14, padding: "14px 12px", textAlign: "center" },
+  statCard: { background: "#111", borderRadius: 14, padding: "12px 10px", textAlign: "center" },
   section: { background: "#111", borderRadius: 14, padding: "14px", marginBottom: 12 },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
   sectionTitle: { fontSize: 11, color: "#555", fontWeight: "bold", textTransform: "uppercase", letterSpacing: 0.8 },
   memberRow: { display: "flex", alignItems: "flex-start", gap: 8, padding: "12px 0", borderBottom: "1px solid #181818" },
-  tag: { background: "#181818", borderRadius: 8, padding: "2px 8px", fontSize: 11, color: "#555" },
   input: { background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 14, outline: "none", boxSizing: "border-box" },
   btnEdit: { background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#888", borderRadius: 8, padding: "5px 10px", fontSize: 12, cursor: "pointer" },
   btnSave: { background: "#4caf50", border: "none", color: "#fff", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer", fontWeight: "bold" },
-  btnDelete: { background: "none", border: "none", color: "#333", fontSize: 15, cursor: "pointer", marginTop: 5, padding: "2px 4px", borderRadius: 6, display: "block" },
-  btnCancel: { flex: 1, padding: 12, background: "#222", border: "1px solid #333", color: "#aaa", borderRadius: 10, fontSize: 15, cursor: "pointer" },
-  btnDeleteConfirm: { flex: 1, padding: 12, background: "#ff4444", border: "none", color: "#fff", borderRadius: 10, fontSize: 15, fontWeight: "bold", cursor: "pointer" },
+  btnCancel: { flex: 1, padding: 10, background: "#222", border: "1px solid #333", color: "#aaa", borderRadius: 10, fontSize: 14, cursor: "pointer" },
+  btnDeleteConfirm: { flex: 1, padding: 10, background: "#ff4444", border: "none", color: "#fff", borderRadius: 10, fontSize: 14, fontWeight: "bold", cursor: "pointer" },
   overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 },
-  modal: { background: "#1a1a1a", borderRadius: 20, padding: "28px 24px", textAlign: "center", width: 300, border: "1px solid #2a2a2a" },
+  modal: { background: "#1a1a1a", borderRadius: 20, padding: "24px", textAlign: "center", width: 300, border: "1px solid #2a2a2a" },
   dim: { color: "#666", fontSize: 13 },
 };
