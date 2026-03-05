@@ -131,8 +131,44 @@ export default function Cart({
                   style={{ ...S.btnSmall, background: "#f5c518", border: "none", fontWeight: "bold", marginRight: 4 }}>
                   🎁 แลก
                 </button>
-                <button onClick={clearMember} style={S.btnSmall}>เปลี่ยน</button>
+                <button onClick={clearMember} style={{ ...S.btnSmall, background: "#eee", border: "1px solid #bbb", color: "#333", fontWeight: "bold" }}>เปลี่ยน</button>
               </div>
+
+              {/* Available Coupons */}
+              {Array.isArray(memberInfo.redeemed_rewards) && memberInfo.redeemed_rewards.filter(r => !r.used_at).length > 0 && (
+                <div style={{ marginBottom: 10, padding: "8px 10px", background: "#fff", borderRadius: 10, border: "1px solid #eee" }}>
+                  <div style={{ fontSize: 11, color: "#999", fontWeight: "bold", marginBottom: 6, textTransform: "uppercase" }}>คูปองที่แลกไว้</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {memberInfo.redeemed_rewards.filter(r => !r.used_at).map(coupon => (
+                      <div key={coupon.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8f9fa", padding: "6px 8px", borderRadius: 8, border: "1px solid #f0f0f0" }}>
+                        <span style={{ fontSize: 12, color: "#2e7d32", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginRight: 8 }}>🎁 {coupon.name}</span>
+                        <button 
+                          onClick={() => {
+                            const rewardDiscount = parseRewardDiscount(coupon);
+                            if (rewardDiscount) {
+                              onApplyRewardDiscount?.({ ...rewardDiscount, couponId: coupon.id });
+                            } else {
+                              addToCart?.({
+                                id: `coupon-${coupon.id}`,
+                                name: `🎁 ${coupon.name}`,
+                                price: 0,
+                                qty: 1,
+                                category: "reward",
+                                modifierGroups: [],
+                                couponId: coupon.id
+                              });
+                            }
+                            showToast?.(`ใช้คูปอง "${coupon.name}" แล้ว`);
+                          }}
+                          style={{ background: "#4caf50", color: "#fff", border: "none", borderRadius: 6, padding: "2px 10px", fontSize: 11, fontWeight: "bold", cursor: "pointer", flexShrink: 0 }}
+                        >
+                          ใช้
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Bonus Progress Bar */}
               {total > 0 && (
