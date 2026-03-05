@@ -10,8 +10,10 @@ export default function Cart({
   cart = [], decreaseQty, increaseQty, addToCart, total = 0,
   onCheckout, onClearCart, priceChannel = "pos",
   memberPhone = "", setMemberPhone,
+  memberInfo, setMemberInfo, memberStatus, setMemberStatus,
   subtotal = 0, discountTotal = 0, discounts = [],
   onApplyManualDiscount, onApplyRewardDiscount, onRemoveDiscount, onClearDiscounts,
+  showToast, showConfirm,
 }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -19,10 +21,8 @@ export default function Cart({
   const [deliveryRef, setDeliveryRef] = useState("");
   const [showRedeem, setShowRedeem] = useState(false);
 
-  // member state
+  // member state (Removed local ones)
   const [memberInput, setMemberInput] = useState("");
-  const [memberInfo, setMemberInfo] = useState(null);
-  const [memberStatus, setMemberStatus] = useState("idle");
   const [showRegister, setShowRegister] = useState(false);
   const [regNickname, setRegNickname] = useState("");
   const [discountMode, setDiscountMode] = useState("amount");
@@ -64,7 +64,10 @@ export default function Cart({
       const { data } = await sb.from("members").insert({ phone: memberInput, nickname: regNickname }).select().single();
       setMemberInfo(data); setMemberStatus("found"); setMemberPhone(memberInput);
       setShowRegister(false); setRegNickname("");
-    } catch (e) { alert("สมัครไม่สำเร็จ: " + e.message); }
+      showToast?.("สมัครสมาชิกเรียบร้อย ✨");
+    } catch (e) { 
+      showToast?.("สมัครไม่สำเร็จ: " + e.message, "error"); 
+    }
   };
 
   const clearMember = () => {

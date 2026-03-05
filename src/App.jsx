@@ -29,6 +29,8 @@ function App() {
   const [modifierGroups, setModifierGroups] = useState([]);
   const [members, setMembers] = useState([]);
   const [memberPhone, setMemberPhone] = useState(""); 
+  const [memberInfo, setMemberInfo] = useState(null);
+  const [memberStatus, setMemberStatus] = useState("idle");
   const [discounts, setDiscounts] = useState([]); 
   
   // Modern UI states
@@ -222,7 +224,7 @@ function App() {
         } catch (e) { console.warn(e); }
       }
 
-      setCart([]); setDiscounts([]); setMemberPhone("");
+      setCart([]); setDiscounts([]); setMemberPhone(""); setMemberInfo(null); setMemberStatus("idle");
       showToast(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "✨ ชำระเงินเรียบร้อยครับ");
     } catch (err) {
       showToast("❌ บันทึกออเดอร์ไม่ได้ กรุณาลองใหม่", "error");
@@ -253,7 +255,8 @@ function App() {
 
   const commonProps = {
     cart, addToCart, increaseQty, decreaseQty, total, subtotal, discountTotal, discounts,
-    memberPhone, setMemberPhone, priceChannel, setPriceChannel,
+    memberPhone, setMemberPhone, memberInfo, setMemberInfo, memberStatus, setMemberStatus,
+    priceChannel, setPriceChannel,
     onApplyManualDiscount: handleApplyManualDiscount,
     onApplyRewardDiscount: handleApplyRewardDiscount,
     onRemoveDiscount: handleRemoveDiscount,
