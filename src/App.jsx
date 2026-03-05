@@ -232,7 +232,10 @@ function App() {
   const commonProps = {
     cart, subtotal, discountTotal, total, memberPhone, setMemberPhone, 
     priceChannel, setPriceChannel, discounts, orderType, setOrderType, tableNo, setTableNo,
-    onApplyManualDiscount, onApplyRewardDiscount, onRemoveDiscount, onClearDiscounts,
+    onApplyManualDiscount: handleApplyManualDiscount,
+    onApplyRewardDiscount: handleApplyRewardDiscount,
+    onRemoveDiscount: handleRemoveDiscount,
+    onClearDiscounts: handleClearDiscounts,
     onCheckout: handleCheckout, onSavePending: handleSavePending, showToast, showConfirm
   };
 
