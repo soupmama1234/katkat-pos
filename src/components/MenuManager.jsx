@@ -265,7 +265,9 @@ export default function MenuManager({
               {categories.filter(c => c !== "All").map(cat => (
                 <span key={cat} style={s.tag}>
                   {cat}
-                  <button onClick={() => deleteCategory(cat)} style={s.tagDel}>×</button>
+                  <button onClick={() => deleteCategory(cat)} style={{ ...s.tagDel, display: "flex", alignItems: "center" }}>
+                    <Trash2 size={12} />
+                  </button>
                 </span>
               ))}
             </div>
@@ -304,7 +306,9 @@ export default function MenuManager({
                 ⚙️ ตัวเลือก
               </button>
               <button onClick={() => openEdit(p)} style={s.btnEdit}>✏️ แก้ไข</button>
-              <button onClick={() => deleteProduct(p.id)} style={s.btnDel}>🗑️ ลบ</button>
+              <button onClick={() => deleteProduct(p.id)} style={{ ...s.btnDel, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                <Trash2 size={14} /> ลบ
+              </button>
             </div>
 
             {openDropdownId === p.id && (
