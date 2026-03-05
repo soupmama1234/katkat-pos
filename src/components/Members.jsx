@@ -12,7 +12,7 @@ import {
 
 const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards"];
 
-export default function Members({ orders = [], members: initMembers = [], onMembersChange, historyTrigger }) {
+export default function Members({ orders = [], members: initMembers = [], onMembersChange, historyTrigger, showToast, showConfirm }) {
   const [tab, setTab] = useState("ภาพรวม");
   const [members, setMembers] = useState(initMembers);
   const [pointRate, setPointRate] = useState(loadRate);
@@ -22,7 +22,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const [rateInput, setRateInput] = useState(pointRate);
   const [tiersInput, setTiersInput] = useState(tiers);
   const [search, setSearch] = useState("");
-  const [deleting, setDeleting] = useState(null);
   const [adjusting, setAdjusting] = useState(null); 
   const [adjustVal, setAdjustVal] = useState("");
   const [adjustNote, setAdjustNote] = useState("");
@@ -32,7 +31,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 
   React.useEffect(() => { setMembers(initMembers); }, [initMembers]);
 
-  // Auto-refresh history when historyTrigger changes OR tab switches to 'ประวัติ'
   React.useEffect(() => {
     if (tab === "ประวัติ") fetchHistory();
   }, [historyTrigger, tab]);
@@ -77,17 +75,21 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const expiringSoon = m => { const d = daysUntil(m.expires_at); return d !== null && d >= 0 && d <= 30; };
 
   const handleDelete = async (phone) => {
-    if (!window.confirm(`ยืนยันการลบสมาชิกเบอร์ ${phone}?`)) return;
+    const mem = members.find(m => m.phone === phone);
+    const ok = await showConfirm("ลบสมาชิก?", `ยืนยันการลบสมาชิก "${mem?.nickname || phone}"?`);
+    if (!ok) return;
     try {
       await sb.from("members").delete().eq("phone", phone);
       const updated = members.filter(m => m.phone !== phone);
-      setMembers(updated); onMembersChange?.(updated); setDeleting(null);
-    } catch (e) { alert("ลบไม่สำเร็จ: " + e.message); }
+      setMembers(updated); onMembersChange?.(updated);
+      showToast("ลบสมาชิกเรียบร้อย");
+    } catch (e) { showToast("ลบไม่สำเร็จ: " + e.message, "error"); }
   };
 
   const handleSaveRate = () => {
     const r = { baht: Number(rateInput.baht) || 10, points: Number(rateInput.points) || 1 };
     setPointRate(r); saveRate(r); setEditRate(false);
+    showToast("บันทึกอัตราแต้มแล้ว");
   };
 
   const handleAdjustPoints = async () => {
@@ -107,7 +109,8 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
       setMembers(prev => prev.map(m => m.phone === adjusting.phone ? { ...m, points: newPoints } : m));
       onMembersChange?.(members.map(m => m.phone === adjusting.phone ? { ...m, points: newPoints } : m));
       setAdjusting(null); setAdjustVal(""); setAdjustNote("");
-    } catch (e) { alert("แก้แต้มไม่สำเร็จ: " + e.message); }
+      showToast("แก้ไขแต้มเรียบร้อย");
+    } catch (e) { showToast("แก้แต้มไม่สำเร็จ: " + e.message, "error"); }
     setAdjustSaving(false);
   };
 
@@ -124,11 +127,13 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   };
 
   const deleteHistory = async (id) => {
-    if (!window.confirm("ลบรายการประวัตินี้?")) return;
+    const ok = await showConfirm("ลบประวัติ?", "ยืนยันการลบรายการประวัตินี้?");
+    if (!ok) return;
     try {
       await sb.from("point_history").delete().eq("id", id);
       setHistory(prev => prev.filter(h => h.id !== id));
-    } catch (e) { alert("ลบไม่สำเร็จ"); }
+      showToast("ลบประวัติเรียบร้อย");
+    } catch (e) { showToast("ลบไม่สำเร็จ", "error"); }
   };
 
   const handleSaveTiers = () => {
@@ -136,6 +141,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
       .filter(t => t.minSpend > 0 && t.multiplier > 1)
       .sort((a, b) => a.minSpend - b.minSpend);
     setTiers(cleaned); saveTiers(cleaned); setEditTiers(false);
+    showToast("บันทึก Bonus Tiers แล้ว");
   };
 
   const addTier = () => setTiersInput(prev => [...prev, { id: Date.now(), minSpend: 0, multiplier: 2 }]);
