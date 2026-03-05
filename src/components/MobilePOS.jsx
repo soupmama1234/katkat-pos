@@ -21,6 +21,12 @@ export default function MobilePOS({
   modifierGroups = [],
   memberPhone = "",
   setMemberPhone,
+  subtotal = 0,
+  discountTotal = 0,
+  discounts = [],
+  onApplyManualDiscount,
+  onRemoveDiscount,
+  onClearDiscounts,
 }) {
   const [showCart, setShowCart] = useState(false);
   const [refValue, setRefValue] = useState("");
@@ -32,6 +38,17 @@ export default function MobilePOS({
   const [memberStatus, setMemberStatus] = useState("idle");
   const [showRegister, setShowRegister] = useState(false);
   const [regNickname, setRegNickname] = useState("");
+
+  // Discount state
+  const [discountMode, setDiscountMode] = useState("amount");
+  const [discountInput, setDiscountInput] = useState("");
+
+  const handleApplyManualDiscount = () => {
+    const value = Number(discountInput);
+    if (!(value > 0)) return;
+    onApplyManualDiscount?.({ mode: discountMode, value });
+    setDiscountInput("");
+  };
 
   // --- Modifier Popup State ---
   const [showModifierPopup, setShowModifierPopup] = useState(false);
@@ -363,11 +380,55 @@ export default function MobilePOS({
           </div>
 
           <div style={styles.cartFooter}>
+            {discountTotal > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "14px", color: "#888" }}>
+                <span>ยอดก่อนลด</span>
+                <span>฿{subtotal.toLocaleString()}</span>
+              </div>
+            )}
+            {discountTotal > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "14px", color: "#ff5252" }}>
+                <span>ส่วนลดรวม</span>
+                <span>-฿{discountTotal.toLocaleString()}</span>
+              </div>
+            )}
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <span style={{ fontSize: "18px", fontWeight: "bold" }}>รวมทั้งหมด</span>
               <span style={{ fontSize: "24px", fontWeight: "bold", color: "#4caf50" }}>฿{total.toLocaleString()}</span>
             </div>
+
+            {/* Discount Section */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+              <select 
+                value={discountMode} 
+                onChange={(e) => setDiscountMode(e.target.value)} 
+                style={{ ...styles.innerInput, backgroundColor: "#222", borderRadius: "8px", padding: "8px", flex: "0 0 80px", fontSize: "14px", border: "1px solid #333" }}
+              >
+                <option value="amount">฿</option>
+                <option value="percent">%</option>
+              </select>
+              <input 
+                type="number" 
+                inputMode="decimal" 
+                placeholder="ส่วนลด" 
+                value={discountInput} 
+                onChange={(e) => setDiscountInput(e.target.value)}
+                style={{ ...styles.innerInput, backgroundColor: "#222", borderRadius: "8px", padding: "8px 12px", flex: 1, fontSize: "14px", border: "1px solid #333" }} 
+              />
+              <button onClick={handleApplyManualDiscount} style={{ backgroundColor: "#2196f3", color: "#fff", border: "none", borderRadius: "8px", padding: "0 15px", fontWeight: "bold" }}>ใช้</button>
+              <button onClick={() => onClearDiscounts?.()} style={{ backgroundColor: "#333", color: "#fff", border: "none", borderRadius: "8px", padding: "0 10px" }}>ล้าง</button>
+            </div>
+
+            {discounts.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
+                {discounts.map((d) => (
+                  <button key={d.id} onClick={() => onRemoveDiscount?.(d.id)} style={{ background: "#222", border: "1px solid #444", borderRadius: "14px", padding: "4px 10px", fontSize: "11px", color: "#aaa", cursor: "pointer" }}>
+                    {d.label || "ลด"} {d.mode === "percent" ? `${d.value}%` : `฿${d.value}`} ✕
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div style={{ display: "grid", gridTemplateColumns: priceChannel === "pos" ? "1fr 1fr" : "1fr", gap: "12px" }}>
               {priceChannel === "pos" ? (

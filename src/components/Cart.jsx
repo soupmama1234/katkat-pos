@@ -239,14 +239,14 @@ export default function Cart({
           <span>รวมทั้งหมด:</span>
           <span>฿{total.toLocaleString()}</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "100px 1fr auto auto", gap: 6, marginBottom: 8 }}>
-          <select value={discountMode} onChange={(e) => setDiscountMode(e.target.value)} style={{ ...S.input, padding: "6px 8px" }}>
-            <option value="amount">฿ ลด</option>
-            <option value="percent">% ลด</option>
+        <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
+          <select value={discountMode} onChange={(e) => setDiscountMode(e.target.value)} style={{ ...S.input, width: "70px", padding: "6px 4px", fontSize: "13px" }}>
+            <option value="amount">฿</option>
+            <option value="percent">%</option>
           </select>
-          <input value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} placeholder={discountMode === "percent" ? "เช่น 10" : "เช่น 20"} type="number" inputMode="decimal" style={{ ...S.input, padding: "6px 8px" }} />
-          <button onClick={handleApplyManualDiscount} style={{ ...S.btnSmall, background: "#213547", color: "#fff", border: "none" }}>ใช้</button>
-          <button onClick={() => onClearDiscounts?.()} style={S.btnSmall}>ล้าง</button>
+          <input value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} placeholder="ลด" type="number" inputMode="decimal" style={{ ...S.input, flex: 1, padding: "6px 8px", minWidth: 0 }} />
+          <button onClick={handleApplyManualDiscount} style={{ ...S.btnSmall, background: "#000", color: "#fff", border: "1px solid #000", fontWeight: "bold", padding: "6px 12px" }}>ใช้</button>
+          <button onClick={() => onClearDiscounts?.()} style={{ ...S.btnSmall, padding: "6px 8px" }}>ล้าง</button>
         </div>
         {discounts.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
