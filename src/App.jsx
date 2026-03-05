@@ -65,7 +65,7 @@ function App() {
           db.fetchModifierGroups(),
           db.fetchOrders(),
           db.fetchMembers(),
-          isUsingSupabase ? sb.from("orders").select("*").eq("status", "pending").order("time", { ascending: false }).then(r => r.data || []) : []
+          isUsingSupabase ? sb.from("orders").select("*").eq("status", "pending").order("created_at", { ascending: false }).then(r => r.data || []) : []
         ]);
 
         const dbCats = new Set(cats.filter(c => c !== "All"));
