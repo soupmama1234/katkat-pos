@@ -90,13 +90,13 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
   });
 
   return (
-    <div style={{ padding: "16px", color: "#fff", backgroundColor: "#121212", minHeight: "100vh", boxSizing: "border-box" }}>
+    <div style={{ padding: "16px", color: "#fff", backgroundColor: "#121212", minHeight: "100vh", width: "100%", boxSizing: "border-box", flex: 1 }}>
 
       {/* Header */}
-      <div style={{ marginBottom: "16px" }}>
+      <div style={{ marginBottom: "16px", maxWidth: "1200px", margin: "0 auto 16px auto" }}>
         <h2 style={{ margin: "0 0 2px 0", fontSize: "20px" }}>LIVE DASHBOARD</h2>
         <p style={{ color: "#666", margin: "0 0 12px 0", fontSize: "12px" }}>{todayStr}</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", maxWidth: "400px" }}>
           <button onClick={() => exportToCSV(orders, "Daily_Backup")} style={s.btnExport}>
             📥 สำรอง CSV
           </button>
@@ -106,123 +106,101 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
         </div>
       </div>
 
-      {/* Stats 2x2 */}
-      <div style={s.statsGrid}>
-        <div style={{ ...s.card, borderTop: "3px solid #ff9800" }}>
-          <div style={s.cardLabel}>ออเดอร์วันนี้</div>
-          <div style={{ ...s.cardValue, color: "#ff9800" }}>
-            {stats.orderCount}
-            <span style={{ fontSize: "13px", fontWeight: "normal" }}> บิล</span>
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        {/* Stats Grid */}
+        <div style={s.statsGrid}>
+          <div style={{ ...s.card, borderTop: "3px solid #ff9800" }}>
+            <div style={s.cardLabel}>ออเดอร์วันนี้</div>
+            <div style={{ ...s.cardValue, color: "#ff9800" }}>
+              {stats.orderCount}
+              <span style={{ fontSize: "13px", fontWeight: "normal" }}> บิล</span>
+            </div>
+          </div>
+          <div style={s.card}>
+            <div style={s.cardLabel}>ยอดรวม</div>
+            <div style={{ ...s.cardValue, fontSize: "20px" }}>฿{stats.totalSales.toLocaleString()}</div>
+          </div>
+          <div style={{ ...s.card, borderTop: "3px solid #4caf50" }}>
+            <div style={s.cardLabel}>💵 เงินสด</div>
+            <div style={{ ...s.cardValue, color: "#4caf50", fontSize: "20px" }}>฿{stats.cashTotal.toLocaleString()}</div>
+          </div>
+          <div style={{ ...s.card, borderTop: "3px solid #2196f3" }}>
+            <div style={s.cardLabel}>📱 โอน/App</div>
+            <div style={{ ...s.cardValue, color: "#2196f3", fontSize: "20px" }}>฿{stats.promptPayTotal.toLocaleString()}</div>
           </div>
         </div>
-        <div style={s.card}>
-          <div style={s.cardLabel}>ยอดรวม</div>
-          <div style={{ ...s.cardValue, fontSize: "20px" }}>฿{stats.totalSales.toLocaleString()}</div>
-        </div>
-        <div style={{ ...s.card, borderTop: "3px solid #4caf50" }}>
-          <div style={s.cardLabel}>💵 เงินสด</div>
-          <div style={{ ...s.cardValue, color: "#4caf50", fontSize: "20px" }}>฿{stats.cashTotal.toLocaleString()}</div>
-        </div>
-        <div style={{ ...s.card, borderTop: "3px solid #2196f3" }}>
-          <div style={s.cardLabel}>📱 โอน/App</div>
-          <div style={{ ...s.cardValue, color: "#2196f3", fontSize: "20px" }}>฿{stats.promptPayTotal.toLocaleString()}</div>
-        </div>
-      </div>
 
-      {/* Channel breakdown — BUG#4: แสดง cash/transfer แยกใต้แต่ละ channel */}
-      {Object.keys(stats.channelMap).length > 0 && (
-        <div style={s.panel}>
-          <div style={s.panelTitle}>สัดส่วนรายได้แยกช่องทาง</div>
-          {Object.entries(stats.channelMap).map(([ch, data]) => {
-            const color = getChannelColor(ch);
-            const pct = stats.actualIncome > 0 ? (data.actual / stats.actualIncome) * 100 : 0;
-            return (
-              <div key={ch} style={{ marginBottom: "18px" }}>
-                {/* ชื่อ channel + ยอดรวม */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5px" }}>
-                  <div>
-                    <span style={{ color, fontWeight: "bold", fontSize: "14px" }}>{ch.toUpperCase()}</span>
-                    {/* BUG#4 FIX: แสดง cash/transfer breakdown เฉพาะ POS */}
-                    {ch === "pos" && (
-                      <div style={{ display: "flex", gap: "10px", marginTop: "3px" }}>
-                        {data.cash > 0 && (
-                          <span style={{ fontSize: "11px", color: "#4caf50" }}>
-                            💵 ฿{data.cash.toLocaleString()}
-                          </span>
-                        )}
-                        {data.transfer > 0 && (
-                          <span style={{ fontSize: "11px", color: "#2196f3" }}>
-                            📱 ฿{data.transfer.toLocaleString()}
-                          </span>
-                        )}
-                        {data.cash === 0 && data.transfer === 0 && (
-                          <span style={{ fontSize: "11px", color: "#444" }}>ยังไม่มียอด</span>
+        {/* Channel breakdown */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "16px" }}>
+          {Object.keys(stats.channelMap).length > 0 && (
+            <div style={s.panel}>
+              <div style={s.panelTitle}>สัดส่วนรายได้แยกช่องทาง</div>
+              {Object.entries(stats.channelMap).map(([ch, data]) => {
+                const color = getChannelColor(ch);
+                const pct = stats.actualIncome > 0 ? (data.actual / stats.actualIncome) * 100 : 0;
+                return (
+                  <div key={ch} style={{ marginBottom: "18px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5px" }}>
+                      <div>
+                        <span style={{ color, fontWeight: "bold", fontSize: "14px" }}>{ch.toUpperCase()}</span>
+                        {ch === "pos" && (
+                          <div style={{ display: "flex", gap: "10px", marginTop: "3px" }}>
+                            {data.cash > 0 && <span style={{ fontSize: "11px", color: "#4caf50" }}>💵 ฿{data.cash.toLocaleString()}</span>}
+                            {data.transfer > 0 && <span style={{ fontSize: "11px", color: "#2196f3" }}>📱 ฿{data.transfer.toLocaleString()}</span>}
+                            {data.cash === 0 && data.transfer === 0 && <span style={{ fontSize: "11px", color: "#444" }}>ยังไม่มียอด</span>}
+                          </div>
                         )}
                       </div>
-                    )}
+                      <span style={{ fontSize: "14px" }}>฿{data.actual.toLocaleString()}</span>
+                    </div>
+                    <div style={s.barBg}>
+                      <div style={{ ...s.barFill, width: `${pct}%`, backgroundColor: color }} />
+                    </div>
                   </div>
-                  <span style={{ fontSize: "14px" }}>฿{data.actual.toLocaleString()}</span>
-                </div>
-                <div style={s.barBg}>
-                  <div style={{ ...s.barFill, width: `${pct}%`, backgroundColor: color }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* งานค้าง */}
-      <div style={s.panel}>
-        <div style={{ ...s.panelTitle, color: "#ffa500", marginBottom: "12px" }}>
-          ⚠️ งานค้าง: รอระบุยอดรับจริง ({pendingOrders.length})
-        </div>
-        {pendingOrders.length === 0 ? (
-          <div style={{ color: "#444", textAlign: "center", padding: "20px 0", fontSize: "13px" }}>
-            🎉 เคลียร์ยอดครบแล้ว
-          </div>
-        ) : (
-          pendingOrders.map(o => (
-            <div key={o.id} style={s.pendingRow}>
-              <div style={{ flex: 1, minWidth: 0, marginRight: "8px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginBottom: "3px" }}>
-                  <span style={{ color: getChannelColor(o.channel), fontWeight: "bold", fontSize: "13px" }}>
-                    {o.channel.toUpperCase()}
-                  </span>
-                  {o.refId && <span style={s.refBadge}>{o.refId}</span>}
-                </div>
-                <div style={{ color: "#666", fontSize: "11px" }}>
-                  {formatTime(o.time)} · ฿{o.total.toLocaleString()}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: "6px", alignItems: "center", flexShrink: 0 }}>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  placeholder="ยอด"
-                  id={`inp-${o.id}`}
-                  style={s.miniInput}
-                />
-                <button
-                  onClick={() => {
-                    const val = document.getElementById(`inp-${o.id}`)?.value;
-                    if (val) handleUpdateActual(o.id, val);
-                  }}
-                  style={s.miniBtn}
-                >
-                  ✓
-                </button>
-              </div>
+                );
+              })}
             </div>
-          ))
-        )}
+          )}
+
+          {/* งานค้าง */}
+          <div style={s.panel}>
+            <div style={{ ...s.panelTitle, color: "#ffa500", marginBottom: "12px" }}>
+              ⚠️ งานค้าง: รอระบุยอดรับจริง ({pendingOrders.length})
+            </div>
+            {pendingOrders.length === 0 ? (
+              <div style={{ color: "#444", textAlign: "center", padding: "20px 0", fontSize: "13px" }}>
+                🎉 เคลียร์ยอดครบแล้ว
+              </div>
+            ) : (
+              pendingOrders.map(o => (
+                <div key={o.id} style={s.pendingRow}>
+                  <div style={{ flex: 1, minWidth: 0, marginRight: "8px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginBottom: "3px" }}>
+                      <span style={{ color: getChannelColor(o.channel), fontWeight: "bold", fontSize: "13px" }}>
+                        {o.channel.toUpperCase()}
+                      </span>
+                      {o.refId && <span style={s.refBadge}>{o.refId}</span>}
+                    </div>
+                    <div style={{ color: "#666", fontSize: "11px" }}>
+                      {formatTime(o.time)} · ฿{o.total.toLocaleString()}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center", flexShrink: 0 }}>
+                    <input type="number" inputMode="numeric" placeholder="ยอด" id={`inp-${o.id}`} style={s.miniInput} />
+                    <button onClick={() => { const val = document.getElementById(`inp-${o.id}`)?.value; if (val) handleUpdateActual(o.id, val); }} style={s.miniBtn}> ✓ </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 const s = {
-  statsGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" },
+  statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "10px", marginBottom: "16px" },
   card: { backgroundColor: "#1a1a1a", padding: "14px", borderRadius: "12px", border: "1px solid #2a2a2a", minWidth: 0 },
   cardLabel: { color: "#888", fontSize: "12px", marginBottom: "6px" },
   cardValue: { fontSize: "24px", fontWeight: "bold", lineHeight: 1.2 },

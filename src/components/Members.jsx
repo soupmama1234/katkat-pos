@@ -162,7 +162,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   });
 
   return (
-    <div style={S.wrap}>
+    <div style={{ ...S.wrap, width: "100%", flex: 1 }}>
       <div style={S.tabs}>
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ ...S.tab, ...(tab === t ? S.tabActive : {}) }}>
@@ -175,157 +175,165 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
       </div>
 
       <div style={S.content}>
-        {tab === "ภาพรวม" && (
-          <div>
-            <div style={S.grid4}>
-              <StatCard icon="👥" label="สมาชิกทั้งหมด" value={members.length} unit="คน" />
-              <StatCard icon="✨" label="ใหม่เดือนนี้" value={newThisMonth} unit="คน" color="#4caf50" />
-              <StatCard icon="⭐" label="แต้มที่แจก" value={totalPoints.toLocaleString()} unit="แต้ม" color="#f5c518" />
-              <StatCard icon="💰" label="ยอดเฉลี่ย" value={`฿${avgSpent.toLocaleString()}`} color="#4D96FF" />
-            </div>
-
-            <div style={S.section}>
-              <div style={S.sectionHeader}>
-                <div style={S.sectionTitle}>⭐ อัตราแต้มพื้นฐาน</div>
-                <button onClick={() => { setEditRate(!editRate); setRateInput(pointRate); }} style={S.btnEdit}>
-                  {editRate ? "✕" : <Edit2 size={12} />}
-                </button>
+        <div style={{ maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
+          {tab === "ภาพรวม" && (
+            <div>
+              <div style={S.grid4}>
+                <StatCard icon="👥" label="สมาชิกทั้งหมด" value={members.length} unit="คน" />
+                <StatCard icon="✨" label="ใหม่เดือนนี้" value={newThisMonth} unit="คน" color="#4caf50" />
+                <StatCard icon="⭐" label="แต้มที่แจก" value={totalPoints.toLocaleString()} unit="แต้ม" color="#f5c518" />
+                <StatCard icon="💰" label="ยอดเฉลี่ย" value={`฿${avgSpent.toLocaleString()}`} color="#4D96FF" />
               </div>
-              {editRate ? (
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
-                  <span style={S.dim}>ทุก</span>
-                  <input type="number" value={rateInput.baht} onChange={e => setRateInput(r => ({ ...r, baht: e.target.value }))} style={{ ...S.input, width: 70 }} />
-                  <span style={S.dim}>บาท ได้</span>
-                  <input type="number" value={rateInput.points} onChange={e => setRateInput(r => ({ ...r, points: e.target.value }))} style={{ ...S.input, width: 60 }} />
-                  <span style={S.dim}>แต้ม</span>
-                  <button onClick={handleSaveRate} style={S.btnSave}>💾 บันทึก</button>
-                </div>
-              ) : (
-                <div style={{ fontSize: 20, fontWeight: "bold", color: "#f5c518", marginTop: 8 }}>
-                  ฿{pointRate.baht} = {pointRate.points} แต้ม
-                </div>
-              )}
-            </div>
 
-            <div style={S.section}>
-              <div style={S.sectionHeader}>
-                <div style={S.sectionTitle}>🚀 Bonus Tiers</div>
-                <button onClick={() => { setEditTiers(!editTiers); setTiersInput(tiers.map(t => ({ ...t }))); }} style={S.btnEdit}>
-                  {editTiers ? "✕" : <Edit2 size={12} />}
-                </button>
-              </div>
-              {editTiers ? (
-                <div style={{ marginTop: 10 }}>
-                  {tiersInput.map((t, i) => (
-                    <div key={t.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
-                      <span style={{ ...S.dim, minWidth: 20 }}>ระดับ {i + 1}</span>
-                      <span style={S.dim}>ยอด ≥</span>
-                      <input type="number" value={t.minSpend} onChange={e => updateTier(t.id, "minSpend", e.target.value)}
-                        style={{ ...S.input, width: 80 }} placeholder="บาท" />
-                      <span style={S.dim}>ได้แต้ม</span>
-                      <input type="number" value={t.multiplier} onChange={e => updateTier(t.id, "multiplier", e.target.value)}
-                        style={{ ...S.input, width: 60 }} placeholder="x" />
-                      <span style={S.dim}>เท่า</span>
-                      <button onClick={() => removeTier(t.id)} style={{ background: "none", border: "none", color: "#ff4444", fontSize: 18, cursor: "pointer" }}>✕</button>
-                    </div>
-                  ))}
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button onClick={addTier} style={{ ...S.btnEdit, color: "#4D96FF", borderColor: "#4D96FF" }}>+ เพิ่ม tier</button>
-                    <button onClick={handleSaveTiers} style={S.btnSave}>💾 บันทึก</button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ marginTop: 8 }}>
-                  {[...tiers].sort((a, b) => a.minSpend - b.minSpend).map((t, i) => (
-                    <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: "8px 12px", background: "#181818", borderRadius: 10, marginBottom: 6 }}>
-                      <div>
-                        <span style={{ color: i === 0 ? "#4D96FF" : "#f5c518", fontWeight: "bold" }}>{t.multiplier}x</span>
-                        <span style={{ color: "#666", fontSize: 13, marginLeft: 8 }}>ยอด ≥ ฿{t.minSpend.toLocaleString()}</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#555" }}>฿{t.minSpend} → {calcPoints(t.minSpend, pointRate, tiers)} แต้ม</div>
-                    </div>
-                  ))}
-                  {tiers.length === 0 && <div style={{ color: "#444", fontSize: 13 }}>ยังไม่มี bonus tier</div>}
-                </div>
-              )}
-            </div>
-
-            <div style={S.section}>
-              <div style={S.sectionTitle}>สมาชิกล่าสุด</div>
-              {members.slice(0, 5).map(m => <MemberRow key={m.phone} {...rowProps(m)} />)}
-              {members.length === 0 && <Empty text="ยังไม่มีสมาชิก" />}
-            </div>
-          </div>
-        )}
-
-        {tab === "สมาชิก" && (
-          <div>
-            <input placeholder="🔍 ค้นหาชื่อหรือเบอร์..." value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ ...S.input, width: "100%", marginBottom: 10, fontSize: 15 }} />
-            <div style={S.section}>{filtered.slice(0, 50).map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}</div>
-          </div>
-        )}
-
-        {tab === "VIP" && (
-          <div style={S.section}>
-            <div style={S.sectionTitle}>เรียงตามยอดใช้จ่าย</div>
-            {[...members].sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
-              .map((m, i) => <MemberRow key={m.phone} {...rowProps(m)} rank={i + 1} showDelete />)}
-          </div>
-        )}
-
-        {tab === "หายไป" && (
-          <div>
-            {goneMems.length > 0 && (
-              <div style={S.section}>
-                <div style={S.sectionTitle}>🚨 ไม่มาเกิน 30 วัน ({goneMems.length} คน)</div>
-                {goneMems.map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
-              </div>
-            )}
-            {neverCome.length > 0 && (
-              <div style={S.section}>
-                <div style={S.sectionTitle}>👻 สมัครแล้วยังไม่มา ({neverCome.length} คน)</div>
-                {neverCome.map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === "ประวัติ" && (
-          <div>
-            <button onClick={fetchHistory} style={{ ...S.btnEdit, marginBottom: 12, color: "#4D96FF", borderColor: "#4D96FF", display: "flex", alignItems: "center", gap: 6 }}>
-              <RotateCw size={14} className={historyLoading ? "spin" : ""} /> โหลดประวัติล่าสุด
-            </button>
-            {historyLoading ? <Empty text="กำลังโหลด..." /> : (
-              <div style={S.section}>
-                <div style={S.sectionTitle}>100 รายการล่าสุด</div>
-                {history.map(h => (
-                  <div key={h.id} style={S.memberRow}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 16 }}>{h.type === "earn" ? "⭐" : h.type === "redeem" ? "🎁" : "✏️"}</span>
-                        <span style={{ fontWeight: "bold", fontSize: 13 }}>{h.members?.nickname || h.member_phone}</span>
-                        <span style={{ fontSize: 11, color: "#555" }}>{h.member_phone}</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{h.note || h.type}</div>
-                      <div style={{ fontSize: 11, color: "#444" }}>{new Date(h.created_at).toLocaleString("th-TH")}</div>
-                    </div>
-                    <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                      <span style={{ fontWeight: "bold", color: h.points > 0 ? "#4caf50" : "#ff6b6b", fontSize: 15 }}>{h.points > 0 ? "+" : ""}{h.points} ⭐</span>
-                      <button onClick={() => deleteHistory(h.id)} style={{ background: "none", border: "none", color: "#333", cursor: "pointer", display: "flex", alignItems: "center" }}>
-                        <Trash2 size={14} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "16px" }}>
+                <div>
+                  <div style={S.section}>
+                    <div style={S.sectionHeader}>
+                      <div style={S.sectionTitle}>⭐ อัตราแต้มพื้นฐาน</div>
+                      <button onClick={() => { setEditRate(!editRate); setRateInput(pointRate); }} style={S.btnEdit}>
+                        {editRate ? "✕" : <Edit2 size={12} />}
                       </button>
                     </div>
+                    {editRate ? (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+                        <span style={S.dim}>ทุก</span>
+                        <input type="number" value={rateInput.baht} onChange={e => setRateInput(r => ({ ...r, baht: e.target.value }))} style={{ ...S.input, width: 70 }} />
+                        <span style={S.dim}>บาท ได้</span>
+                        <input type="number" value={rateInput.points} onChange={e => setRateInput(r => ({ ...r, points: e.target.value }))} style={{ ...S.input, width: 60 }} />
+                        <span style={S.dim}>แต้ม</span>
+                        <button onClick={handleSaveRate} style={S.btnSave}>💾 บันทึก</button>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 20, fontWeight: "bold", color: "#f5c518", marginTop: 8 }}>
+                        ฿{pointRate.baht} = {pointRate.points} แต้ม
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
-        {tab === "Rewards" && <RewardManager showToast={showToast} showConfirm={showConfirm} />}
+                  <div style={S.section}>
+                    <div style={S.sectionHeader}>
+                      <div style={S.sectionTitle}>🚀 Bonus Tiers</div>
+                      <button onClick={() => { setEditTiers(!editTiers); setTiersInput(tiers.map(t => ({ ...t }))); }} style={S.btnEdit}>
+                        {editTiers ? "✕" : <Edit2 size={12} />}
+                      </button>
+                    </div>
+                    {editTiers ? (
+                      <div style={{ marginTop: 10 }}>
+                        {tiersInput.map((t, i) => (
+                          <div key={t.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+                            <span style={{ ...S.dim, minWidth: 20 }}>ระดับ {i + 1}</span>
+                            <span style={S.dim}>ยอด ≥</span>
+                            <input type="number" value={t.minSpend} onChange={e => updateTier(t.id, "minSpend", e.target.value)}
+                              style={{ ...S.input, width: 80 }} placeholder="บาท" />
+                            <span style={S.dim}>ได้แต้ม</span>
+                            <input type="number" value={t.multiplier} onChange={e => updateTier(t.id, "multiplier", e.target.value)}
+                              style={{ ...S.input, width: 60 }} placeholder="x" />
+                            <span style={S.dim}>เท่า</span>
+                            <button onClick={() => removeTier(t.id)} style={{ background: "none", border: "none", color: "#ff4444", fontSize: 18, cursor: "pointer" }}>✕</button>
+                          </div>
+                        ))}
+                        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                          <button onClick={addTier} style={{ ...S.btnEdit, color: "#4D96FF", borderColor: "#4D96FF" }}>+ เพิ่ม tier</button>
+                          <button onClick={handleSaveTiers} style={S.btnSave}>💾 บันทึก</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: 8 }}>
+                        {[...tiers].sort((a, b) => a.minSpend - b.minSpend).map((t, i) => (
+                          <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+                            padding: "8px 12px", background: "#181818", borderRadius: 10, marginBottom: 6 }}>
+                            <div>
+                              <span style={{ color: i === 0 ? "#4D96FF" : "#f5c518", fontWeight: "bold" }}>{t.multiplier}x</span>
+                              <span style={{ color: "#666", fontSize: 13, marginLeft: 8 }}>ยอด ≥ ฿{t.minSpend.toLocaleString()}</span>
+                            </div>
+                            <div style={{ fontSize: 12, color: "#555" }}>฿{t.minSpend} → {calcPoints(t.minSpend, pointRate, tiers)} แต้ม</div>
+                          </div>
+                        ))}
+                        {tiers.length === 0 && <div style={{ color: "#444", fontSize: 13 }}>ยังไม่มี bonus tier</div>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={S.section}>
+                  <div style={S.sectionTitle}>สมาชิกล่าสุด</div>
+                  {members.slice(0, 5).map(m => <MemberRow key={m.phone} {...rowProps(m)} />)}
+                  {members.length === 0 && <Empty text="ยังไม่มีสมาชิก" />}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "สมาชิก" && (
+            <div>
+              <input placeholder="🔍 ค้นหาชื่อหรือเบอร์..." value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{ ...S.input, width: "100%", marginBottom: 10, fontSize: 15 }} />
+              <div style={S.section}>{filtered.slice(0, 50).map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}</div>
+            </div>
+          )}
+
+          {tab === "VIP" && (
+            <div style={S.section}>
+              <div style={S.sectionTitle}>เรียงตามยอดใช้จ่าย</div>
+              {[...members].sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
+                .map((m, i) => <MemberRow key={m.phone} {...rowProps(m)} rank={i + 1} showDelete />)}
+            </div>
+          )}
+
+          {tab === "หายไป" && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "16px" }}>
+              {goneMems.length > 0 && (
+                <div style={S.section}>
+                  <div style={S.sectionTitle}>🚨 ไม่มาเกิน 30 วัน ({goneMems.length} คน)</div>
+                  {goneMems.map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
+                </div>
+              )}
+              {neverCome.length > 0 && (
+                <div style={S.section}>
+                  <div style={S.sectionTitle}>👻 สมัครแล้วยังไม่มา ({neverCome.length} คน)</div>
+                  {neverCome.map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "ประวัติ" && (
+            <div>
+              <button onClick={fetchHistory} style={{ ...S.btnEdit, marginBottom: 12, color: "#4D96FF", borderColor: "#4D96FF", display: "flex", alignItems: "center", gap: 6 }}>
+                <RotateCw size={14} className={historyLoading ? "spin" : ""} /> โหลดประวัติล่าสุด
+              </button>
+              {historyLoading ? <Empty text="กำลังโหลด..." /> : (
+                <div style={S.section}>
+                  <div style={S.sectionTitle}>100 รายการล่าสุด</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "0 20px" }}>
+                    {history.map(h => (
+                      <div key={h.id} style={S.memberRow}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 16 }}>{h.type === "earn" ? "⭐" : h.type === "redeem" ? "🎁" : "✏️"}</span>
+                            <span style={{ fontWeight: "bold", fontSize: 13 }}>{h.members?.nickname || h.member_phone}</span>
+                            <span style={{ fontSize: 11, color: "#555" }}>{h.member_phone}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{h.note || h.type}</div>
+                          <div style={{ fontSize: 11, color: "#444" }}>{new Date(h.created_at).toLocaleString("th-TH")}</div>
+                        </div>
+                        <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                          <span style={{ fontWeight: "bold", color: h.points > 0 ? "#4caf50" : "#ff6b6b", fontSize: 15 }}>{h.points > 0 ? "+" : ""}{h.points} ⭐</span>
+                          <button onClick={() => deleteHistory(h.id)} style={{ background: "none", border: "none", color: "#333", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "Rewards" && <RewardManager showToast={showToast} showConfirm={showConfirm} />}
+        </div>
       </div>
 
       {adjusting && (
@@ -393,7 +401,7 @@ const S = {
   tabActive: { background: "#4D96FF", color: "#fff", fontWeight: "bold" },
   badge: { position: "absolute", top: -4, right: -4, background: "#ff4444", color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" },
   content: { flex: 1, overflowY: "auto", padding: "14px" },
-  grid4: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 },
+  grid4: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 14 },
   statCard: { background: "#111", borderRadius: 14, padding: "12px 10px", textAlign: "center" },
   section: { background: "#111", borderRadius: 14, padding: "14px", marginBottom: 12 },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
