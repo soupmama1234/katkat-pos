@@ -170,13 +170,16 @@ const supabaseDriver = {
   // ORDERS
   async fetchOrders() {
     const sb = getSupabase();
-    // ดึงบิลที่ยังไม่ถูกปิดยอด (is_history เป็น false หรือ null) และสถานะเป็น settled หรือ null
+    // วันนี้ตอนเที่ยงคืน (ISO string)
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayISO = today.toISOString();
+
     const { data, error } = await sb.from("orders")
       .select("*")
-      .or("is_history.eq.false,is_history.is.null")
-      .or("status.eq.settled,status.is.null")
-      .order("created_at", { ascending: false })
-      .limit(1000); // เพิ่ม limit เป็น 1000 เพื่อความครอบคลุม
+      .gte("created_at", todayISO) // เอาเฉพาะของวันนี้
+      .neq("status", "pending")    // ไม่เอาบิลค้าง
+      .order("created_at", { ascending: false });
     if (error) throw error;
     return data.map(dbToOrder);
   },
