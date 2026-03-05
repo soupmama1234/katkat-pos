@@ -30,6 +30,12 @@ function App() {
   const [members, setMembers] = useState([]);
   const [memberPhone, setMemberPhone] = useState(""); // เบอร์สมาชิกที่เลือกตอนขาย
   const [discounts, setDiscounts] = useState([]); // [{ id, mode, value, label, source }]
+  const [toast, setToast] = useState(null); // { message, type }
+
+  const showToast = useCallback((message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
 
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
   useEffect(() => {
@@ -277,10 +283,10 @@ function App() {
       setCart([]);
       setDiscounts([]);
       setMemberPhone("");
-      alert(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "ชำระเงินเรียบร้อย");
+      showToast(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "✨ ชำระเงินเรียบร้อยครับ");
     } catch (err) {
       console.error(err);
-      alert("❌ บันทึกออเดอร์ไม่ได้ กรุณาลองใหม่");
+      showToast("❌ บันทึกออเดอร์ไม่ได้ กรุณาลองใหม่", "error");
     }
   };
 
@@ -290,18 +296,19 @@ function App() {
     setOrders(prev => prev.map(o =>
       o.id === orderId ? { ...o, actualAmount: amount, isSettled: true } : o
     ));
+    showToast("อัปเดตยอดรับจริงแล้ว");
   };
 
   const handleCloseDay = async () => {
-    if (orders.length === 0) return alert("ไม่มีข้อมูลการขายสำหรับวันนี้");
+    if (orders.length === 0) return showToast("ไม่มีข้อมูลการขายสำหรับวันนี้", "error");
     const totalSales = orders.reduce((sum, o) => sum + (o.actualAmount || 0), 0);
     if (window.confirm(`สรุปยอดขายวันนี้: ฿${totalSales.toLocaleString()}\nยืนยันการปิดยอดวัน?`)) {
       try {
         await db.closeDayOrders();
         setOrders([]);
-        alert("✅ ปิดยอดวันเรียบร้อย");
+        showToast("✅ ปิดยอดวันเรียบร้อย");
       } catch {
-        alert("❌ ปิดยอดไม่ได้ กรุณาลองใหม่");
+        showToast("❌ ปิดยอดไม่ได้ กรุณาลองใหม่", "error");
       }
     }
   };
@@ -367,6 +374,7 @@ function App() {
                 onApplyRewardDiscount={handleApplyRewardDiscount}
                 onRemoveDiscount={handleRemoveDiscount}
                 onClearDiscounts={handleClearDiscounts}
+                showToast={showToast}
               />
             )}
             {view === "dashboard" && (
@@ -436,7 +444,8 @@ function App() {
                     onApplyManualDiscount={handleApplyManualDiscount}
                     onApplyRewardDiscount={handleApplyRewardDiscount}
                     onRemoveDiscount={handleRemoveDiscount}
-                    onClearDiscounts={handleClearDiscounts} />
+                    onClearDiscounts={handleClearDiscounts}
+                    showToast={showToast} />
                 </aside>
               </>
             )}
@@ -462,12 +471,36 @@ function App() {
             )}
             {view === "members" && (
               <div style={{ flex: 1, overflow: "hidden" }}>
-                <Members orders={orders} members={members} onMembersChange={setMembers} />
+                <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} />
               </div>
             )}
           </main>
         </div>
       )}
+
+      {/* Modern Toast Component */}
+      {toast && (
+        <div style={{
+          position: "fixed", top: isMobile ? "20px" : "30px", left: "50%", transform: "translateX(-50%)",
+          backgroundColor: toast.type === "error" ? "#ff4444" : "#222",
+          color: "#fff", padding: "12px 24px", borderRadius: "12px",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.3)", zIndex: 9999,
+          display: "flex", alignItems: "center", gap: 10,
+          animation: "toastIn 0.3s ease-out forwards",
+          fontWeight: "bold", minWidth: "200px", justifyContent: "center",
+          border: toast.type === "error" ? "none" : "1px solid #444"
+        }}>
+          <span style={{ fontSize: 18 }}>{toast.type === "error" ? "❌" : "✅"}</span>
+          {toast.message}
+        </div>
+      )}
+
+      <style>{`
+        @keyframes toastIn {
+          from { opacity: 0; transform: translate(-50%, -20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+      `}</style>
     </div>
   );
 }
