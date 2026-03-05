@@ -29,9 +29,19 @@ function App() {
   const [modifierGroups, setModifierGroups] = useState([]);
   const [members, setMembers] = useState([]);
   const [memberPhone, setMemberPhone] = useState(""); 
-  const [memberInfo, setMemberInfo] = useState(null);
   const [memberStatus, setMemberStatus] = useState("idle");
   const [discounts, setDiscounts] = useState([]); 
+
+  const memberInfo = useMemo(() => 
+    members.find(m => m.phone === memberPhone) || null
+  , [members, memberPhone]);
+
+  const setMemberInfo = (info) => {
+    // This is now mainly for setting status or handled by members state
+    if (info && !members.find(m => m.phone === info.phone)) {
+      setMembers(prev => [...prev, info]);
+    }
+  };
   
   // Modern UI states
   const [toast, setToast] = useState(null); 
@@ -149,12 +159,41 @@ function App() {
   const discountTotal = useMemo(() => computeDiscountTotal(subtotal, discounts), [subtotal, discounts]);
   const total = Math.max(0, Math.round(subtotal - discountTotal));
 
+  const markCouponUsed = async (couponId, isUsed) => {
+    if (!memberPhone || !couponId) return;
+    try {
+      const { data: mem } = await sb.from("members").select("redeemed_rewards").eq("phone", memberPhone).single();
+      if (mem && mem.redeemed_rewards) {
+        const updatedRewards = mem.redeemed_rewards.map(r => 
+          r.id === couponId ? { ...r, used_at: isUsed ? new Date().toISOString() : null } : r
+        );
+        await sb.from("members").update({ redeemed_rewards: updatedRewards }).eq("phone", memberPhone);
+      }
+    } catch (e) { console.error("Coupon update failed:", e); }
+  };
+
   const handleApplyManualDiscount = useCallback((disc) => setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random(), source: "manual", label: disc.mode === "percent" ? `${disc.value}%` : `฿${disc.value}` }]), []);
-  const handleApplyRewardDiscount = useCallback((disc) => setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random() }]), []);
-  const handleRemoveDiscount = useCallback((id) => setDiscounts(prev => prev.filter(d => d.id !== id)), []);
-  const handleClearDiscounts = useCallback(() => setDiscounts([]), []);
+  
+  const handleApplyRewardDiscount = useCallback((disc) => {
+    setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random() }]);
+    if (disc.couponId) markCouponUsed(disc.couponId, true);
+  }, [memberPhone]);
+
+  const handleRemoveDiscount = useCallback((id) => {
+    setDiscounts(prev => {
+      const disc = prev.find(d => d.id === id);
+      if (disc?.couponId) markCouponUsed(disc.couponId, false);
+      return prev.filter(d => d.id !== id);
+    });
+  }, [memberPhone]);
+
+  const handleClearDiscounts = useCallback(() => {
+    discounts.forEach(d => { if (d.couponId) markCouponUsed(d.couponId, false); });
+    setDiscounts([]);
+  }, [discounts, memberPhone]);
 
   const addToCart = useCallback((product, channel = priceChannel) => {
+    if (product.couponId) markCouponUsed(product.couponId, true);
     setCart(prev => {
       const modId = product.selectedModifier?.id || null;
       const idx = prev.findIndex(i => i.id === product.id && i.channel === channel && (i.selectedModifier?.id || null) === modId);
@@ -163,17 +202,19 @@ function App() {
       const modPrice = Number(product.selectedModifier?.price) || 0;
       return [...prev, { ...product, price: base + modPrice, qty: 1, channel, selectedModifier: product.selectedModifier || null }];
     });
-  }, [priceChannel]);
+  }, [priceChannel, memberPhone]);
 
   const decreaseQty = useCallback((id, channel, modId = null) => {
     setCart(prev => {
       const idx = prev.findIndex(i => i.id === id && i.channel === channel && (i.selectedModifier?.id || null) === (modId || null));
       if (idx === -1) return prev;
+      const item = prev[idx];
       const n = [...prev];
       if (n[idx].qty > 1) { n[idx].qty -= 1; return n; }
+      if (item.couponId) markCouponUsed(item.couponId, false);
       return n.filter((_, i) => i !== idx);
     });
-  }, []);
+  }, [memberPhone]);
 
   const increaseQty = useCallback((id, channel, modId = null) => {
     setCart(prev => prev.map(i => (i.id === id && i.channel === channel && (i.selectedModifier?.id || null) === (modId || null)) ? { ...i, qty: i.qty + 1 } : i));
