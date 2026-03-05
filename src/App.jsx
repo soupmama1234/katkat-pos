@@ -7,8 +7,9 @@ import Dashboard from "./components/Dashboard";
 import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
-import Members, { calcPoints, getPointSettings } from "./components/Members";
+import Members from "./components/Members";
 import { computeDiscountTotal } from "./utils/discounts";
+import { calcPoints, getPointSettings } from "./utils/points";
 import { supabase as sb } from "./supabase";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
@@ -26,6 +27,7 @@ function App() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [modifierGroups, setModifierGroups] = useState([]);
+  const [members, setMembers] = useState([]);
   const [memberPhone, setMemberPhone] = useState(""); // เบอร์สมาชิกที่เลือกตอนขาย
   const [discounts, setDiscounts] = useState([]); // [{ id, mode, value, label, source }]
 
@@ -33,11 +35,12 @@ function App() {
   useEffect(() => {
     async function loadAll() {
       try {
-        const [cats, prods, mods, ords] = await Promise.all([
+        const [cats, prods, mods, ords, mems] = await Promise.all([
           db.fetchCategories(),
           db.fetchProducts(),
           db.fetchModifierGroups(),
           db.fetchOrders(),
+          db.fetchMembers(),
         ]);
 
         // FIX: รวม categories จาก DB + categories ที่มีใน products จริงๆ
@@ -49,7 +52,7 @@ function App() {
         // save categories ที่หายไปกลับเข้า DB ด้วย (auto-repair)
         for (const cat of prodCats) {
           if (!dbCats.has(cat)) {
-            try { await db.addCategory(cat); } catch {}
+            try { await db.addCategory(cat); } catch (e) { console.warn("auto-repair category failed", e); }
           }
         }
 
@@ -57,6 +60,7 @@ function App() {
         setProducts(prods);
         setModifierGroups(mods);
         setOrders(ords);
+        setMembers(mems);
       } catch (err) {
         console.error("โหลดข้อมูลไม่ได้:", err);
         alert("❌ โหลดข้อมูลไม่ได้ กรุณา refresh");
@@ -139,13 +143,6 @@ function App() {
     ));
   }, []);
 
-  // POS LOGIC
-  const visibleProducts = useMemo(() =>
-    (!selectedCategory || selectedCategory === "All")
-      ? products
-      : products.filter(p => p.category === selectedCategory),
-    [products, selectedCategory]
-  );
 
   const subtotal = useMemo(() =>
     cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
@@ -351,7 +348,7 @@ function App() {
             )}
             {view === "members" && (
               <div style={{ height: "calc(100vh - 150px)" }}>
-                <Members orders={orders} />
+                <Members orders={orders} members={members} onMembersChange={setMembers} />
               </div>
             )}
           </main>
@@ -426,7 +423,7 @@ function App() {
             )}
             {view === "members" && (
               <div style={{ flex: 1, overflow: "hidden" }}>
-                <Members orders={orders} />
+                <Members orders={orders} members={members} onMembersChange={setMembers} />
               </div>
             )}
           </main>
