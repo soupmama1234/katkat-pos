@@ -54,7 +54,7 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
       });
 
       alert(`✅ แลกสำเร็จ! "${reward.name}" อยู่ในบัญชีสมาชิกแล้ว`);
-      onSuccess(updatedMember); 
+      onSuccess(updatedMember, reward); 
       onClose();
     } catch (e) {
       alert("แลกแต้มไม่สำเร็จ: " + e.message);
