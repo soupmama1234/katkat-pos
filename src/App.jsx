@@ -150,8 +150,27 @@ function App() {
     });
   }, [priceChannel]);
 
-  const decreaseQty = (id, ch, mid) => setCart(prev => prev.map(i => (i.id === id && i.channel === ch && (i.selectedModifier?.id || null) === mid) ? { ...i, qty: i.qty - 1 } : i).filter(i => i.qty > 0));
-  const increaseQty = (id, ch, mid) => setCart(prev => prev.map(i => (i.id === id && i.channel === ch && (i.selectedModifier?.id || null) === mid) ? { ...i, qty: i.qty + 1 } : i));
+  const decreaseQty = (id, ch, mid = null) => {
+    setCart(prev => {
+      const idx = prev.findIndex(i => i.id === id && i.channel === ch && (i.selectedModifier?.id || null) === (mid || null));
+      if (idx === -1) return prev;
+      const newCart = [...prev];
+      if (newCart[idx].qty > 1) {
+        newCart[idx].qty -= 1;
+        return newCart;
+      } else {
+        return newCart.filter((_, i) => i !== idx);
+      }
+    });
+  };
+
+  const increaseQty = (id, ch, mid = null) => {
+    setCart(prev => prev.map(i => 
+      (i.id === id && i.channel === ch && (i.selectedModifier?.id || null) === (mid || null))
+        ? { ...i, qty: i.qty + 1 }
+        : i
+    ));
+  };
 
   const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
     if (cart.length === 0) return;

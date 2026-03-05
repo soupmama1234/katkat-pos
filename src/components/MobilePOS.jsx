@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, ShoppingCart, Clock } from "lucide-react";
 import { supabase as sb } from "../supabase";
-import { calcPoints, nextThreshold, getPointSettings } from "../utils/points";
 import RedeemModal from "./RedeemModal";
 
 export default function MobilePOS({ 
@@ -30,7 +29,6 @@ export default function MobilePOS({
   onClearDiscounts,
   showToast,
   showConfirm,
-  historyTrigger,
   orderType = "dine_in",
   setOrderType,
   tableNo = "",
@@ -50,27 +48,18 @@ export default function MobilePOS({
     setDiscountInput("");
   };
 
-  const memberStatus = memberPhone ? "found" : "none";
-  const memberInfo = null; // dummy
-  const clearMember = () => setMemberPhone("");
-
   const handleCheckout = async (method) => {
-    if (orderType === "dine_in" && !tableNo) {
-      showToast("กรุณาระบุเลขโต๊ะ", "error");
-      return;
-    }
-    const ok = await showConfirm("ชำระเงิน?", `ยืนยันยอด ฿${total.toLocaleString()}`);
-    if (ok) {
-      onCheckout(method, refValue);
-      setShowCart(false);
-    }
+    onCheckout(method, refValue);
+    setShowCart(false);
   };
+
+  const currentPriceChannel = priceChannel || "pos";
 
   return (
     <div style={styles.container}>
-      {/* ── Top Bar: Order Type & Table ── */}
+      {/* ── Order Type & Platform Tabs ── */}
       <div style={{ padding: "10px 12px", background: "#000", borderBottom: "1px solid #222" }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: tableNo || orderType === "dine_in" ? 8 : 0 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
           <button onClick={() => setOrderType("dine_in")} style={{ ...styles.typeBtn, background: orderType === "dine_in" ? "#4caf50" : "#1a1a1a", color: orderType === "dine_in" ? "#fff" : "#666", border: orderType === "dine_in" ? "none" : "1px solid #333" }}>
             🏠 ทานที่ร้าน
           </button>
@@ -78,6 +67,21 @@ export default function MobilePOS({
             🥡 กลับบ้าน
           </button>
         </div>
+        
+        {/* Platform Tabs (Grab, etc) */}
+        <div style={{ display: "flex", gap: 6, marginBottom: orderType === "dine_in" ? 10 : 0, overflowX: "auto", paddingBottom: 2 }}>
+          {["pos", "grab", "lineman", "shopee"].map(ch => (
+            <button key={ch} onClick={() => setPriceChannel(ch)} style={{ 
+              padding: "6px 12px", borderRadius: 20, border: "none", whiteSpace: "nowrap",
+              background: currentPriceChannel === ch ? "#fff" : "#1a1a1a", 
+              color: currentPriceChannel === ch ? "#000" : "#666", 
+              fontSize: 11, fontWeight: "bold", cursor: "pointer" 
+            }}>
+              {ch.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
         {orderType === "dine_in" && (
           <input placeholder="📍 ระบุเลขโต๊ะ..." value={tableNo} onChange={e => setTableNo(e.target.value)}
             style={{ width: "100%", background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "10px 12px", fontSize: 14, boxSizing: "border-box" }} />
@@ -94,20 +98,12 @@ export default function MobilePOS({
         ))}
       </div>
 
-      {/* ── Member Bar ── */}
-      {priceChannel === "pos" && memberStatus === "found" && (
-        <div style={{ padding: "8px 12px", backgroundColor: "#0a0a0a", borderBottom: "1px solid #1a1a1a" }}>
-           <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: 13 }}>👤 {memberPhone}</span>
-           <button onClick={clearMember} style={{ marginLeft: 10, background: "none", border: "none", color: "#666", fontSize: 11 }}>เปลี่ยน</button>
-        </div>
-      )}
-
       {/* ── Product Grid ── */}
       <div style={styles.productGrid}>
         {products.filter(p => selectedCategory === "All" || p.category === selectedCategory).map(p => (
           <button key={p.id} onClick={() => addToCart(p)} style={styles.productCard}>
             <div style={{ fontWeight: "bold", fontSize: 14 }}>{p.name}</div>
-            <div style={{ color: "#4caf50", fontWeight: "bold", marginTop: 4 }}>฿{p.price}</div>
+            <div style={{ color: "#4caf50", fontWeight: "bold", marginTop: 4 }}>฿{p[`${currentPriceChannel}Price`] || p.price}</div>
           </button>
         ))}
       </div>
@@ -117,7 +113,7 @@ export default function MobilePOS({
         <button onClick={() => setShowCart(true)} style={styles.floatingCart}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={styles.cartBadge}>{cart.reduce((s, i) => s + i.qty, 0)}</div>
-            <div style={{ fontWeight: "bold" }}>ดูรายการในตะกร้า</div>
+            <div style={{ fontWeight: "bold" }}>ดูตะกร้า</div>
           </div>
           <div style={{ fontWeight: "bold", fontSize: 18 }}>฿{total.toLocaleString()}</div>
         </button>
@@ -138,11 +134,12 @@ export default function MobilePOS({
             {cart.map((item, idx) => (
               <div key={`${item.id}-${idx}`} style={styles.itemRow}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: "bold" }}>{item.name}</div>
-                  <div style={{ fontSize: 12, color: "#888" }}>฿{item.price} x {item.qty}</div>
+                  <div style={{ fontWeight: "bold", fontSize: 14 }}>{item.name}</div>
+                  {item.selectedModifier && <div style={{ fontSize: 11, color: "#888" }}>+ {item.selectedModifier.name}</div>}
+                  <div style={{ fontSize: 12, color: "#aaa" }}>฿{item.price} x {item.qty}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ fontWeight: "bold" }}>฿{item.price * item.qty}</div>
+                  <div style={{ fontWeight: "bold", color: "#4caf50" }}>฿{item.price * item.qty}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#222", borderRadius: 8, padding: "2px" }}>
                     <button onClick={() => decreaseQty(item.id, item.channel, item.selectedModifier?.id)} style={styles.qtyBtn}>-</button>
                     <span style={{ minWidth: 20, textAlign: "center" }}>{item.qty}</span>
@@ -154,19 +151,7 @@ export default function MobilePOS({
           </div>
 
           <div style={styles.cartFooter}>
-            {/* Discount */}
-            <div style={{ marginBottom: 16, padding: 12, background: "#111", borderRadius: 12 }}>
-               <div style={{ display: "flex", gap: 8 }}>
-                  <select value={discountMode} onChange={e => setDiscountMode(e.target.value)} style={styles.select}>
-                    <option value="amount">฿</option>
-                    <option value="percent">%</option>
-                  </select>
-                  <input type="number" placeholder="ส่วนลด" value={discountInput} onChange={e => setDiscountInput(e.target.value)} style={styles.input} />
-                  <button onClick={handleApplyManualDiscount} style={styles.btnApply}>ใช้</button>
-               </div>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
               <span style={{ color: "#888" }}>ยอดสุทธิ</span>
               <span style={{ fontSize: 24, fontWeight: "bold", color: "#4caf50" }}>฿{total.toLocaleString()}</span>
             </div>
@@ -182,8 +167,6 @@ export default function MobilePOS({
           </div>
         </div>
       )}
-
-      {showRedeem && <RedeemModal memberPhone={memberPhone} onSuccess={() => setShowRedeem(false)} onClose={() => setShowRedeem(false)} />}
     </div>
   );
 }
@@ -203,10 +186,7 @@ const styles = {
   btnClose: { background: "#222", border: "none", color: "#fff", width: 32, height: 32, borderRadius: "50%", fontSize: 16 },
   cartItems: { flex: 1, overflowY: "auto", padding: "10px 20px" },
   itemRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", borderBottom: "1px solid #111" },
-  qtyBtn: { width: 28, height: 28, borderRadius: 6, border: "none", background: "#333", color: "#fff", fontSize: 18 },
+  qtyBtn: { width: 32, height: 32, borderRadius: 8, border: "none", background: "#333", color: "#fff", fontSize: 20, fontWeight: "bold" },
   cartFooter: { padding: "20px", background: "#0a0a0a", borderTop: "1px solid #222" },
   actionBtn: { padding: "16px", borderRadius: 12, border: "none", color: "#fff", fontWeight: "bold", fontSize: 15 },
-  input: { flex: 1, background: "#000", border: "1px solid #333", color: "#fff", padding: "10px", borderRadius: 8 },
-  select: { background: "#222", color: "#fff", border: "none", borderRadius: 8, padding: "0 10px" },
-  btnApply: { background: "#fff", color: "#000", border: "none", padding: "0 16px", borderRadius: 8, fontWeight: "bold" },
 };
