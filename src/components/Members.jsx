@@ -360,6 +360,8 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 
 function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, onAdjust, showDelete }) {
   const visits = stats?.count || 0;
+  const availableRewards = Array.isArray(m.redeemed_rewards) ? m.redeemed_rewards.filter(r => !r.used_at) : [];
+
   return (
     <div style={S.memberRow}>
       {rank && <div style={{ width: 24, textAlign: "center", fontSize: 14, flexShrink: 0 }}>{rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`}</div>}
@@ -367,8 +369,25 @@ function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, o
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontWeight: "bold" }}>{m.nickname}</span>
           <span style={{ fontSize: 10, color: tierColor(m.tier), background: "#181818", padding: "1px 6px", borderRadius: 10, border: `1px solid ${tierColor(m.tier)}33` }}>{m.tier || "Standard"}</span>
+          {availableRewards.length > 0 && (
+            <span style={{ fontSize: 10, background: "rgba(76,175,80,0.2)", color: "#4caf50", padding: "1px 6px", borderRadius: 10, fontWeight: "bold", border: "1px solid rgba(76,175,80,0.3)" }}>
+              🎁 {availableRewards.length} คูปอง
+            </span>
+          )}
         </div>
-        <div style={{ fontSize: 12, color: "#555" }}>{m.phone} · <span style={{ color: "#4D96FF" }}>✅ {visits} ครั้ง</span>{stats?.lastVisit && <span> · {daysSince(stats.lastVisit)} วันที่แล้ว</span>}</div>
+        <div style={{ fontSize: 12, color: "#555" }}>
+          {m.phone} · <span style={{ color: "#4D96FF" }}>✅ {visits} ครั้ง</span>
+          {stats?.lastVisit && <span> · {daysSince(stats.lastVisit)} วันที่แล้ว</span>}
+        </div>
+        {availableRewards.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+            {availableRewards.map((r, idx) => (
+              <span key={r.id || idx} style={{ fontSize: 9, color: "#aaa", background: "#151515", padding: "2px 6px", borderRadius: 4, border: "1px solid #222" }}>
+                {r.name}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <div style={{ textAlign: "right", flexShrink: 0 }}>
         <div style={{ color: "#f5c518", fontWeight: "bold" }}>⭐ {(m.points || 0).toLocaleString()}</div>
