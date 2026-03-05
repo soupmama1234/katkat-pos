@@ -264,6 +264,20 @@ function App() {
     onCheckout: handleCheckout, showToast, showConfirm, historyTrigger
   };
 
+  const refreshMembers = useCallback(async () => {
+    try {
+      const mems = await db.fetchMembers();
+      setMembers(mems);
+    } catch (err) {
+      console.error("Refresh members failed:", err);
+    }
+  }, []);
+
+  const handleNavClick = (v) => {
+    setView(v);
+    if (v === "members") refreshMembers();
+  };
+
   if (loading) return <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff" }}>🍖 KATKAT POS...</div>;
 
   return (
@@ -278,11 +292,11 @@ function App() {
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
           </main>
           <nav style={styles.bottomNav}>
-            <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
-            <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>
-            <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>
-            <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>
-            <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>
+            <button onClick={() => handleNavClick("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
+            <button onClick={() => handleNavClick("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>
+            <button onClick={() => handleNavClick("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>
+            <button onClick={() => handleNavClick("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>
+            <button onClick={() => handleNavClick("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>
           </nav>
         </div>
       ) : (
@@ -291,7 +305,7 @@ function App() {
             <h2 style={{ margin: 0 }}>KATKAT POS</h2>
             <nav style={{ display: "flex", gap: 10 }}>
               {["pos", "dashboard", "orders", "members", "menu"].map(v => (
-                <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
+                <button key={v} onClick={() => handleNavClick(v)} style={styles.desktopNavBtn(view === v)}>
                   {v === "pos" ? "🛍️ ขาย" : v === "dashboard" ? "📊 สรุป" : v === "orders" ? "📜 บิล" : v === "members" ? "👥 สมาชิก" : "🍴 เมนู"}
                 </button>
               ))}
