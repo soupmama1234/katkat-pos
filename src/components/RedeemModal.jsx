@@ -90,13 +90,20 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
           ) : rewards.map(r => {
             const canRedeem = currentPoints >= r.points_required;
             const isLoading = redeeming === r.id;
+            const isDiscount = r.type === 'discount';
             return (
               <div key={r.id} style={{ ...S.rewardRow, opacity: canRedeem ? 1 : 0.4 }}>
+                <div style={{ fontSize: 24, padding: "0 4px" }}>{isDiscount ? "🎟️" : "🍔"}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: "bold", fontSize: 15 }}>🎁 {r.name}</div>
+                  <div style={{ fontWeight: "bold", fontSize: 15 }}>{r.name}</div>
+                  {isDiscount && (
+                    <div style={{ fontSize: 11, background: "rgba(76,175,80,0.15)", color: "#4caf50", display: "inline-block", padding: "1px 6px", borderRadius: 4, marginTop: 2, fontWeight: "bold" }}>
+                      ส่วนลด {r.discount_amount}{r.discount_type === "percent" ? "%" : "฿"}
+                    </div>
+                  )}
                   {r.description && <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{r.description}</div>}
-                  <div style={{ fontSize: 13, color: "#f5c518", marginTop: 4 }}>⭐ {r.points_required} แต้ม</div>
-                  {!canRedeem && (
+                  <div style={{ fontSize: 13, color: "#f5c518", marginTop: 4, fontWeight: "bold" }}>⭐ {r.points_required} แต้ม</div>
+          ...
                     <div style={{ fontSize: 11, color: "#ff6b6b", marginTop: 2 }}>
                       ขาดอีก {r.points_required - currentPoints} แต้ม
                     </div>

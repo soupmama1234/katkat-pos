@@ -29,7 +29,7 @@ export default function RewardManager() {
   const handleAdd = async () => {
     if (!form.name || !form.points_required) return;
     setSaving(true);
-    const { data, error } = await sb.from("rewards").insert({
+    const payload = {
       name: form.name.trim(),
       points_required: Number(form.points_required),
       description: form.description.trim() || null,
@@ -37,7 +37,8 @@ export default function RewardManager() {
       discount_amount: form.type === "discount" ? Number(form.discount_amount) : 0,
       discount_type: form.type === "discount" ? form.discount_type : null,
       is_active: true,
-    }).select().single();
+    };
+    const { data, error } = await sb.from("rewards").insert(payload).select().single();
     if (!error) { setRewards(prev => [...prev, data].sort((a,b) => a.points_required - b.points_required)); }
     setForm({ name: "", points_required: "", description: "", type: "item", discount_amount: "", discount_type: "amount" });
     setSaving(false);
