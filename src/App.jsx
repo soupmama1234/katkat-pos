@@ -51,7 +51,6 @@ function App() {
     });
   }, []);
 
-  // โหลดข้อมูลทั้งหมดตอนเปิดแอป
   useEffect(() => {
     async function loadAll() {
       try {
@@ -66,12 +65,6 @@ function App() {
         const dbCats = new Set(cats.filter(c => c !== "All"));
         const prodCats = new Set(prods.map(p => p.category).filter(Boolean));
         const merged = ["All", ...[...new Set([...dbCats, ...prodCats])].sort((a, b) => a.localeCompare(b, 'th'))];
-
-        for (const cat of prodCats) {
-          if (!dbCats.has(cat)) {
-            try { await db.addCategory(cat); } catch (e) { console.warn("auto-repair failed", e); }
-          }
-        }
 
         setCategories(merged);
         setProducts(prods.sort((a, b) => a.name.localeCompare(b.name, 'th')));
@@ -227,13 +220,6 @@ function App() {
     onCheckout: handleCheckout, showToast, showConfirm, historyTrigger
   };
 
-  const CHANNELS = [
-    { key: "pos", label: "POS", color: "#4a4a4a" },
-    { key: "grab", label: "Grab", color: "#00B14F" },
-    { key: "lineman", label: "Lineman", color: "#00A84F" },
-    { key: "shopee", label: "Shopee", color: "#EE4D2D" },
-  ];
-
   if (loading) return <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff" }}>🍖 KATKAT POS...</div>;
 
   return (
@@ -241,19 +227,7 @@ function App() {
       {isMobile ? (
         <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
           <main style={{ flex: 1, overflowY: "auto", paddingBottom: "80px" }}>
-            {view === "pos" && (
-              <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-                <div style={{ padding: "10px 15px", background: "#111", borderBottom: "1px solid #222", display: "flex", gap: 8, overflowX: "auto" }}>
-                  {CHANNELS.map(ch => (
-                    <button key={ch.key} onClick={() => setPriceChannel(ch.key)}
-                      style={{ padding: "6px 15px", borderRadius: 20, border: "none", background: priceChannel === ch.key ? ch.color : "#222", color: "#fff", fontSize: 11, fontWeight: "bold" }}>
-                      {ch.label}
-                    </button>
-                  ))}
-                </div>
-                <MobilePOS {...commonProps} products={products} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} onClearCart={() => { setCart([]); setDiscounts([]); }} modifierGroups={modifierGroups} />
-              </div>
-            )}
+            {view === "pos" && <MobilePOS {...commonProps} products={products} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} onClearCart={() => { setCart([]); setDiscounts([]); }} modifierGroups={modifierGroups} />}
             {view === "dashboard" && <Dashboard orders={orders} setOrders={setOrders} onCloseDay={handleCloseDay} onUpdateActual={handleUpdateActual} />}
             {view === "orders" && <Orders orders={orders} onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }} onClearAll={async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }} />}
             {view === "menu" && <div style={{ padding: "10px" }}><MenuManager products={products} categories={categories} addProduct={addProduct} deleteProduct={deleteProduct} updateProduct={updateProduct} addCategory={addCategory} deleteCategory={deleteCategory} modifierGroups={modifierGroups} /><hr style={{ margin: "30px 0", borderColor: "#333" }} /><ModifierManager modifierGroups={modifierGroups} addModifierGroup={async n => { await db.addModifierGroup(n); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }} addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} /></div>}
@@ -279,16 +253,11 @@ function App() {
               ))}
             </nav>
           </header>
-          <div style={{ padding: "10px 25px", background: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10 }}>
-            {CHANNELS.map(ch => (
-              <button key={ch.key} onClick={() => setPriceChannel(ch.key)} style={{ padding: "6px 18px", borderRadius: 20, border: "none", background: priceChannel === ch.key ? ch.color : "#262626", color: "#fff", cursor: "pointer", fontSize: 12 }}>{ch.label}</button>
-            ))}
-          </div>
           <main style={{ flex: 1, display: "flex", overflow: "hidden" }}>
             {view === "pos" && (
               <>
                 <section style={{ flex: 1, overflowY: "auto", padding: 15, borderRight: "1px solid #333" }}>
-                  <Products products={products} addToCart={addToCart} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} priceChannel={priceChannel} modifierGroups={modifierGroups} />
+                  <Products products={products} addToCart={addToCart} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} priceChannel={priceChannel} setPriceChannel={setPriceChannel} modifierGroups={modifierGroups} />
                 </section>
                 <aside style={{ width: 400 }}>
                   <Cart {...commonProps} onClearCart={() => { setCart([]); setDiscounts([]); }} />
@@ -296,9 +265,9 @@ function App() {
               </>
             )}
             {view === "dashboard" && <Dashboard orders={orders} setOrders={setOrders} onCloseDay={handleCloseDay} onUpdateActual={handleUpdateActual} />}
-            {view === "orders" && <Orders orders={orders} onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }} onClearAll={async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }} />}
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
             {view === "menu" && <div style={{ flex: 1, overflowY: "auto", padding: 30 }}><MenuManager products={products} categories={categories} addProduct={addProduct} deleteProduct={deleteProduct} updateProduct={updateProduct} addCategory={addCategory} deleteCategory={deleteCategory} modifierGroups={modifierGroups} /><hr style={{ margin: "40px 0", borderColor: "#333" }} /><ModifierManager modifierGroups={modifierGroups} addModifierGroup={async n => { await db.addModifierGroup(n); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }} addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} /></div>}
+            {view === "orders" && <div style={{ flex: 1, overflowY: "auto" }}><Orders orders={orders} onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }} onClearAll={async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }} /></div>}
           </main>
         </div>
       )}
