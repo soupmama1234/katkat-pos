@@ -170,7 +170,13 @@ const supabaseDriver = {
   // ORDERS
   async fetchOrders() {
     const sb = getSupabase();
-    const { data, error } = await sb.from("orders").select("*").or("status.eq.settled,status.is.null").order("created_at", { ascending: false }).limit(100);
+    // ดึงบิลที่ยังไม่ถูกปิดยอด (is_history เป็น false หรือ null) และสถานะเป็น settled หรือ null
+    const { data, error } = await sb.from("orders")
+      .select("*")
+      .or("is_history.eq.false,is_history.is.null")
+      .or("status.eq.settled,status.is.null")
+      .order("created_at", { ascending: false })
+      .limit(1000); // เพิ่ม limit เป็น 1000 เพื่อความครอบคลุม
     if (error) throw error;
     return data.map(dbToOrder);
   },
