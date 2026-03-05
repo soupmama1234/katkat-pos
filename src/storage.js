@@ -3,8 +3,6 @@ import { supabase as _supabaseInstance } from './supabase';
 
 // =============================================
 // storage.js — Auto-switch Supabase ↔ localStorage
-// ถ้ามี VITE_SUPABASE_URL ใน .env → ใช้ Supabase
-// ถ้าไม่มี → ใช้ localStorage (dev mode)
 // =============================================
 
 const USE_SUPABASE = !!(
@@ -13,7 +11,6 @@ const USE_SUPABASE = !!(
   import.meta.env.VITE_SUPABASE_URL !== "https://xxxxxxxxxxxx.supabase.co"
 );
 
-// --- localStorage helpers ---
 const ls = {
   get: (key, fallback) => {
     try {
@@ -31,15 +28,8 @@ const INITIAL_PRODUCTS = [
   { id: 2, name: "A2 ข้าวสันใน", price: 125, category: "A ชุดข้าว", grabPrice: 155, linemanPrice: 155, shopeePrice: 150, modifierGroups: [] },
 ];
 
-// =============================================
-// SUPABASE DRIVER
-// =============================================
-let _supabase = null;
-function getSupabase() {
-  return _supabaseInstance;
-}
+function getSupabase() { return _supabaseInstance; }
 
-// แปลง DB row → App format
 function dbToProduct(row) {
   return {
     id: row.id,
@@ -68,7 +58,7 @@ function productToDb(p) {
 function dbToOrder(row) {
   return {
     id: row.id,
-    time: row.created_at,
+    time: row.created_at || row.time,
     channel: row.channel,
     payment: row.payment,
     refId: row.ref_id,
@@ -77,6 +67,9 @@ function dbToOrder(row) {
     isSettled: row.is_settled,
     items: row.items || [],
     member_phone: row.member_phone || null,
+    order_type: row.order_type || "dine_in",
+    table_no: row.table_no || null,
+    status: row.status || "settled"
   };
 }
 
@@ -177,7 +170,7 @@ const supabaseDriver = {
   // ORDERS
   async fetchOrders() {
     const sb = getSupabase();
-    const { data, error } = await sb.from("orders").select("*").eq("is_history", false).order("created_at", { ascending: false });
+    const { data, error } = await sb.from("orders").select("*").eq("is_history", false).eq("status", "settled").order("created_at", { ascending: false });
     if (error) throw error;
     return data.map(dbToOrder);
   },
@@ -188,6 +181,9 @@ const supabaseDriver = {
       total: order.total, actual_amount: order.actualAmount || 0,
       is_settled: order.isSettled || false, is_history: false, items: order.items,
       member_phone: order.member_phone || null,
+      order_type: order.order_type || "dine_in",
+      table_no: order.table_no || null,
+      status: order.status || "settled"
     }).select().single();
     if (error) throw error;
     return dbToOrder(data);
@@ -197,6 +193,7 @@ const supabaseDriver = {
     const dbFields = {};
     if (fields.actualAmount !== undefined) dbFields.actual_amount = fields.actualAmount;
     if (fields.isSettled !== undefined) dbFields.is_settled = fields.isSettled;
+    if (fields.status !== undefined) dbFields.status = fields.status;
     const { error } = await sb.from("orders").update(dbFields).eq("id", id);
     if (error) throw error;
   },
@@ -236,9 +233,6 @@ const supabaseDriver = {
   },
 };
 
-// =============================================
-// LOCALSTORAGE DRIVER (dev / offline fallback)
-// =============================================
 const localDriver = {
   async fetchCategories() {
     const cats = ls.get("katkat_categories", ["All", "A ชุดข้าว"]);
@@ -272,13 +266,9 @@ const localDriver = {
     const prods = ls.get("katkat_products", []);
     ls.set("katkat_products", prods.filter(p => p.id !== id));
   },
-  async clearAllProducts() {
-    ls.set("katkat_products", []);
-  },
+  async clearAllProducts() { ls.set("katkat_products", []); },
 
-  async fetchModifierGroups() {
-    return ls.get("katkat_modifiers", []);
-  },
+  async fetchModifierGroups() { return ls.get("katkat_modifiers", []); },
   async addModifierGroup(name) {
     const group = { id: Date.now(), name, options: [] };
     const groups = ls.get("katkat_modifiers", []);
@@ -292,20 +282,17 @@ const localDriver = {
   async addOptionToGroup(groupId, name, price) {
     const opt = { id: Date.now(), name, price: Number(price) || 0 };
     const groups = ls.get("katkat_modifiers", []);
-    ls.set("katkat_modifiers", groups.map(g =>
-      g.id === groupId ? { ...g, options: [...(g.options || []), opt] } : g
-    ));
+    ls.set("katkat_modifiers", groups.map(g => g.id === groupId ? { ...g, options: [...(g.options || []), opt] } : g));
     return opt;
   },
   async deleteOption(groupId, optionId) {
     const groups = ls.get("katkat_modifiers", []);
-    ls.set("katkat_modifiers", groups.map(g =>
-      g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g
-    ));
+    ls.set("katkat_modifiers", groups.map(g => g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g));
   },
 
   async fetchOrders() {
-    return ls.get("katkat_orders", []);
+    const orders = ls.get("katkat_orders", []);
+    return orders.filter(o => o.status === "settled");
   },
   async addOrder(order) {
     const saved = { ...order, id: Date.now() };
@@ -321,9 +308,7 @@ const localDriver = {
     const orders = ls.get("katkat_orders", []);
     ls.set("katkat_orders", orders.filter(o => o.id !== id));
   },
-  async clearOrders() {
-    ls.set("katkat_orders", []);
-  },
+  async clearOrders() { ls.set("katkat_orders", []); },
   async closeDayOrders() {
     const orders = ls.get("katkat_orders", []);
     const history = ls.get("katkat_history", []);
@@ -332,9 +317,7 @@ const localDriver = {
   },
 
   // MEMBERS
-  async fetchMembers() {
-    return ls.get("katkat_members", []);
-  },
+  async fetchMembers() { return ls.get("katkat_members", []); },
   async addMember(member) {
     const saved = { ...member, created_at: member.created_at || new Date().toISOString() };
     const mems = ls.get("katkat_members", []);
@@ -347,10 +330,6 @@ const localDriver = {
   },
 };
 
-// =============================================
-// EXPORT — ใช้ driver ที่เหมาะสมอัตโนมัติ
-// =============================================
 const db = USE_SUPABASE ? supabaseDriver : localDriver;
-
 export const isUsingSupabase = USE_SUPABASE;
 export default db;
