@@ -4,7 +4,14 @@ import { supabase as sb } from "../supabase";
 export default function RewardManager() {
   const [rewards, setRewards] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: "", points_required: "", description: "" });
+  const [form, setForm] = useState({ 
+    name: "", 
+    points_required: "", 
+    description: "",
+    type: "item", 
+    discount_amount: "",
+    discount_type: "amount" 
+  });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -25,10 +32,13 @@ export default function RewardManager() {
       name: form.name.trim(),
       points_required: Number(form.points_required),
       description: form.description.trim() || null,
+      type: form.type,
+      discount_amount: form.type === "discount" ? Number(form.discount_amount) : 0,
+      discount_type: form.type === "discount" ? form.discount_type : null,
       is_active: true,
     }).select().single();
     if (!error) { setRewards(prev => [...prev, data].sort((a,b) => a.points_required - b.points_required)); }
-    setForm({ name: "", points_required: "", description: "" });
+    setForm({ name: "", points_required: "", description: "", type: "item", discount_amount: "", discount_type: "amount" });
     setSaving(false);
   };
 
@@ -50,16 +60,43 @@ export default function RewardManager() {
       {/* Add form */}
       <div style={S.card}>
         <div style={S.cardTitle}>เพิ่ม Reward ใหม่</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Type Selector */}
           <div style={{ display: "flex", gap: 8 }}>
-            <input placeholder="ชื่อ reward เช่น เครื่องดื่มฟรี" value={form.name}
+            <button onClick={() => setForm(f => ({ ...f, type: "item" }))}
+              style={{ ...S.typeBtn, border: form.type === "item" ? "1px solid #4caf50" : "1px solid #333", background: form.type === "item" ? "rgba(76,175,80,0.1)" : "none", color: form.type === "item" ? "#4caf50" : "#666" }}>
+              🍔 สินค้าฟรี / อื่นๆ
+            </button>
+            <button onClick={() => setForm(f => ({ ...f, type: "discount" }))}
+              style={{ ...S.typeBtn, border: form.type === "discount" ? "1px solid #4caf50" : "1px solid #333", background: form.type === "discount" ? "rgba(76,175,80,0.1)" : "none", color: form.type === "discount" ? "#4caf50" : "#666" }}>
+              🎟️ ส่วนลดเงินสด
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <input placeholder="ชื่อ reward เช่น ส่วนลด 20 บาท" value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               style={{ ...S.input, flex: 2 }} />
             <input type="number" placeholder="แต้มที่ใช้" value={form.points_required}
               onChange={e => setForm(f => ({ ...f, points_required: e.target.value }))}
               style={{ ...S.input, width: 110 }} />
           </div>
-          <input placeholder="คำอธิบาย (optional) เช่น เมนูราคาไม่เกิน ฿40" value={form.description}
+
+          {form.type === "discount" && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", background: "#1a1a1a", padding: "8px 12px", borderRadius: 10, border: "1px dashed #333" }}>
+              <span style={{ fontSize: 13, color: "#888" }}>มูลค่าส่วนลด:</span>
+              <input type="number" placeholder="0" value={form.discount_amount}
+                onChange={e => setForm(f => ({ ...f, discount_amount: e.target.value }))}
+                style={{ ...S.input, width: 80, textAlign: "center" }} />
+              <select value={form.discount_type} onChange={e => setForm(f => ({ ...f, discount_type: e.target.value }))}
+                style={{ ...S.input, width: 100 }}>
+                <option value="amount">บาท (฿)</option>
+                <option value="percent">เปอร์เซ็นต์ (%)</option>
+              </select>
+            </div>
+          )}
+
+          <input placeholder="คำอธิบาย (optional)" value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             style={S.input} />
           <button onClick={handleAdd} disabled={saving || !form.name || !form.points_required} style={S.btnAdd}>
@@ -77,7 +114,12 @@ export default function RewardManager() {
           <div key={r.id} style={{ ...S.row, opacity: r.is_active ? 1 : 0.45 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: 8 }}>
-                🎁 {r.name}
+                {r.type === "discount" ? "🎟️" : "🎁"} {r.name}
+                {r.type === "discount" && (
+                  <span style={{ fontSize: 11, background: "rgba(76,175,80,0.2)", color: "#4caf50", padding: "2px 6px", borderRadius: 6 }}>
+                    ลด {r.discount_amount}{r.discount_type === "percent" ? "%" : "฿"}
+                  </span>
+                )}
                 {!r.is_active && <span style={S.tagOff}>ปิดใช้งาน</span>}
               </div>
               {r.description && <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{r.description}</div>}
@@ -104,7 +146,8 @@ const S = {
   card: { background: "#111", borderRadius: 14, padding: 16, marginBottom: 14 },
   cardTitle: { fontSize: 11, color: "#555", fontWeight: "bold", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 12 },
   input: { background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#fff", borderRadius: 8, padding: "9px 12px", fontSize: 14, outline: "none", boxSizing: "border-box", width: "100%" },
-  btnAdd: { background: "#4caf50", border: "none", color: "#fff", borderRadius: 8, padding: "10px", fontSize: 14, fontWeight: "bold", cursor: "pointer" },
+  btnAdd: { background: "#4caf50", border: "none", color: "#fff", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: "bold", cursor: "pointer", marginTop: 4 },
+  typeBtn: { flex: 1, padding: "10px", borderRadius: 10, fontSize: 13, cursor: "pointer", transition: "0.2s", fontWeight: "bold" },
   row: { display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 0", borderBottom: "1px solid #1a1a1a" },
   tagOff: { fontSize: 10, background: "#333", color: "#666", padding: "2px 7px", borderRadius: 8 },
   btnToggle: { background: "#2a2a2a", border: "1px solid #333", color: "#aaa", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" },
