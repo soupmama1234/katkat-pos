@@ -170,7 +170,7 @@ const supabaseDriver = {
   // ORDERS
   async fetchOrders() {
     const sb = getSupabase();
-    const { data, error } = await sb.from("orders").select("*").eq("is_history", false).eq("status", "settled").order("created_at", { ascending: false });
+    const { data, error } = await sb.from("orders").select("*").eq("is_history", false).or("status.eq.settled,status.is.null").order("created_at", { ascending: false });
     if (error) throw error;
     return data.map(dbToOrder);
   },
