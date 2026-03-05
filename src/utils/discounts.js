@@ -26,15 +26,17 @@ export function computeDiscountTotal(subtotal = 0, discounts = []) {
 export function parseRewardDiscount(reward) {
   if (!reward) return null;
 
-  const explicitMode = reward.discount_mode;
-  const explicitValue = Number(reward.discount_value);
+  // Supports both direct reward objects and redeemed_reward items
+  const explicitMode = reward.discount_type || reward.discount_mode;
+  const explicitValue = Number(reward.discount_amount ?? reward.discount_value);
+  
   if (["amount", "percent"].includes(explicitMode) && explicitValue > 0) {
     return {
       mode: explicitMode,
       value: explicitValue,
       label: `🎁 ${reward.name}`,
       source: "reward",
-      rewardId: reward.id,
+      rewardId: reward.reward_id || reward.id,
     };
   }
 
