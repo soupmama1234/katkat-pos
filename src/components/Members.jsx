@@ -150,10 +150,11 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const updateTier = (id, field, val) => setTiersInput(prev => prev.map(t => t.id === id ? { ...t, [field]: Number(val) } : t));
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return members;
+    if (!search) return initMembers;
     const q = search.toLowerCase();
-    return members.filter(m => m.nickname?.toLowerCase().includes(q) || m.phone?.includes(q));
-  }, [members, search]);
+    return initMembers.filter(m => (m.nickname || "").toLowerCase().includes(q) || (m.phone || "").includes(q));
+  }, [initMembers, search]);
+
 
   const rowProps = (m) => ({
     m, stats: statsMap[m.phone], fav: favMenu[m.phone] || [],
@@ -308,7 +309,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
           {tab === "VIP" && (
             <div style={S.section}>
               <div style={S.sectionTitle}>เรียงตามยอดใช้จ่าย</div>
-              {[...members].sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
+              {[...initMembers].sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
                 .map((m, i) => <MemberRow key={m.phone} {...rowProps(m)} rank={i + 1} showDelete />)}
             </div>
           )}
