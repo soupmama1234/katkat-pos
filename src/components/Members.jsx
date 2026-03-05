@@ -9,6 +9,7 @@ import {
   saveTiers,
   calcPoints,
 } from "../utils/points";
+import { groupAvailableCoupons } from "../utils/coupons";
 
 const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards"];
 
@@ -391,7 +392,8 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 
 function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, onAdjust, showDelete, onDeleteCoupon }) {
   const visits = stats?.count || 0;
-  const availableRewards = Array.isArray(m.redeemed_rewards) ? m.redeemed_rewards.filter(r => !r.used_at) : [];
+  const couponGroups = groupAvailableCoupons(m.redeemed_rewards);
+  const totalCoupons = couponGroups.reduce((s, g) => s + g.count, 0);
 
   return (
     <div style={S.memberRow}>
@@ -400,9 +402,9 @@ function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, o
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontWeight: "bold" }}>{m.nickname}</span>
           <span style={{ fontSize: 10, color: tierColor(m.tier), background: "#181818", padding: "1px 6px", borderRadius: 10, border: `1px solid ${tierColor(m.tier)}33` }}>{m.tier || "Standard"}</span>
-          {availableRewards.length > 0 && (
+          {totalCoupons > 0 && (
             <span style={{ fontSize: 10, background: "rgba(76,175,80,0.2)", color: "#4caf50", padding: "1px 6px", borderRadius: 10, fontWeight: "bold", border: "1px solid rgba(76,175,80,0.3)" }}>
-              🎁 {availableRewards.length} คูปอง
+              🎁 {totalCoupons} คูปอง
             </span>
           )}
         </div>
@@ -410,13 +412,13 @@ function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, o
           {m.phone} · <span style={{ color: "#4D96FF" }}>✅ {visits} ครั้ง</span>
           {stats?.lastVisit && <span> · {daysSince(stats.lastVisit)} วันที่แล้ว</span>}
         </div>
-        {availableRewards.length > 0 && (
+        {couponGroups.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
-            {availableRewards.map((r, idx) => (
-              <span key={r.id || idx} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "#aaa", background: "#151515", padding: "2px 6px", borderRadius: 4, border: "1px solid #222" }}>
-                {r.name}
+            {couponGroups.map((group, idx) => (
+              <span key={idx} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "#aaa", background: "#151515", padding: "2px 6px", borderRadius: 4, border: "1px solid #222" }}>
+                {group.name} {group.count > 1 && <span style={{ color: "#4caf50", fontWeight: "bold" }}>x{group.count}</span>}
                 <button 
-                  onClick={() => onDeleteCoupon?.(r.id)} 
+                  onClick={() => onDeleteCoupon?.(group.ids[0])} 
                   style={{ background: "none", border: "none", color: "#ff4444", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
                 >
                   <Trash2 size={10} />

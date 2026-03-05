@@ -177,6 +177,24 @@ function App() {
           const { rate, tiers } = getPointSettings();
           const pts = calcPoints(total, rate, tiers);
           await sb.rpc("increment_member_points", { p_phone: phone, p_points: pts, p_spent: total });
+          
+          // --- BUG FIX: ลบคูปองที่ถูกใช้งานแล้วออกจากระบบ ---
+          const usedCouponIds = [
+            ...discounts.filter(d => d.couponId).map(d => d.couponId),
+            ...cart.filter(i => i.couponId).map(i => i.couponId)
+          ];
+
+          if (usedCouponIds.length > 0) {
+            const { data: mem } = await sb.from("members").select("redeemed_rewards").eq("phone", phone).single();
+            if (mem && mem.redeemed_rewards) {
+              const updatedRewards = mem.redeemed_rewards.map(r => 
+                usedCouponIds.includes(r.id) ? { ...r, used_at: new Date().toISOString() } : r
+              );
+              await sb.from("members").update({ redeemed_rewards: updatedRewards }).eq("phone", phone);
+            }
+          }
+          // ------------------------------------------
+
           setHistoryTrigger(prev => prev + 1);
         } catch (e) { console.warn(e); }
       }
