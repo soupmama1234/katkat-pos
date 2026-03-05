@@ -325,7 +325,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
           </div>
         )}
 
-        {tab === "Rewards" && <RewardManager />}
+        {tab === "Rewards" && <RewardManager showToast={showToast} showConfirm={showConfirm} />}
       </div>
 
       {adjusting && (
