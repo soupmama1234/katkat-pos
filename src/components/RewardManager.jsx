@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase as sb } from "../supabase";
+import { Trash2 } from "lucide-react";
 
 export default function RewardManager() {
   const [rewards, setRewards] = useState([]);
@@ -130,7 +131,9 @@ export default function RewardManager() {
                 <button onClick={() => toggleActive(r)} style={S.btnToggle}>
                   {r.is_active ? "ปิด" : "เปิด"}
                 </button>
-                <button onClick={() => handleDelete(r.id)} style={S.btnDel}>🗑️</button>
+                <button onClick={() => handleDelete(r.id)} style={S.btnDel}>
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
           </div>

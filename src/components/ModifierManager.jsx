@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Trash2 } from "lucide-react";
 
 // ย้ายออกมานอก component เพื่อป้องกัน re-render/focus bug
 const ModifierGroupItem = ({ group, addOptionToGroup, deleteModifierGroup, deleteOption }) => {
@@ -25,7 +26,9 @@ const ModifierGroupItem = ({ group, addOptionToGroup, deleteModifierGroup, delet
           📦 {group.name}
           <span style={{ fontSize: "12px", color: "#555", fontWeight: "normal" }}>({group.options?.length || 0})</span>
         </button>
-        <button onClick={() => deleteModifierGroup(group.id)} style={s.btnDel}>ลบกลุ่ม</button>
+        <button onClick={() => deleteModifierGroup(group.id)} style={{ ...s.btnDel, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+          <Trash2 size={14} /> ลบกลุ่ม
+        </button>
       </div>
 
       {!collapsed && (
@@ -62,9 +65,9 @@ const ModifierGroupItem = ({ group, addOptionToGroup, deleteModifierGroup, delet
                     </span>
                     <button
                       onClick={() => deleteOption(group.id, option.id)}
-                      style={s.btnX}
+                      style={{ ...s.btnX, display: "flex", alignItems: "center" }}
                     >
-                      ✕
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>

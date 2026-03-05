@@ -304,7 +304,9 @@ export default function MenuManager({
                 ⚙️ ตัวเลือก
               </button>
               <button onClick={() => openEdit(p)} style={s.btnEdit}>✏️ แก้ไข</button>
-              <button onClick={() => deleteProduct(p.id)} style={s.btnDel}>🗑️ ลบ</button>
+              <button onClick={() => deleteProduct(p.id)} style={{ ...s.btnDel, display: "flex", alignItems: "center", gap: 4, justifyContent: "center" }}>
+                <Trash2 size={14} /> ลบ
+              </button>
             </div>
 
             {openDropdownId === p.id && (

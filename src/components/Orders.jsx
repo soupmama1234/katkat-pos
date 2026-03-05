@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Trash2 } from "lucide-react";
 
 export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
   const [deletingId, setDeletingId] = useState(null);
