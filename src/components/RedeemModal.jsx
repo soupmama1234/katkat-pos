@@ -20,7 +20,6 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
     try {
       const newPoints = memberInfo.points - reward.points_required;
       
-      // เตรียมข้อมูล reward ที่จะเก็บ
       const newRewardItem = {
         id: Math.random().toString(36).substr(2, 9),
         reward_id: reward.id,
@@ -35,7 +34,6 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
       const currentRewards = Array.isArray(memberInfo.redeemed_rewards) ? memberInfo.redeemed_rewards : [];
       const updatedRewards = [newRewardItem, ...currentRewards];
 
-      // อัปเดตสมาชิก
       const { data: updatedMember, error } = await sb.from("members")
         .update({ 
           points: newPoints,
@@ -47,7 +45,6 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
 
       if (error) throw error;
 
-      // บันทึก history
       await sb.from("point_history").insert({
         member_phone: memberPhone,
         type: "redeem",
@@ -57,7 +54,7 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
       });
 
       alert(`✅ แลกสำเร็จ! "${reward.name}" ถูกเก็บไว้ในบัญชีของคุณแล้ว`);
-      onSuccess(updatedMember, null); // ส่ง updatedMember กลับไป
+      onSuccess(updatedMember); 
       onClose();
     } catch (e) {
       alert("แลกแต้มไม่สำเร็จ: " + e.message);
@@ -70,7 +67,6 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
   return (
     <div style={S.overlay} onClick={onClose}>
       <div style={S.modal} onClick={e => e.stopPropagation()}>
-        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div>
             <div style={{ fontWeight: "bold", fontSize: 16 }}>🎁 แลกแต้ม</div>
@@ -81,7 +77,6 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#666", fontSize: 22, cursor: "pointer" }}>✕</button>
         </div>
 
-        {/* Rewards list */}
         <div style={{ maxHeight: "55vh", overflowY: "auto" }}>
           {loading ? (
             <div style={{ textAlign: "center", color: "#555", padding: 30 }}>กำลังโหลด...</div>
@@ -103,7 +98,7 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
                   )}
                   {r.description && <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{r.description}</div>}
                   <div style={{ fontSize: 13, color: "#f5c518", marginTop: 4, fontWeight: "bold" }}>⭐ {r.points_required} แต้ม</div>
-          ...
+                  {!canRedeem && (
                     <div style={{ fontSize: 11, color: "#ff6b6b", marginTop: 2 }}>
                       ขาดอีก {r.points_required - currentPoints} แต้ม
                     </div>
@@ -130,7 +125,7 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
 }
 
 const S = {
-  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 1000 },
+  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 3000 },
   modal: { background: "#1a1a1a", borderRadius: "20px 20px 0 0", padding: "24px 20px", width: "100%", maxWidth: 480, border: "1px solid #2a2a2a", borderBottom: "none" },
   rewardRow: { display: "flex", alignItems: "center", gap: 12, padding: "14px 0", borderBottom: "1px solid #1e1e1e" },
   btnRedeem: { padding: "10px 16px", borderRadius: 10, border: "none", fontWeight: "bold", fontSize: 13, flexShrink: 0 },
