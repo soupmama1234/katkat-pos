@@ -12,7 +12,7 @@ import {
 const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards"];
 // ────────────────────────────────────────────────
 
-export default function Members({ orders = [], members: initMembers = [], onMembersChange }) {
+export default function Members({ orders = [], members: initMembers = [], onMembersChange, showToast, showConfirm, historyTrigger }) {
   const [tab, setTab] = useState("ภาพรวม");
   const [members, setMembers] = useState(initMembers);
   const [pointRate, setPointRate] = useState(loadRate);
@@ -31,6 +31,11 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const [historyLoading, setHistoryLoading] = useState(false);
 
   React.useEffect(() => { setMembers(initMembers); }, [initMembers]);
+
+  // Auto-refresh history
+  React.useEffect(() => {
+    if (tab === "ประวัติ") fetchHistory();
+  }, [historyTrigger, tab]);
 
   const memberOrders = useMemo(() => orders.filter(o => o.member_phone), [orders]);
   const statsMap = useMemo(() => {
@@ -72,16 +77,20 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const expiringSoon = m => { const d = daysUntil(m.expires_at); return d !== null && d >= 0 && d <= 30; };
 
   const handleDelete = async (phone) => {
+    const ok = await showConfirm("ลบสมาชิก?", `ยืนยันการลบสมาชิก "${members.find(m => m.phone === phone)?.nickname}"?`);
+    if (!ok) return;
     try {
       await sb.from("members").delete().eq("phone", phone);
       const updated = members.filter(m => m.phone !== phone);
-      setMembers(updated); onMembersChange?.(updated); setDeleting(null);
-    } catch (e) { alert("ลบไม่สำเร็จ: " + e.message); }
+      setMembers(updated); onMembersChange?.(updated);
+      showToast("ลบสมาชิกเรียบร้อย");
+    } catch (e) { showToast("ลบไม่สำเร็จ: " + e.message, "error"); }
   };
 
   const handleSaveRate = () => {
     const r = { baht: Number(rateInput.baht) || 10, points: Number(rateInput.points) || 1 };
     setPointRate(r); saveRate(r); setEditRate(false);
+    showToast("บันทึกอัตราแต้มแล้ว");
   };
 
   const handleAdjustPoints = async () => {
@@ -101,7 +110,8 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
       setMembers(prev => prev.map(m => m.phone === adjusting.phone ? { ...m, points: newPoints } : m));
       onMembersChange?.(members.map(m => m.phone === adjusting.phone ? { ...m, points: newPoints } : m));
       setAdjusting(null); setAdjustVal(""); setAdjustNote("");
-    } catch (e) { alert("แก้แต้มไม่สำเร็จ: " + e.message); }
+      showToast("แก้ไขแต้มเรียบร้อย");
+    } catch (e) { showToast("แก้แต้มไม่สำเร็จ: " + e.message, "error"); }
     setAdjustSaving(false);
   };
 
@@ -116,8 +126,13 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   };
 
   const deleteHistory = async (id) => {
-    await sb.from("point_history").delete().eq("id", id);
-    setHistory(prev => prev.filter(h => h.id !== id));
+    const ok = await showConfirm("ลบประวัติ?", "ยืนยันการลบรายการประวัตินี้?");
+    if (!ok) return;
+    try {
+      await sb.from("point_history").delete().eq("id", id);
+      setHistory(prev => prev.filter(h => h.id !== id));
+      showToast("ลบประวัติแล้ว");
+    } catch (e) { showToast("ลบไม่สำเร็จ", "error"); }
   };
 
   const handleSaveTiers = () => {

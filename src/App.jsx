@@ -31,10 +31,22 @@ function App() {
   const [memberPhone, setMemberPhone] = useState(""); // เบอร์สมาชิกที่เลือกตอนขาย
   const [discounts, setDiscounts] = useState([]); // [{ id, mode, value, label, source }]
   const [toast, setToast] = useState(null); // { message, type }
+  const [confirm, setConfirm] = useState(null); // { title, message, onConfirm, onCancel, type }
+  const [historyTrigger, setHistoryTrigger] = useState(0); // สำหรับ auto-refresh history
 
   const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const showConfirm = useCallback((title, message, onConfirm, type = "danger") => {
+    return new Promise((resolve) => {
+      setConfirm({
+        title, message, type,
+        onConfirm: () => { setConfirm(null); onConfirm?.(); resolve(true); },
+        onCancel: () => { setConfirm(null); resolve(false); }
+      });
+    });
   }, []);
 
   // โหลดข้อมูลทั้งหมดตอนเปิดแอป (ทำงานได้ทั้ง localStorage และ Supabase)
@@ -95,10 +107,12 @@ function App() {
   }, [categories]);
 
   const deleteCategory = useCallback(async (catName) => {
-    if (!window.confirm(`ลบหมวดหมู่ "${catName}"?`)) return;
+    const ok = await showConfirm("ลบหมวดหมู่?", `ยืนยันการลบหมวดหมู่ "${catName}"?`);
+    if (!ok) return;
     await db.deleteCategory(catName);
     setCategories(prev => prev.filter(c => c !== catName));
-  }, []);
+    showToast(`ลบหมวดหมู่ ${catName} แล้ว`);
+  }, [showConfirm, showToast]);
 
   // PRODUCTS
   const addProduct = useCallback(async (newProductData) => {
@@ -114,10 +128,12 @@ function App() {
   }, []);
 
   const deleteProduct = useCallback(async (id) => {
-    if (!window.confirm("ยืนยันการลบสินค้า?")) return;
+    const ok = await showConfirm("ลบสินค้า?", "ยืนยันการลบสินค้านี้ออกจากเมนู?");
+    if (!ok) return;
     await db.deleteProduct(id);
     setProducts(prev => prev.filter(p => p.id !== id));
-  }, []);
+    showToast("ลบสินค้าแล้ว");
+  }, [showConfirm, showToast]);
 
   // MODIFIERS
   const addModifierGroup = useCallback(async (name) => {
@@ -126,7 +142,8 @@ function App() {
   }, []);
 
   const deleteModifierGroup = useCallback(async (groupId) => {
-    if (!window.confirm("ลบกลุ่มตัวเลือกนี้?")) return;
+    const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ลบกลุ่มตัวเลือกนี้และนำออกจากสินค้าทั้งหมด?");
+    if (!ok) return;
     await db.deleteModifierGroup(groupId);
     setModifierGroups(prev => prev.filter(g => g.id !== groupId));
     const affected = products.filter(p => p.modifierGroups?.includes(groupId));
@@ -137,7 +154,8 @@ function App() {
     affected.forEach(p => db.updateProduct(p.id, {
       modifierGroups: p.modifierGroups.filter(id => id !== groupId)
     }));
-  }, [products]);
+    showToast("ลบกลุ่มตัวเลือกแล้ว");
+  }, [products, showConfirm, showToast]);
 
   const addOptionToGroup = useCallback(async (groupId, optionName, optionPrice) => {
     const newOpt = await db.addOptionToGroup(groupId, optionName, optionPrice);
@@ -375,6 +393,8 @@ function App() {
                 onRemoveDiscount={handleRemoveDiscount}
                 onClearDiscounts={handleClearDiscounts}
                 showToast={showToast}
+                showConfirm={showConfirm}
+                historyTrigger={historyTrigger}
               />
             )}
             {view === "dashboard" && (
@@ -445,7 +465,8 @@ function App() {
                     onApplyRewardDiscount={handleApplyRewardDiscount}
                     onRemoveDiscount={handleRemoveDiscount}
                     onClearDiscounts={handleClearDiscounts}
-                    showToast={showToast} />
+                    showToast={showToast}
+                    showConfirm={showConfirm} />
                 </aside>
               </>
             )}
@@ -471,10 +492,25 @@ function App() {
             )}
             {view === "members" && (
               <div style={{ flex: 1, overflow: "hidden" }}>
-                <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} />
+                <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />
               </div>
             )}
           </main>
+        </div>
+      )}
+
+      {/* Modern Confirm Dialog */}
+      {confirm && (
+        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: 20 }}>
+          <div style={{ backgroundColor: "#1a1a1a", borderRadius: "20px", padding: "28px", width: "100%", maxWidth: "340px", border: "1px solid #333", textAlign: "center", animation: "modalIn 0.2s ease-out" }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>{confirm.type === "danger" ? "⚠️" : "💡"}</div>
+            <h3 style={{ margin: "0 0 10px", color: "#fff" }}>{confirm.title}</h3>
+            <p style={{ margin: "0 0 24px", color: "#888", fontSize: "14px", lineHeight: "1.5" }}>{confirm.message}</p>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={confirm.onCancel} style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1px solid #333", backgroundColor: "transparent", color: "#888", fontWeight: "bold", cursor: "pointer" }}>ยกเลิก</button>
+              <button onClick={confirm.onConfirm} style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "none", backgroundColor: confirm.type === "danger" ? "#ff4444" : "#4D96FF", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>ตกลง</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -499,6 +535,10 @@ function App() {
         @keyframes toastIn {
           from { opacity: 0; transform: translate(-50%, -20px); }
           to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        @keyframes modalIn {
+          from { opacity: 0; transform: scale(0.9); }
+          to { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>
