@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase as sb } from "../supabase";
 
-// Modal แลกแต้ม — เรียกใช้จาก MobilePOS และ Cart
-// props: memberPhone, memberInfo, onSuccess(updatedMember), onClose
+// Modal แลกแต้ม — บันทึกรางวัลเข้าคลังสมาชิก
 export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClose }) {
   const [rewards, setRewards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,12 +14,14 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
 
   const handleRedeem = async (reward) => {
     if (memberInfo.points < reward.points_required) return;
-    if (!window.confirm(`แลก "${reward.name}" ใช้ ${reward.points_required} แต้ม? (รางวัลจะถูกเก็บไว้ในบัญชีของคุณ)`)) return;
+    if (!window.confirm(`แลก "${reward.name}" ใช้ ${reward.points_required} แต้ม? (รางวัลจะถูกเก็บไว้ในบัญชีสมาชิก)`)) return;
+    
     setRedeeming(reward.id);
     try {
-      const newPoints = memberInfo.points - reward.points_required;
+      const newPoints = (memberInfo.points || 0) - reward.points_required;
       
-      const newRewardItem = {
+      // ข้อมูลรางวัลที่จะเก็บเข้าคลัง
+      const newInventoryItem = {
         id: Math.random().toString(36).substr(2, 9),
         reward_id: reward.id,
         name: reward.name,
@@ -31,13 +32,14 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
         used_at: null
       };
 
-      const currentRewards = Array.isArray(memberInfo.redeemed_rewards) ? memberInfo.redeemed_rewards : [];
-      const updatedRewards = [newRewardItem, ...currentRewards];
+      const currentInventory = Array.isArray(memberInfo.redeemed_rewards) ? memberInfo.redeemed_rewards : [];
+      const updatedInventory = [newInventoryItem, ...currentInventory];
 
+      // อัปเดตสมาชิกใน Database
       const { data: updatedMember, error } = await sb.from("members")
         .update({ 
           points: newPoints,
-          redeemed_rewards: updatedRewards
+          redeemed_rewards: updatedInventory
         })
         .eq("phone", memberPhone)
         .select()
@@ -45,6 +47,7 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
 
       if (error) throw error;
 
+      // บันทึกประวัติแต้ม
       await sb.from("point_history").insert({
         member_phone: memberPhone,
         type: "redeem",
@@ -54,7 +57,7 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
       });
 
       alert(`✅ แลกสำเร็จ! "${reward.name}" อยู่ในบัญชีสมาชิกแล้ว`);
-      onSuccess(updatedMember); 
+      onSuccess(updatedMember); // ส่งข้อมูลสมาชิกที่อัปเดตแล้วกลับไป
       onClose();
     } catch (e) {
       alert("แลกแต้มไม่สำเร็จ: " + e.message);
@@ -69,7 +72,7 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
       <div style={S.modal} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div>
-            <div style={{ fontWeight: "bold", fontSize: 16 }}>🎁 แลกแต้ม</div>
+            <div style={{ fontWeight: "bold", fontSize: 16 }}>🎁 แลกแต้มสมาชิก</div>
             <div style={{ fontSize: 13, color: "#888", marginTop: 2 }}>
               {memberInfo?.nickname} · มี <span style={{ color: "#f5c518", fontWeight: "bold" }}>⭐ {currentPoints} แต้ม</span>
             </div>
@@ -81,10 +84,9 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
           {loading ? (
             <div style={{ textAlign: "center", color: "#555", padding: 30 }}>กำลังโหลด...</div>
           ) : rewards.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#555", padding: 30 }}>ยังไม่มี reward — ตั้งค่าได้ใน หน้าสมาชิก</div>
+            <div style={{ textAlign: "center", color: "#555", padding: 30 }}>ยังไม่มีรายการของรางวัล</div>
           ) : rewards.map(r => {
             const canRedeem = currentPoints >= r.points_required;
-            const isLoading = redeeming === r.id;
             const isDiscount = r.type === 'discount';
             return (
               <div key={r.id} style={{ ...S.rewardRow, opacity: canRedeem ? 1 : 0.4 }}>
@@ -98,22 +100,17 @@ export default function RedeemModal({ memberPhone, memberInfo, onSuccess, onClos
                   )}
                   {r.description && <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{r.description}</div>}
                   <div style={{ fontSize: 13, color: "#f5c518", marginTop: 4, fontWeight: "bold" }}>⭐ {r.points_required} แต้ม</div>
-                  {!canRedeem && (
-                    <div style={{ fontSize: 11, color: "#ff6b6b", marginTop: 2 }}>
-                      ขาดอีก {r.points_required - currentPoints} แต้ม
-                    </div>
-                  )}
                 </div>
                 <button
                   onClick={() => canRedeem && handleRedeem(r)}
-                  disabled={!canRedeem || isLoading}
+                  disabled={!canRedeem || redeeming === r.id}
                   style={{
                     ...S.btnRedeem,
                     background: canRedeem ? "#f5c518" : "#2a2a2a",
                     color: canRedeem ? "#000" : "#555",
                     cursor: canRedeem ? "pointer" : "not-allowed",
                   }}>
-                  {isLoading ? "⏳" : canRedeem ? "แลกเลย" : "ไม่พอ"}
+                  {redeeming === r.id ? "⏳" : canRedeem ? "แลกเก็บไว้" : "แต้มไม่พอ"}
                 </button>
               </div>
             );
