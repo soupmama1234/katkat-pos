@@ -78,6 +78,29 @@ function App() {
       }
     }
     loadAll();
+
+    // --- REALTIME SUBSCRIPTION ---
+    const channel = sb
+      .channel("members-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "members" },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setMembers((prev) => [...prev, payload.new]);
+          } else if (payload.eventType === "UPDATE") {
+            setMembers((prev) => prev.map(m => m.phone === payload.new.phone ? payload.new : m));
+          } else if (payload.eventType === "DELETE") {
+            setMembers((prev) => prev.filter(m => m.phone !== payload.old.phone));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(channel);
+    };
+    // -----------------------------
   }, []);
 
   useEffect(() => {
