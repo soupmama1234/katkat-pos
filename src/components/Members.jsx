@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { supabase as sb } from "../supabase";
 import RewardManager from "./RewardManager";
+import { Trash2, Edit2, RotateCw } from "lucide-react";
 import {
   loadRate,
   loadTiers,
@@ -11,7 +12,7 @@ import {
 
 const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards"];
 
-export default function Members({ orders = [], members: initMembers = [], onMembersChange }) {
+export default function Members({ orders = [], members: initMembers = [], onMembersChange, historyTrigger }) {
   const [tab, setTab] = useState("ภาพรวม");
   const [members, setMembers] = useState(initMembers);
   const [pointRate, setPointRate] = useState(loadRate);
@@ -31,10 +32,10 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 
   React.useEffect(() => { setMembers(initMembers); }, [initMembers]);
 
-  // Step 1: Auto-fetch history
+  // Auto-refresh history when historyTrigger changes OR tab switches to 'ประวัติ'
   React.useEffect(() => {
     if (tab === "ประวัติ") fetchHistory();
-  }, [tab]);
+  }, [historyTrigger, tab]);
 
   const memberOrders = useMemo(() => orders.filter(o => o.member_phone), [orders]);
   const statsMap = useMemo(() => {
@@ -76,6 +77,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const expiringSoon = m => { const d = daysUntil(m.expires_at); return d !== null && d >= 0 && d <= 30; };
 
   const handleDelete = async (phone) => {
+    if (!window.confirm(`ยืนยันการลบสมาชิกเบอร์ ${phone}?`)) return;
     try {
       await sb.from("members").delete().eq("phone", phone);
       const updated = members.filter(m => m.phone !== phone);
@@ -100,7 +102,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
         member_phone: adjusting.phone,
         type: "adjust",
         points: delta,
-        note: adjustNote || `แก้ไขแต้มโดย admin (${delta > 0 ? "+" : ""}${delta})`,
+        note: adjustNote || `แก้ไขโดย Admin`,
       });
       setMembers(prev => prev.map(m => m.phone === adjusting.phone ? { ...m, points: newPoints } : m));
       onMembersChange?.(members.map(m => m.phone === adjusting.phone ? { ...m, points: newPoints } : m));
@@ -111,21 +113,22 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 
   const fetchHistory = async () => {
     setHistoryLoading(true);
-    const { data } = await sb.from("point_history")
-      .select("*, members(nickname)")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    setHistory(data || []);
+    try {
+      const { data } = await sb.from("point_history")
+        .select("*, members(nickname)")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      setHistory(data || []);
+    } catch (e) { console.error(e); }
     setHistoryLoading(false);
   };
 
-  // Step 1: Delete history
   const deleteHistory = async (id) => {
     if (!window.confirm("ลบรายการประวัตินี้?")) return;
     try {
       await sb.from("point_history").delete().eq("id", id);
       setHistory(prev => prev.filter(h => h.id !== id));
-    } catch (e) { alert("ลบประวัติไม่สำเร็จ"); }
+    } catch (e) { alert("ลบไม่สำเร็จ"); }
   };
 
   const handleSaveTiers = () => {
@@ -148,11 +151,9 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const rowProps = (m) => ({
     m, stats: statsMap[m.phone], fav: favMenu[m.phone] || [],
     tierColor, daysSince, daysUntil, isExpired, expiringSoon,
-    onDelete: () => setDeleting(m.phone),
+    onDelete: () => handleDelete(m.phone),
     onAdjust: () => { setAdjusting(m); setAdjustVal(""); setAdjustNote(""); },
   });
-
-  const previewPoints = (spend) => calcPoints(spend, pointRate, tiers);
 
   return (
     <div style={S.wrap}>
@@ -181,7 +182,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
               <div style={S.sectionHeader}>
                 <div style={S.sectionTitle}>⭐ อัตราแต้มพื้นฐาน</div>
                 <button onClick={() => { setEditRate(!editRate); setRateInput(pointRate); }} style={S.btnEdit}>
-                  {editRate ? "✕" : "✏️"}
+                  {editRate ? "✕" : <Edit2 size={12} />}
                 </button>
               </div>
               {editRate ? (
@@ -204,7 +205,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
               <div style={S.sectionHeader}>
                 <div style={S.sectionTitle}>🚀 Bonus Tiers</div>
                 <button onClick={() => { setEditTiers(!editTiers); setTiersInput(tiers.map(t => ({ ...t }))); }} style={S.btnEdit}>
-                  {editTiers ? "✕" : "✏️"}
+                  {editTiers ? "✕" : <Edit2 size={12} />}
                 </button>
               </div>
               {editTiers ? (
@@ -288,7 +289,9 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 
         {tab === "ประวัติ" && (
           <div>
-            <button onClick={fetchHistory} style={{ ...S.btnEdit, marginBottom: 12, color: "#4D96FF", borderColor: "#4D96FF" }}>🔄 โหลดประวัติล่าสุด</button>
+            <button onClick={fetchHistory} style={{ ...S.btnEdit, marginBottom: 12, color: "#4D96FF", borderColor: "#4D96FF", display: "flex", alignItems: "center", gap: 6 }}>
+              <RotateCw size={14} className={historyLoading ? "spin" : ""} /> โหลดประวัติล่าสุด
+            </button>
             {historyLoading ? <Empty text="กำลังโหลด..." /> : (
               <div style={S.section}>
                 <div style={S.sectionTitle}>100 รายการล่าสุด</div>
@@ -305,7 +308,9 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
                     </div>
                     <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
                       <span style={{ fontWeight: "bold", color: h.points > 0 ? "#4caf50" : "#ff6b6b", fontSize: 15 }}>{h.points > 0 ? "+" : ""}{h.points} ⭐</span>
-                      <button onClick={() => deleteHistory(h.id)} style={{ background: "none", border: "none", color: "#333", cursor: "pointer", padding: "2px 4px" }}>🗑️</button>
+                      <button onClick={() => deleteHistory(h.id)} style={{ background: "none", border: "none", color: "#333", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -316,20 +321,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 
         {tab === "Rewards" && <RewardManager />}
       </div>
-
-      {deleting && (
-        <div style={S.overlay} onClick={() => setDeleting(null)}>
-          <div style={S.modal} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 44, marginBottom: 8 }}>🗑️</div>
-            <div style={{ fontWeight: "bold", fontSize: 16, marginBottom: 6 }}>ลบสมาชิก?</div>
-            <div style={{ color: "#666", fontSize: 13, marginBottom: 20 }}>{members.find(m => m.phone === deleting)?.nickname} · {deleting}</div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setDeleting(null)} style={S.btnCancel}>ยกเลิก</button>
-              <button onClick={() => handleDelete(deleting)} style={S.btnDeleteConfirm}>ลบเลย</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {adjusting && (
         <div style={S.overlay} onClick={() => setAdjusting(null)}>
@@ -369,8 +360,8 @@ function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, o
         <div style={{ color: "#f5c518", fontWeight: "bold" }}>⭐ {(m.points || 0).toLocaleString()}</div>
         {showDelete && (
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
-            <button onClick={onAdjust} style={{ background: "none", border: "none", color: "#4D96FF", cursor: "pointer", fontSize: 14 }}>✏️</button>
-            <button onClick={onDelete} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 14 }}>🗑️</button>
+            <button onClick={onAdjust} style={{ background: "none", border: "none", color: "#4D96FF", cursor: "pointer" }}><Edit2 size={14} /></button>
+            <button onClick={onDelete} style={{ background: "none", border: "none", color: "#555", cursor: "pointer" }}><Trash2 size={14} /></button>
           </div>
         )}
       </div>
@@ -406,7 +397,6 @@ const S = {
   btnEdit: { background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#888", borderRadius: 8, padding: "5px 10px", fontSize: 12, cursor: "pointer" },
   btnSave: { background: "#4caf50", border: "none", color: "#fff", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer", fontWeight: "bold" },
   btnCancel: { flex: 1, padding: 10, background: "#222", border: "1px solid #333", color: "#aaa", borderRadius: 10, fontSize: 14, cursor: "pointer" },
-  btnDeleteConfirm: { flex: 1, padding: 10, background: "#ff4444", border: "none", color: "#fff", borderRadius: 10, fontSize: 14, fontWeight: "bold", cursor: "pointer" },
   overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 },
   modal: { background: "#1a1a1a", borderRadius: 20, padding: "24px", textAlign: "center", width: 300, border: "1px solid #2a2a2a" },
   dim: { color: "#666", fontSize: 13 },
