@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Trash2 } from "lucide-react";
 import { supabase as sb } from "../supabase";
-import { calcPoints, nextThreshold, getPointSettings } from "./Members";
+import { calcPoints, nextThreshold, getPointSettings } from "../utils/points";
 import RedeemModal from "./RedeemModal";
 
 export default function MobilePOS({ 

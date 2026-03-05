@@ -8,21 +8,13 @@ import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
 import Members, { calcPoints, getPointSettings } from "./components/Members";
+import { BRAND_BG, sortCategoriesWithAllFirst, repairInvalidModifierLinks } from "./utils/appConfig";
 import { supabase as sb } from "./supabase";
 
 // storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
 
-const sortCategoriesWithAllFirst = (cats = []) => {
-  const unique = [...new Set((cats || []).filter(Boolean))];
-  const withoutAll = unique.filter(c => c !== "All");
-  const sorted = withoutAll.sort((a, b) => a.localeCompare(b, "th", { numeric: true, sensitivity: "base" }));
-  return ["All", ...sorted];
-};
-
-
 const APP_LOGO_SRC = "/kat%20kat%20katsu%20-%20Logo-07.png";
-const BRAND_BG = "#ff970d";
 
 function App() {
   const [view, setView] = useState("pos");

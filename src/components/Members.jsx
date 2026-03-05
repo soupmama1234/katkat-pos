@@ -1,10 +1,15 @@
 import React, { useState, useMemo } from "react";
 import { supabase as sb } from "../supabase";
 import RewardManager from "./RewardManager";
+import {
+  loadRate,
+  loadTiers,
+  saveRate,
+  saveTiers,
+} from "../utils/points";
 
 const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards"];
-
-// ── Storage keys ──
+// ────────────────────────────────────────────────
 const RATE_KEY = "katkat_point_rate";
 const TIERS_KEY = "katkat_bonus_tiers";
 
@@ -14,27 +19,19 @@ const defaultTiers = [
   { id: 2, minSpend: 350, multiplier: 3 },
 ];
 
-const loadRate = () => { try { return JSON.parse(localStorage.getItem(RATE_KEY)) || defaultRate; } catch { return defaultRate; } };
-const loadTiers = () => { try { return JSON.parse(localStorage.getItem(TIERS_KEY)) || defaultTiers; } catch { return defaultTiers; } };
-const saveRate = (r) => localStorage.setItem(RATE_KEY, JSON.stringify(r));
-const saveTiers = (t) => localStorage.setItem(TIERS_KEY, JSON.stringify(t));
-
-// ── Exported helpers (ใช้ใน App.jsx / MobilePOS / Cart) ──
 export const calcPoints = (total, rate, tiers) => {
   const base = Math.floor(total / rate.baht) * rate.points;
   const sorted = [...tiers].sort((a, b) => b.minSpend - a.minSpend);
-  const match = sorted.find(t => total >= t.minSpend);
+  const match = sorted.find((tier) => total >= tier.minSpend);
   return match ? base * match.multiplier : base;
 };
 
 export const nextThreshold = (total, tiers) => {
   const sorted = [...tiers].sort((a, b) => a.minSpend - b.minSpend);
-  return sorted.find(t => total < t.minSpend) || null;
+  return sorted.find((tier) => total < tier.minSpend) || null;
 };
 
 export const getPointSettings = () => ({ rate: loadRate(), tiers: loadTiers() });
-
-// ────────────────────────────────────────────────
 export default function Members({ orders = [], members: initMembers = [], onMembersChange }) {
   const [tab, setTab] = useState("ภาพรวม");
   const [members, setMembers] = useState(initMembers);
@@ -79,16 +76,17 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     return result;
   }, [statsMap]);
 
-  const thisMonth = new Date().toISOString().slice(0, 7);
+  const [now] = useState(() => Date.now());
+  const thisMonth = new Date(now).toISOString().slice(0, 7);
   const newThisMonth = members.filter(m => m.created_at?.slice(0, 7) === thisMonth).length;
   const totalPoints = members.reduce((s, m) => s + (m.points || 0), 0);
   const avgSpent = members.length ? Math.round(members.reduce((s, m) => s + (m.total_spent || 0), 0) / members.length) : 0;
-  const cutoff30 = new Date(Date.now() - 30 * 86400000).toISOString();
+  const cutoff30 = new Date(now - 30 * 86400000).toISOString();
   const goneMems = members.filter(m => { const s = statsMap[m.phone]; return s?.lastVisit && s.lastVisit < cutoff30; });
   const neverCome = members.filter(m => !statsMap[m.phone]);
 
-  const daysSince = d => d ? Math.floor((Date.now() - new Date(d)) / 86400000) : "?";
-  const daysUntil = d => d ? Math.ceil((new Date(d) - Date.now()) / 86400000) : null;
+  const daysSince = d => d ? Math.floor((now - new Date(d)) / 86400000) : "?";
+  const daysUntil = d => d ? Math.ceil((new Date(d) - now) / 86400000) : null;
   const tierColor = t => ({ Standard: "#888", Silver: "#ccc", Gold: "#f5c518" })[t] || "#888";
   const isExpired = m => m.expires_at && new Date(m.expires_at) < new Date();
   const expiringSoon = m => { const d = daysUntil(m.expires_at); return d !== null && d >= 0 && d <= 30; };

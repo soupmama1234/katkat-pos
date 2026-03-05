@@ -124,7 +124,7 @@ export default function MenuManager({
         if (json.categories) {
           for (const cat of json.categories) {
             if (cat && cat !== "All") {
-              try { await addCategory(cat); } catch {}
+              try { await addCategory(cat); } catch (err) { console.warn("skip duplicate category", cat, err); }
             }
           }
         }
