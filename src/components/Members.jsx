@@ -159,7 +159,38 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     tierColor, daysSince, daysUntil, isExpired, expiringSoon,
     onDelete: () => handleDelete(m.phone),
     onAdjust: () => { setAdjusting(m); setAdjustVal(""); setAdjustNote(""); },
+    onDeleteCoupon: (couponId) => handleDeleteCoupon(m, couponId),
   });
+
+  const handleDeleteCoupon = async (member, couponId) => {
+    const coupon = member.redeemed_rewards.find(r => r.id === couponId);
+    const ok = await showConfirm(
+      "ลบคูปอง?", 
+      `คุณต้องการลบคูปอง "${coupon?.name || 'นี้'}" ใช่หรือไม่?\n(แต้มจะไม่ได้รับคืน)`,
+      null,
+      "danger"
+    );
+    if (!ok) return;
+
+    try {
+      const updatedRewards = member.redeemed_rewards.filter(r => r.id !== couponId);
+      const { error } = await sb.from("members")
+        .update({ redeemed_rewards: updatedRewards })
+        .eq("phone", member.phone);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedMembers = members.map(m => 
+        m.phone === member.phone ? { ...m, redeemed_rewards: updatedRewards } : m
+      );
+      setMembers(updatedMembers);
+      onMembersChange?.(updatedMembers);
+      showToast("ลบคูปองเรียบร้อย");
+    } catch (e) {
+      showToast("ลบไม่ได้: " + e.message, "error");
+    }
+  };
 
   return (
     <div style={{ ...S.wrap, width: "100%", flex: 1 }}>
@@ -358,7 +389,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   );
 }
 
-function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, onAdjust, showDelete }) {
+function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, onAdjust, showDelete, onDeleteCoupon }) {
   const visits = stats?.count || 0;
   const availableRewards = Array.isArray(m.redeemed_rewards) ? m.redeemed_rewards.filter(r => !r.used_at) : [];
 
@@ -382,8 +413,14 @@ function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, o
         {availableRewards.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
             {availableRewards.map((r, idx) => (
-              <span key={r.id || idx} style={{ fontSize: 9, color: "#aaa", background: "#151515", padding: "2px 6px", borderRadius: 4, border: "1px solid #222" }}>
+              <span key={r.id || idx} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "#aaa", background: "#151515", padding: "2px 6px", borderRadius: 4, border: "1px solid #222" }}>
                 {r.name}
+                <button 
+                  onClick={() => onDeleteCoupon?.(r.id)} 
+                  style={{ background: "none", border: "none", color: "#ff4444", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
+                >
+                  <Trash2 size={10} />
+                </button>
               </span>
             ))}
           </div>
