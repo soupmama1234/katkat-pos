@@ -32,8 +32,8 @@ function App() {
   const [discounts, setDiscounts] = useState([]); 
   
   // Modern UI states
-  const [toast, setToast] = useState(null); // { message, type }
-  const [confirm, setConfirm] = useState(null); // { title, message, onConfirm, onCancel, type }
+  const [toast, setToast] = useState(null); 
+  const [confirm, setConfirm] = useState(null); 
   const [historyTrigger, setHistoryTrigger] = useState(0); 
 
   const showToast = useCallback((message, type = "success") => {
@@ -79,7 +79,6 @@ function App() {
         setOrders(ords);
         setMembers(mems);
       } catch (err) {
-        console.error("โหลดข้อมูลไม่ได้:", err);
         showToast("❌ โหลดข้อมูลไม่ได้ กรุณา refresh", "error");
       } finally {
         setLoading(false);
@@ -241,35 +240,42 @@ function App() {
     <div style={{ height: "100vh", width: "100vw", backgroundColor: "#1a1a1a", color: "#fff", overflow: "hidden" }}>
       {isMobile ? (
         <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-          {/* Mobile Channel Bar */}
-          <div style={{ padding: "10px 15px", background: "#111", borderBottom: "1px solid #222", display: "flex", gap: 8, overflowX: "auto" }}>
-            {CHANNELS.map(ch => (
-              <button key={ch.key} onClick={() => setPriceChannel(ch.key)}
-                style={{ padding: "6px 15px", borderRadius: 20, border: "none", background: priceChannel === ch.key ? ch.color : "#222", color: "#fff", fontSize: 11, fontWeight: "bold" }}>
-                {ch.label}
-              </button>
-            ))}
-          </div>
           <main style={{ flex: 1, overflowY: "auto", paddingBottom: "80px" }}>
-            {view === "pos" && <MobilePOS {...commonProps} products={products} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} onClearCart={() => { setCart([]); setDiscounts([]); }} modifierGroups={modifierGroups} />}
+            {view === "pos" && (
+              <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                <div style={{ padding: "10px 15px", background: "#111", borderBottom: "1px solid #222", display: "flex", gap: 8, overflowX: "auto" }}>
+                  {CHANNELS.map(ch => (
+                    <button key={ch.key} onClick={() => setPriceChannel(ch.key)}
+                      style={{ padding: "6px 15px", borderRadius: 20, border: "none", background: priceChannel === ch.key ? ch.color : "#222", color: "#fff", fontSize: 11, fontWeight: "bold" }}>
+                      {ch.label}
+                    </button>
+                  ))}
+                </div>
+                <MobilePOS {...commonProps} products={products} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} onClearCart={() => { setCart([]); setDiscounts([]); }} modifierGroups={modifierGroups} />
+              </div>
+            )}
             {view === "dashboard" && <Dashboard orders={orders} setOrders={setOrders} onCloseDay={handleCloseDay} onUpdateActual={handleUpdateActual} />}
             {view === "orders" && <Orders orders={orders} onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }} onClearAll={async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }} />}
             {view === "menu" && <div style={{ padding: "10px" }}><MenuManager products={products} categories={categories} addProduct={addProduct} deleteProduct={deleteProduct} updateProduct={updateProduct} addCategory={addCategory} deleteCategory={deleteCategory} modifierGroups={modifierGroups} /><hr style={{ margin: "30px 0", borderColor: "#333" }} /><ModifierManager modifierGroups={modifierGroups} addModifierGroup={async n => { await db.addModifierGroup(n); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }} addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} /></div>}
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
           </main>
-          <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", background: "#1a1a1a", borderTop: "1px solid #333", display: "flex", justifyContent: "space-around", alignItems: "center" }}>
-            {["pos", "dashboard", "members", "menu"].map(v => (
-              <button key={v} onClick={() => setView(v)} style={{ background: "none", border: "none", color: view === v ? "#fff" : "#666", fontSize: 10 }}>{v.toUpperCase()}</button>
-            ))}
+          <nav style={styles.bottomNav}>
+            <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
+            <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>
+            <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>
+            <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>
+            <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>
           </nav>
         </div>
       ) : (
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-          <header style={{ padding: "15px 25px", background: "#222", borderBottom: "1px solid #333", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <header style={styles.desktopHeader}>
             <h2 style={{ margin: 0 }}>KATKAT POS</h2>
             <nav style={{ display: "flex", gap: 10 }}>
-              {["pos", "dashboard", "members", "menu"].map(v => (
-                <button key={v} onClick={() => setView(v)} style={{ padding: "8px 16px", borderRadius: 8, background: view === v ? "#fff" : "transparent", color: view === v ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }}>{v.toUpperCase()}</button>
+              {["pos", "dashboard", "orders", "members", "menu"].map(v => (
+                <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
+                  {v === "pos" ? "🛍️ ขาย" : v === "dashboard" ? "📊 สรุป" : v === "orders" ? "📜 บิล" : v === "members" ? "👥 สมาชิก" : "🍴 เมนู"}
+                </button>
               ))}
             </nav>
           </header>
@@ -290,6 +296,7 @@ function App() {
               </>
             )}
             {view === "dashboard" && <Dashboard orders={orders} setOrders={setOrders} onCloseDay={handleCloseDay} onUpdateActual={handleUpdateActual} />}
+            {view === "orders" && <Orders orders={orders} onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }} onClearAll={async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }} />}
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
             {view === "menu" && <div style={{ flex: 1, overflowY: "auto", padding: 30 }}><MenuManager products={products} categories={categories} addProduct={addProduct} deleteProduct={deleteProduct} updateProduct={updateProduct} addCategory={addCategory} deleteCategory={deleteCategory} modifierGroups={modifierGroups} /><hr style={{ margin: "40px 0", borderColor: "#333" }} /><ModifierManager modifierGroups={modifierGroups} addModifierGroup={async n => { await db.addModifierGroup(n); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }} addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} /></div>}
           </main>
@@ -327,5 +334,12 @@ function App() {
     </div>
   );
 }
+
+const styles = {
+  bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
+  navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer", padding: "0 4px" }),
+  desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
+  desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }),
+};
 
 export default App;
