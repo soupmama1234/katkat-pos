@@ -332,6 +332,11 @@ function App() {
                 setPriceChannel={setPriceChannel} onClearCart={() => { setCart([]); setDiscounts([]); }}
                 modifierGroups={modifierGroups}
                 memberPhone={memberPhone} setMemberPhone={setMemberPhone}
+                subtotal={subtotal} discountTotal={discountTotal} discounts={discounts}
+                onApplyManualDiscount={handleApplyManualDiscount}
+                onApplyRewardDiscount={handleApplyRewardDiscount}
+                onRemoveDiscount={handleRemoveDiscount}
+                onClearDiscounts={handleClearDiscounts}
               />
             )}
             {view === "dashboard" && (

@@ -21,10 +21,26 @@ export default function MobilePOS({
   modifierGroups = [],
   memberPhone = "",
   setMemberPhone,
+  subtotal = 0,
+  discountTotal = 0,
+  discounts = [],
+  onApplyManualDiscount,
+  onApplyRewardDiscount,
+  onRemoveDiscount,
+  onClearDiscounts,
 }) {
   const [showCart, setShowCart] = useState(false);
   const [refValue, setRefValue] = useState("");
   const [showRedeem, setShowRedeem] = useState(false);
+  const [discountMode, setDiscountMode] = useState("amount");
+  const [discountInput, setDiscountInput] = useState("");
+
+  const handleApplyManualDiscount = () => {
+    const val = Number(discountInput);
+    if (!(val > 0)) return;
+    onApplyManualDiscount?.({ mode: discountMode, value: val });
+    setDiscountInput("");
+  };
 
   // member state
   const [memberInput, setMemberInput] = useState("");
@@ -363,6 +379,40 @@ export default function MobilePOS({
           </div>
 
           <div style={styles.cartFooter}>
+            {/* Discount Section */}
+            <div style={{ marginBottom: 16, padding: "12px", backgroundColor: "#222", borderRadius: 12 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <select value={discountMode} onChange={e => setDiscountMode(e.target.value)} 
+                  style={{ background: "#333", color: "#fff", border: "1px solid #444", borderRadius: 8, padding: "8px", fontSize: 13, outline: "none" }}>
+                  <option value="amount">฿ ลด</option>
+                  <option value="percent">% ลด</option>
+                </select>
+                <input type="number" inputMode="decimal" placeholder="ส่วนลด..." value={discountInput} onChange={e => setDiscountInput(e.target.value)}
+                  style={{ flex: 1, background: "#1a1a1a", border: "1px solid #444", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 14, outline: "none" }} />
+                <button onClick={handleApplyManualDiscount} 
+                  style={{ background: "#fff", color: "#000", border: "none", borderRadius: 8, padding: "0 16px", fontWeight: "bold", fontSize: 13, cursor: "pointer" }}>ใช้</button>
+              </div>
+              
+              {discounts.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {discounts.map(d => (
+                    <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 4, background: "#333", padding: "4px 10px", borderRadius: 20, fontSize: 11, border: "1px solid #444" }}>
+                      <span style={{ color: "#aaa" }}>{d.label || "ส่วนลด"}:</span>
+                      <span style={{ fontWeight: "bold" }}>{d.mode === "percent" ? `${d.value}%` : `฿${d.value}`}</span>
+                      <button onClick={() => onRemoveDiscount?.(d.id)} style={{ background: "none", border: "none", color: "#ff5252", padding: "0 0 0 4px", fontSize: 14, cursor: "pointer" }}>✕</button>
+                    </div>
+                  ))}
+                  <button onClick={onClearDiscounts} style={{ background: "none", border: "none", color: "#888", fontSize: 11, textDecoration: "underline", padding: "4px 0", cursor: "pointer" }}>ล้างทั้งหมด</button>
+                </div>
+              )}
+            </div>
+
+            {discountTotal > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13, color: "#888", padding: "0 4px" }}>
+                <span>ยอดก่อนลด: ฿{subtotal.toLocaleString()}</span>
+                <span style={{ color: "#ff5252" }}>ส่วนลด: -฿{discountTotal.toLocaleString()}</span>
+              </div>
+            )}
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <span style={{ fontSize: "18px", fontWeight: "bold" }}>รวมทั้งหมด</span>

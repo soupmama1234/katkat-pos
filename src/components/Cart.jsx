@@ -239,22 +239,27 @@ export default function Cart({
           <span>รวมทั้งหมด:</span>
           <span>฿{total.toLocaleString()}</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "100px 1fr auto auto", gap: 6, marginBottom: 8 }}>
-          <select value={discountMode} onChange={(e) => setDiscountMode(e.target.value)} style={{ ...S.input, padding: "6px 8px" }}>
-            <option value="amount">฿ ลด</option>
-            <option value="percent">% ลด</option>
-          </select>
-          <input value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} placeholder={discountMode === "percent" ? "เช่น 10" : "เช่น 20"} type="number" inputMode="decimal" style={{ ...S.input, padding: "6px 8px" }} />
-          <button onClick={handleApplyManualDiscount} style={{ ...S.btnSmall, background: "#213547", color: "#fff", border: "none" }}>ใช้</button>
-          <button onClick={() => onClearDiscounts?.()} style={S.btnSmall}>ล้าง</button>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <div style={{ display: "flex", borderRadius: 8, border: "1px solid #ddd", overflow: "hidden" }}>
+            <button onClick={() => setDiscountMode("amount")} style={{ flex: 1, border: "none", background: discountMode === "amount" ? "#213547" : "#fff", color: discountMode === "amount" ? "#fff" : "#213547", fontSize: 12, cursor: "pointer", transition: "0.2s" }}>฿ ลด</button>
+            <button onClick={() => setDiscountMode("percent")} style={{ flex: 1, border: "none", borderLeft: "1px solid #ddd", background: discountMode === "percent" ? "#213547" : "#fff", color: discountMode === "percent" ? "#fff" : "#213547", fontSize: 12, cursor: "pointer", transition: "0.2s" }}>% ลด</button>
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            <input value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} placeholder={discountMode === "percent" ? "เช่น 10" : "จำนวนเงิน"} type="number" inputMode="decimal" style={{ ...S.input, flex: 1, padding: "6px 8px" }} />
+            <button onClick={handleApplyManualDiscount} style={{ ...S.btnSmall, background: "#213547", color: "#fff", border: "none", padding: "0 12px", fontWeight: "bold" }}>ใช้</button>
+          </div>
         </div>
+        
         {discounts.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12, padding: "8px", background: "rgba(0,0,0,0.03)", borderRadius: 8 }}>
             {discounts.map((d) => (
-              <button key={d.id} onClick={() => onRemoveDiscount?.(d.id)} style={{ background: "#f3f3f3", border: "1px solid #ddd", borderRadius: 14, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>
-                {d.label || "ส่วนลด"} · {d.mode === "percent" ? `${d.value}%` : `฿${d.value}`} ✕
-              </button>
+              <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 4, background: "#fff", border: "1px solid #213547", color: "#213547", borderRadius: 14, padding: "3px 10px", fontSize: 11 }}>
+                <span style={{ fontWeight: "bold" }}>{d.label || "ส่วนลด"}:</span>
+                <span>{d.mode === "percent" ? `${d.value}%` : `฿${d.value}`}</span>
+                <button onClick={() => onRemoveDiscount?.(d.id)} style={{ background: "none", border: "none", color: "#d32f2f", padding: "0 0 0 4px", cursor: "pointer", fontWeight: "bold", fontSize: 14 }}>✕</button>
+              </div>
             ))}
+            <button onClick={() => onClearDiscounts?.()} style={{ background: "none", border: "none", color: "#666", fontSize: 11, textDecoration: "underline", cursor: "pointer", padding: "4px 0" }}>ล้างทั้งหมด</button>
           </div>
         )}
         <button style={{ ...S.btnPay, backgroundColor: cart.length > 0 ? "#213547" : "#999", cursor: cart.length > 0 ? "pointer" : "not-allowed" }}
