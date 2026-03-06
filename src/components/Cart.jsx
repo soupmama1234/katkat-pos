@@ -41,18 +41,11 @@ export default function Cart({
   const isBonus = currentMultiplier > 1;
 
   React.useEffect(() => {
-    if (priceChannel === "grab") {
-      if (!deliveryRef.startsWith("GF-")) {
-        setDeliveryRef("GF-" + deliveryRef.replace("GF-", ""));
-      }
-    } else if (isDelivery) {
-      // สำหรับช่องทางอื่น ถ้ายังเป็น GF- ให้ล้างออก
-      if (deliveryRef.startsWith("GF-")) setDeliveryRef("");
-    } else {
-      setDeliveryRef("");
+    if (showPayment) {
+      setDeliveryRef(priceChannel === "grab" ? "GF-" : "");
+      setCashReceived("");
     }
-    setCashReceived("");
-  }, [priceChannel]);
+  }, [showPayment, priceChannel]);
 
   // member lookup
   const lookupMember = async (phone) => {
@@ -92,34 +85,19 @@ export default function Cart({
   };
 
   const handleRefChange = (val) => {
-    const upperVal = val.toUpperCase();
     if (priceChannel === "grab") {
-      // ถ้าลบจนว่าง ให้เหลือแค่ GF-
-      if (upperVal === "") {
-        setDeliveryRef("GF-");
-      } 
-      // ถ้าพิมพ์แค่เลข (ไม่มี GF-) ให้เติมให้
-      else if (!upperVal.startsWith("GF-")) {
-        setDeliveryRef("GF-" + upperVal);
-      } 
-      // ถ้ามี GF- อยู่แล้วก็ตามนั้น
-      else {
-        setDeliveryRef(upperVal);
-      }
+      if (val.startsWith("GF-")) setDeliveryRef(val.toUpperCase());
+    } else if (priceChannel === "lineman") {
+      if (val.length <= 4) setDeliveryRef(val);
     } else {
-      setDeliveryRef(upperVal);
+      setDeliveryRef(val);
     }
   };
 
   const handleFinalConfirm = () => {
-    if (isDelivery) { 
-      onCheckout("transfer", deliveryRef); 
-    } else { 
-      onCheckout(paymentMethod); 
-    }
-    setShowPayment(false); 
-    setCashReceived(""); 
-    setDeliveryRef("");
+    if (isDelivery) { onCheckout("transfer", deliveryRef); }
+    else { onCheckout(paymentMethod); }
+    setShowPayment(false); setCashReceived(""); setDeliveryRef("");
     clearMember();
   };
 
@@ -128,7 +106,7 @@ export default function Cart({
     (isDelivery && (
       !deliveryRef ||
       (priceChannel === "grab" && (deliveryRef === "GF-" || deliveryRef.length < 4)) ||
-      (priceChannel !== "pos" && deliveryRef.trim().length === 0)
+      (priceChannel === "lineman" && deliveryRef.length < 4)
     ));
 
   return (
@@ -138,42 +116,6 @@ export default function Cart({
         <h2 style={{ margin: 0, color: "#213547", fontSize: "1.1rem" }}>รายการขาย</h2>
         <button onClick={() => cart.length > 0 && onClearCart()} style={S.btnClear}>ล้างตะกร้า</button>
       </div>
-
-      {/* --- Delivery Ref Input (Show directly in sidebar) --- */}
-      {isDelivery && (
-        <div style={{ marginBottom: 10, padding: "10px", background: "#222", borderRadius: 12, border: "1px solid #444" }}>
-          <div style={{ fontSize: 11, color: "#aaa", fontWeight: "bold", marginBottom: 6 }}>เลขอ้างอิง {priceChannel.toUpperCase()}</div>
-          <div style={{ display: "flex", alignItems: "center", background: "#000", borderRadius: 8, padding: "4px 12px", border: "1px solid #555" }}>
-            {priceChannel === "grab" && (
-              <span style={{ color: "#00B14F", fontWeight: "bold", fontSize: 18, marginRight: 2 }}>GF-</span>
-            )}
-            <input 
-              type="text" 
-              placeholder={priceChannel === "grab" ? "ระบุเลข" : "กรอกเลขอ้างอิง"}
-              value={priceChannel === "grab" ? deliveryRef.replace("GF-", "") : deliveryRef} 
-              onChange={e => {
-                const val = e.target.value;
-                if (priceChannel === "grab") {
-                  handleRefChange("GF-" + val);
-                } else {
-                  handleRefChange(val);
-                }
-              }}
-              style={{ 
-                background: "none", 
-                border: "none", 
-                outline: "none", 
-                color: "#fff", 
-                fontSize: 18, 
-                fontWeight: "bold", 
-                flex: 1, 
-                padding: "8px 0",
-                textTransform: "uppercase"
-              }}
-            />
-          </div>
-        </div>
-      )}
 
       {/* ── Member Section (POS only) ── */}
       {!isDelivery && (
@@ -277,7 +219,7 @@ export default function Cart({
                 <input placeholder="ชื่อเล่น" value={regNickname} onChange={e => setRegNickname(e.target.value)}
                   style={{ ...S.input, flex: 1 }} autoFocus />
                 <button onClick={registerMember} style={{ ...S.btnSmall, background: "#2e7d32", color: "#fff", border: "none" }}>บันทึก</button>
-                <button onClick={clearMember} style={S.btnSmall}>✕</button>
+                <button onClick={clearMember} style={{ ...S.btnSmall, color: "#333" }}>✕</button>
               </div>
             </div>
           ) : (
@@ -345,18 +287,18 @@ export default function Cart({
           <span>฿{total.toLocaleString()}</span>
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
-          <select value={discountMode} onChange={(e) => setDiscountMode(e.target.value)} style={{ ...S.input, width: "70px", padding: "6px 4px", fontSize: "13px" }}>
+          <select value={discountMode} onChange={(e) => setDiscountMode(e.target.value)} style={{ ...S.input, width: "70px", padding: "6px 4px", fontSize: "13px", color: "#333" }}>
             <option value="amount">฿</option>
             <option value="percent">%</option>
           </select>
-          <input value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} placeholder="ลด" type="number" inputMode="decimal" style={{ ...S.input, flex: 1, padding: "6px 8px", minWidth: 0 }} />
-          <button onClick={handleApplyManualDiscount} style={{ ...S.btnSmall, background: "#000", color: "#fff", border: "1px solid #000", fontWeight: "bold", padding: "6px 12px" }}>ใช้</button>
-          <button onClick={() => onClearDiscounts?.()} style={{ ...S.btnSmall, padding: "6px 8px"}}>ล้าง</button>
+          <input value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} placeholder="ลด" type="number" inputMode="decimal" style={{ ...S.input, flex: 1, padding: "6px 8px", minWidth: 0, color: "#333" }} />
+          <button onClick={handleApplyManualDiscount} style={{ ...S.btnSmall, background: "#213547", color: "#fff", border: "none", fontWeight: "bold", padding: "6px 12px" }}>ใช้</button>
+          <button onClick={() => onClearDiscounts?.()} style={{ ...S.btnSmall, color: "#333", padding: "6px 8px" }}>ล้าง</button>
         </div>
         {discounts.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
             {discounts.map((d) => (
-              <button key={d.id} onClick={() => onRemoveDiscount?.(d.id)} style={{ background: "#f3f3f3", border: "1px solid #ddd", borderRadius: 14, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>
+              <button key={d.id} onClick={() => onRemoveDiscount?.(d.id)} style={{ background: "#f3f3f3", border: "1px solid #ddd", borderRadius: 14, padding: "4px 8px", fontSize: 11, cursor: "pointer", color: "#333" }}>
                 {d.label || "ส่วนลด"} · {d.mode === "percent" ? `${d.value}%` : `฿${d.value}`} ✕
               </button>
             ))}
@@ -465,7 +407,7 @@ export default function Cart({
 const S = {
   container: { display: "flex", flexDirection: "column", height: "100%", padding: "15px", backgroundColor: "#ff9800", boxSizing: "border-box" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" },
-  btnClear: { background: "rgba(255,255,255,0.3)", border: "1px solid #213547", padding: "4px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" },
+  btnClear: { background: "rgba(255,255,255,0.3)", border: "1px solid #213547", padding: "4px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "13px", color: "#213547" },
   memberSection: { background: "rgba(255,255,255,0.9)", borderRadius: 12, padding: "10px 12px", marginBottom: 10 },
   cartList: { flex: 1, overflowY: "auto", marginBottom: "10px" },
   emptyText: { textAlign: "center", marginTop: "50px", color: "rgba(33,53,71,0.45)", fontSize: "15px" },
@@ -482,13 +424,13 @@ const S = {
   footer: { backgroundColor: "rgba(255,255,255,0.2)", padding: "14px", borderRadius: "14px" },
   totalRow: { display: "flex", justifyContent: "space-between", fontSize: "1.3rem", fontWeight: "bold", color: "#213547", marginBottom: "12px" },
   btnPay: { width: "100%", padding: "14px", borderRadius: "10px", border: "none", color: "#fff", fontSize: "1.1rem", fontWeight: "bold" },
-  input: { padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14, outline: "none", boxSizing: "border-box" },
-  inputModal: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "18px", textAlign: "center", boxSizing: "border-box" },
-  btnSmall: { background: "#fff", border: "1px solid #ddd", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" },
+  input: { padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14, outline: "none", boxSizing: "border-box", color: "#333" },
+  inputModal: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "18px", textAlign: "center", boxSizing: "border-box", color: "#333" },
+  btnSmall: { background: "#fff", border: "1px solid #ddd", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer", color: "#333" },
   modalOverlay: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
   modalContent: { backgroundColor: "#fff", padding: "24px", borderRadius: "18px", width: "320px", color: "#333" },
   totalDisplay: { backgroundColor: "#f5f5f5", padding: "14px", borderRadius: "10px", textAlign: "center", marginBottom: "18px" },
   btnMethod: { flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontWeight: "bold", cursor: "pointer" },
   btnConfirm: { flex: 2, padding: "12px", borderRadius: "8px", border: "none", backgroundColor: "#213547", color: "#fff", fontWeight: "bold" },
-  btnCancel: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #ddd", backgroundColor: "#fff", cursor: "pointer" },
+  btnCancel: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #ddd", backgroundColor: "#fff", cursor: "pointer", color: "#333" },
 };
