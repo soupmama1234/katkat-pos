@@ -141,15 +141,35 @@ export default function Cart({
 
       {/* --- Delivery Ref Input (Show directly in sidebar) --- */}
       {isDelivery && (
-        <div style={{ marginBottom: 10, padding: "10px", background: "rgba(255,255,255,0.9)", borderRadius: 12 }}>
-          <div style={{ fontSize: 11, color: "#888", fontWeight: "bold", marginBottom: 6 }}>เลขอ้างอิง {priceChannel.toUpperCase()}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ marginBottom: 10, padding: "10px", background: "#222", borderRadius: 12, border: "1px solid #444" }}>
+          <div style={{ fontSize: 11, color: "#aaa", fontWeight: "bold", marginBottom: 6 }}>เลขอ้างอิง {priceChannel.toUpperCase()}</div>
+          <div style={{ display: "flex", alignItems: "center", background: "#000", borderRadius: 8, padding: "4px 12px", border: "1px solid #555" }}>
+            {priceChannel === "grab" && (
+              <span style={{ color: "#00B14F", fontWeight: "bold", fontSize: 18, marginRight: 2 }}>GF-</span>
+            )}
             <input 
               type="text" 
-              placeholder={priceChannel === "grab" ? "ระบุตัวเลข" : "ระบุเลขอ้างอิง"}
-              value={deliveryRef} 
-              onChange={e => handleRefChange(e.target.value)}
-              style={{ ...S.input, flex: 1, fontSize: 16, fontWeight: "bold", color: "#213547" }}
+              placeholder={priceChannel === "grab" ? "ระบุเลข" : "กรอกเลขอ้างอิง"}
+              value={priceChannel === "grab" ? deliveryRef.replace("GF-", "") : deliveryRef} 
+              onChange={e => {
+                const val = e.target.value;
+                if (priceChannel === "grab") {
+                  handleRefChange("GF-" + val);
+                } else {
+                  handleRefChange(val);
+                }
+              }}
+              style={{ 
+                background: "none", 
+                border: "none", 
+                outline: "none", 
+                color: "#fff", 
+                fontSize: 18, 
+                fontWeight: "bold", 
+                flex: 1, 
+                padding: "8px 0",
+                textTransform: "uppercase"
+              }}
             />
           </div>
         </div>
