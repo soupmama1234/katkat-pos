@@ -3,21 +3,21 @@ import { Trash2 } from "lucide-react";
 import { supabase as sb } from "../supabase";
 import { calcPoints, nextThreshold, getPointSettings } from "../utils/points";
 import RedeemModal from "./RedeemModal";
-
+import { parseRewardDiscount } from "../utils/discounts";
 import { groupAvailableCoupons } from "../utils/coupons";
 
-export default function MobilePOS({ 
-  products = [], 
+export default function MobilePOS({
+  products = [],
   addToCart,
   increaseQty,
   decreaseQty,
-  onClearCart, 
-  categories = [], 
-  selectedCategory, 
-  setSelectedCategory, 
-  cart = [], 
-  total = 0, 
-  onCheckout, 
+  onClearCart,
+  categories = [],
+  selectedCategory,
+  setSelectedCategory,
+  cart = [],
+  total = 0,
+  onCheckout,
   priceChannel,
   setPriceChannel,
   modifierGroups = [],
@@ -25,6 +25,7 @@ export default function MobilePOS({
   setMemberPhone,
   memberInfo,
   setMemberInfo,
+  onMemberUpdate,
   memberStatus,
   setMemberStatus,
   subtotal = 0,
@@ -41,12 +42,10 @@ export default function MobilePOS({
   const [refValue, setRefValue] = useState("");
   const [showRedeem, setShowRedeem] = useState(false);
 
-  // member state (Removed local ones)
   const [memberInput, setMemberInput] = useState("");
   const [showRegister, setShowRegister] = useState(false);
   const [regNickname, setRegNickname] = useState("");
 
-  // Discount state
   const [discountMode, setDiscountMode] = useState("amount");
   const [discountInput, setDiscountInput] = useState("");
 
@@ -57,7 +56,6 @@ export default function MobilePOS({
     setDiscountInput("");
   };
 
-  // --- Modifier Popup State ---
   const [showModifierPopup, setShowModifierPopup] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [tempSelection, setTempSelection] = useState([]);
@@ -67,6 +65,23 @@ export default function MobilePOS({
   const pointsWillEarn = memberPhone ? calcPoints(total, rate, tiers) : 0;
   const nextTier = nextThreshold(total, tiers);
   const needMore = nextTier ? nextTier.minSpend - total : null;
+
+  // ── KEY FIX: mark coupon used ใน Supabase ทันที แล้ว sync members state ผ่าน onMemberUpdate
+  const markCouponUsed = async (couponId) => {
+    if (!memberInfo || !memberPhone) return;
+    const updatedRewards = (memberInfo.redeemed_rewards || []).map(r =>
+      r.id === couponId ? { ...r, used_at: new Date().toISOString() } : r
+    );
+    // optimistic update ก่อน
+    const updatedMember = { ...memberInfo, redeemed_rewards: updatedRewards };
+    onMemberUpdate?.(updatedMember);
+    // แล้วค่อย sync กับ Supabase
+    try {
+      await sb.from("members").update({ redeemed_rewards: updatedRewards }).eq("phone", memberPhone);
+    } catch (e) {
+      console.warn("markCouponUsed error:", e);
+    }
+  };
 
   const lookupMember = async (phone) => {
     if (phone.length < 9) return;
@@ -85,8 +100,8 @@ export default function MobilePOS({
       setMemberInfo(data); setMemberStatus("found"); setMemberPhone(memberInput);
       setShowRegister(false); setRegNickname("");
       showToast?.("สมัครสมาชิกเรียบร้อย ✨");
-    } catch (e) { 
-      showToast?.("สมัครไม่สำเร็จ: " + e.message, "error"); 
+    } catch (e) {
+      showToast?.("สมัครไม่สำเร็จ: " + e.message, "error");
     }
   };
 
@@ -164,7 +179,7 @@ export default function MobilePOS({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", backgroundColor: "#000", position: "relative" }}>
-      
+
       {/* 1. หมวดหมู่ */}
       <div style={styles.categoryBar}>
         {categories.map((cat) => (
@@ -205,7 +220,7 @@ export default function MobilePOS({
         ))}
       </div>
 
-      {/* 2.5 ช่องเลข ref — โชว์ทันทีเมื่อเลือก Delivery channel */}
+      {/* 2.5 ช่องเลข ref */}
       {["grab", "lineman", "shopee"].includes(priceChannel) && (
         <div style={{ padding: "8px 12px", backgroundColor: "#111", borderBottom: "1px solid #222" }}>
           <div style={styles.inputGroup}>
@@ -240,52 +255,54 @@ export default function MobilePOS({
                   🎁 แลก
                 </button>
                 <button onClick={clearMember} style={{ background: "none", border: "1px solid #333", color: "#666", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>เปลี่ยน</button>
-                </div>
+              </div>
 
-                {/* Available Coupons */}
-                {(() => {
-                  const couponGroups = groupAvailableCoupons(memberInfo.redeemed_rewards);
-                  if (couponGroups.length === 0) return null;
-                  return (
-                    <div style={{ marginTop: 8, padding: 8, background: "#111", borderRadius: 10, border: "1px solid #222" }}>
-                      <div style={{ fontSize: 10, color: "#555", fontWeight: "bold", marginBottom: 6, textTransform: "uppercase" }}>คูปองที่แลกไว้</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                        {couponGroups.map((group, idx) => (
-                          <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0a0a0a", padding: "6px 8px", borderRadius: 8, border: "1px solid #1a1a1a" }}>
-                            <span style={{ fontSize: 12, color: "#4caf50", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginRight: 8 }}>
-                              🎁 {group.name} {group.count > 1 && <span style={{ color: "#fff" }}>x{group.count}</span>}
-                            </span>
-                            <button 
-                              onClick={() => {
-                                const coupon = group.sampleReward;
-                                const { parseRewardDiscount } = require("../utils/discounts");
-                                const rewardDiscount = parseRewardDiscount(coupon);
-                                if (rewardDiscount) {
-                                  onApplyRewardDiscount?.({ ...rewardDiscount, couponId: coupon.id });
-                                } else {
-                                  addToCart?.({
-                                    id: `coupon-${coupon.id}`,
-                                    name: `🎁 ${coupon.name}`,
-                                    price: 0,
-                                    qty: 1,
-                                    category: "reward",
-                                    modifierGroups: [],
-                                    couponId: coupon.id
-                                  });
-                                }
-                              }}
-                              style={{ background: "#4caf50", color: "#000", border: "none", borderRadius: 6, padding: "3px 12px", fontSize: 11, fontWeight: "bold" }}
-                            >
-                              ใช้
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+              {/* Available Coupons */}
+              {(() => {
+                const couponGroups = groupAvailableCoupons(memberInfo.redeemed_rewards);
+                if (couponGroups.length === 0) return null;
+                return (
+                  <div style={{ marginTop: 8, padding: 8, background: "#111", borderRadius: 10, border: "1px solid #222" }}>
+                    <div style={{ fontSize: 10, color: "#555", fontWeight: "bold", marginBottom: 6, textTransform: "uppercase" }}>คูปองที่แลกไว้</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      {couponGroups.map((group, idx) => (
+                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0a0a0a", padding: "6px 8px", borderRadius: 8, border: "1px solid #1a1a1a" }}>
+                          <span style={{ fontSize: 12, color: "#4caf50", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginRight: 8 }}>
+                            🎁 {group.name} {group.count > 1 && <span style={{ color: "#fff" }}>x{group.count}</span>}
+                          </span>
+                          <button
+                            onClick={async () => {
+                              const coupon = group.sampleReward;
+                              // ── KEY FIX: mark used ทันที + import แบบ ESM (ไม่ใช้ require)
+                              await markCouponUsed(coupon.id);
+                              const rewardDiscount = parseRewardDiscount(coupon);
+                              if (rewardDiscount) {
+                                onApplyRewardDiscount?.({ ...rewardDiscount, couponId: coupon.id });
+                              } else {
+                                addToCart?.({
+                                  id: `coupon-${coupon.id}`,
+                                  name: `🎁 ${coupon.name}`,
+                                  price: 0,
+                                  qty: 1,
+                                  category: "reward",
+                                  modifierGroups: [],
+                                  couponId: coupon.id
+                                });
+                              }
+                              showToast?.(`ใช้คูปอง "${coupon.name}" แล้ว`);
+                            }}
+                            style={{ background: "#4caf50", color: "#000", border: "none", borderRadius: 6, padding: "3px 12px", fontSize: 11, fontWeight: "bold", cursor: "pointer" }}
+                          >
+                            ใช้
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  );
-                })()}
-                {/* Bonus Progress Bar */}
+                  </div>
+                );
+              })()}
 
+              {/* Bonus Progress Bar */}
               {total > 0 && (
                 <div style={{ marginTop: 6 }}>
                   {nextTier ? (
@@ -295,7 +312,7 @@ export default function MobilePOS({
                           ⭐ จะได้ {pointsWillEarn} แต้ม
                           {calcPoints(total, rate, tiers) > calcPoints(total, rate, []) && (
                             <span style={{ color: "#ff9800", marginLeft: 4 }}>
-                              ({tiers.sort((a,b)=>b.minSpend-a.minSpend).find(t=>total>=t.minSpend)?.multiplier || 1}x!)
+                              ({tiers.sort((a, b) => b.minSpend - a.minSpend).find(t => total >= t.minSpend)?.multiplier || 1}x!)
                             </span>
                           )}
                         </span>
@@ -350,19 +367,19 @@ export default function MobilePOS({
         {products
           .filter(p => !selectedCategory || selectedCategory === "All" || p.category === selectedCategory)
           .map((p) => {
-          const hasModifiers = modifierGroups.some(g => p.modifierGroups?.includes(g.id));
-          return (
-            <button key={p.id} onClick={() => handleProductClick(p)} style={styles.productCard}>
-              <div style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "6px", lineHeight: 1.3 }}>{p.name}</div>
-              <div style={{ color: "#4caf50", fontWeight: "bold", fontSize: "16px" }}>
-                ฿{(p[`${priceChannel}Price`] || p.price || 0).toLocaleString()}
-              </div>
-              {hasModifiers && (
-                <div style={styles.modifierBadge}>⚙️ มีตัวเลือก</div>
-              )}
-            </button>
-          );
-        })}
+            const hasModifiers = modifierGroups.some(g => p.modifierGroups?.includes(g.id));
+            return (
+              <button key={p.id} onClick={() => handleProductClick(p)} style={styles.productCard}>
+                <div style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "6px", lineHeight: 1.3 }}>{p.name}</div>
+                <div style={{ color: "#4caf50", fontWeight: "bold", fontSize: "16px" }}>
+                  ฿{(p[`${priceChannel}Price`] || p.price || 0).toLocaleString()}
+                </div>
+                {hasModifiers && (
+                  <div style={styles.modifierBadge}>⚙️ มีตัวเลือก</div>
+                )}
+              </button>
+            );
+          })}
       </div>
 
       {/* 4. ปุ่มลอย */}
@@ -380,7 +397,7 @@ export default function MobilePOS({
             <div>
               <h3 style={{ margin: 0 }}>ตะกร้าสินค้า</h3>
               <span style={{ fontSize: "12px", color: "#888" }}>ช่องทาง: {priceChannel.toUpperCase()}</span>
-              {["grab","lineman","shopee"].includes(priceChannel) && refValue && (
+              {["grab", "lineman", "shopee"].includes(priceChannel) && refValue && (
                 <span style={{ fontSize: "12px", color: "#4caf50", marginLeft: 8 }}>
                   · {priceChannel === "grab" ? `GF-${refValue}` : refValue}
                 </span>
@@ -392,7 +409,6 @@ export default function MobilePOS({
           <div style={styles.cartList}>
             {cart.map((item, idx) => (
               <div key={`${item.id}-${idx}`} style={styles.cartItem}>
-                {/* ชื่อ + ราคา */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: "bold", fontSize: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {item.name}
@@ -407,21 +423,10 @@ export default function MobilePOS({
                   </div>
                 </div>
 
-                {/* ปุ่ม - จำนวน + (FIX: layout ตรง + ใช้ increaseQty แทน addToCart) */}
                 <div style={styles.qtyControl}>
-                  <button
-                    onClick={() => decreaseQty(item.id, item.channel, item.selectedModifier?.id)}
-                    style={styles.qtyBtn}
-                  >
-                    −
-                  </button>
+                  <button onClick={() => decreaseQty(item.id, item.channel, item.selectedModifier?.id)} style={styles.qtyBtn}>−</button>
                   <span style={styles.qtyNumber}>{item.qty}</span>
-                  <button
-                    onClick={() => increaseQty(item.id, item.channel, item.selectedModifier?.id)}
-                    style={styles.qtyBtn}
-                  >
-                    +
-                  </button>
+                  <button onClick={() => increaseQty(item.id, item.channel, item.selectedModifier?.id)} style={styles.qtyBtn}>+</button>
                 </div>
               </div>
             ))}
@@ -454,21 +459,21 @@ export default function MobilePOS({
 
             {/* Discount Section */}
             <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-              <select 
-                value={discountMode} 
-                onChange={(e) => setDiscountMode(e.target.value)} 
+              <select
+                value={discountMode}
+                onChange={(e) => setDiscountMode(e.target.value)}
                 style={{ ...styles.innerInput, backgroundColor: "#222", borderRadius: "8px", padding: "8px", flex: "0 0 80px", fontSize: "14px", border: "1px solid #333" }}
               >
                 <option value="amount">฿</option>
                 <option value="percent">%</option>
               </select>
-              <input 
-                type="number" 
-                inputMode="decimal" 
-                placeholder="ส่วนลด" 
-                value={discountInput} 
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="ส่วนลด"
+                value={discountInput}
                 onChange={(e) => setDiscountInput(e.target.value)}
-                style={{ ...styles.innerInput, backgroundColor: "#222", borderRadius: "8px", padding: "8px 12px", flex: 1, fontSize: "14px", border: "1px solid #333" }} 
+                style={{ ...styles.innerInput, backgroundColor: "#222", borderRadius: "8px", padding: "8px 12px", flex: 1, fontSize: "14px", border: "1px solid #333" }}
               />
               <button onClick={handleApplyManualDiscount} style={{ backgroundColor: "#2196f3", color: "#fff", border: "none", borderRadius: "8px", padding: "0 15px", fontWeight: "bold" }}>ใช้</button>
               <button onClick={() => onClearDiscounts?.()} style={{ backgroundColor: "#333", color: "#fff", border: "none", borderRadius: "8px", padding: "0 10px" }}>ล้าง</button>
@@ -503,7 +508,7 @@ export default function MobilePOS({
         </div>
       )}
 
-      {/* 6. Modifier Popup (bottom sheet) */}
+      {/* 6. Modifier Popup */}
       {showModifierPopup && selectedProduct && (
         <div style={styles.modifierOverlay} onClick={() => { setShowModifierPopup(false); setTempSelection([]); }}>
           <div style={styles.modifierModal} onClick={e => e.stopPropagation()}>
@@ -582,16 +587,20 @@ export default function MobilePOS({
           memberPhone={memberPhone}
           memberInfo={memberInfo}
           onSuccess={(updatedMember, reward) => {
-            setMemberInfo(updatedMember);
-            // เพิ่ม reward เข้าตะกร้าราคา ฿0
-            addToCart({
-              id: `reward-${reward.id}`,
-              name: `🎁 ${reward.name}`,
-              price: 0,
-              qty: 1,
-              category: "reward",
-              modifierGroups: [],
-            });
+            onMemberUpdate?.(updatedMember);
+            const rewardDiscount = parseRewardDiscount(reward);
+            if (rewardDiscount) {
+              onApplyRewardDiscount?.(rewardDiscount);
+            } else {
+              addToCart({
+                id: `reward-${reward.id}`,
+                name: `🎁 ${reward.name}`,
+                price: 0,
+                qty: 1,
+                category: "reward",
+                modifierGroups: [],
+              });
+            }
             setShowRedeem(false);
           }}
           onClose={() => setShowRedeem(false)}
@@ -615,46 +624,9 @@ const styles = {
   closeBtn: { background: "none", border: "none", color: "#fff", fontSize: "26px", cursor: "pointer", lineHeight: 1 },
   cartList: { flex: 1, overflowY: "auto", padding: "16px" },
   cartItem: { display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid #222" },
-
-  // FIX: qtyControl — flexbox ที่ตรง align กัน
-  qtyControl: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0",
-    backgroundColor: "#222",
-    borderRadius: "10px",
-    border: "1px solid #444",
-    overflow: "hidden",
-    flexShrink: 0,
-  },
-  qtyBtn: {
-    width: "38px",
-    height: "38px",
-    background: "none",
-    border: "none",
-    color: "#fff",
-    fontSize: "20px",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    lineHeight: 1,
-    padding: 0,
-  },
-  qtyNumber: {
-    minWidth: "32px",
-    textAlign: "center",
-    fontWeight: "bold",
-    fontSize: "16px",
-    color: "#fff",
-    borderLeft: "1px solid #444",
-    borderRight: "1px solid #444",
-    height: "38px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
+  qtyControl: { display: "flex", alignItems: "center", gap: "0", backgroundColor: "#222", borderRadius: "10px", border: "1px solid #444", overflow: "hidden", flexShrink: 0 },
+  qtyBtn: { width: "38px", height: "38px", background: "none", border: "none", color: "#fff", fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0 },
+  qtyNumber: { minWidth: "32px", textAlign: "center", fontWeight: "bold", fontSize: "16px", color: "#fff", borderLeft: "1px solid #444", borderRight: "1px solid #444", height: "38px", display: "flex", alignItems: "center", justifyContent: "center" },
   btnClear: { width: "100%", background: "none", border: "1px solid #333", color: "#ff5252", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", borderRadius: "8px", cursor: "pointer", marginTop: "8px" },
   cartFooter: { padding: "20px", borderTop: "1px solid #333", backgroundColor: "#1a1a1a", flexShrink: 0 },
   inputGroup: { display: "flex", alignItems: "center", backgroundColor: "#222", borderRadius: "12px", border: "1px solid #333", padding: "0 15px", marginBottom: "4px" },
