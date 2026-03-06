@@ -297,6 +297,25 @@ function App() {
               ))}
             </nav>
           </header>
+          {view === "pos" && (
+            <div style={styles.desktopChannelBar}>
+              <span style={{ fontSize: "12px", color: "#888" }}>ช่องทางราคา:</span>
+              {[
+                { key: "pos", label: "POS", color: "#4a4a4a" },
+                { key: "grab", label: "Grab", color: "#00B14F" },
+                { key: "lineman", label: "Line Man", color: "#00A84F" },
+                { key: "shopee", label: "Shopee", color: "#EE4D2D" },
+              ].map((ch) => (
+                <button
+                  key={ch.key}
+                  onClick={() => setPriceChannel(ch.key)}
+                  style={styles.channelBtn(priceChannel === ch.key, ch.color)}
+                >
+                  {ch.label}
+                </button>
+              ))}
+            </div>
+          )}
           <main style={{ flex: 1, display: "flex", overflow: "hidden" }}>
             {view === "pos" && (
               <>
