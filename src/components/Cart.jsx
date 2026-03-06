@@ -126,6 +126,22 @@ export default function Cart({
         <button onClick={() => cart.length > 0 && onClearCart()} style={S.btnClear}>ล้างตะกร้า</button>
       </div>
 
+      {/* --- Delivery Ref Input (Show directly in sidebar) --- */}
+      {isDelivery && (
+        <div style={{ marginBottom: 10, padding: "10px", background: "rgba(255,255,255,0.9)", borderRadius: 12 }}>
+          <div style={{ fontSize: 11, color: "#888", fontWeight: "bold", marginBottom: 6 }}>เลขอ้างอิง {priceChannel.toUpperCase()}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input 
+              type="text" 
+              placeholder={priceChannel === "grab" ? "ระบุตัวเลข" : "ระบุเลขอ้างอิง"}
+              value={deliveryRef} 
+              onChange={e => handleRefChange(e.target.value)}
+              style={{ ...S.input, flex: 1, fontSize: 16, fontWeight: "bold", color: "#213547" }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* ── Member Section (POS only) ── */}
       {!isDelivery && (
         <div style={S.memberSection}>
