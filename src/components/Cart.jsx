@@ -19,6 +19,7 @@ export default function Cart({
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashReceived, setCashReceived] = useState("");
   const [deliveryRef, setDeliveryRef] = useState("");
+  const [orderType, setOrderType] = useState("dine_in"); // 🆕 ทานที่ร้าน / กลับบ้าน
   const [showRedeem, setShowRedeem] = useState(false);
 
   const [memberInput, setMemberInput] = useState("");
@@ -102,9 +103,14 @@ export default function Cart({
   };
 
   const handleFinalConfirm = () => {
-    if (isDelivery) { onCheckout("transfer", deliveryRef); }
-    else { onCheckout(paymentMethod); }
-    setShowPayment(false); setCashReceived(""); setDeliveryRef(priceChannel === "grab" ? "GF-" : "");
+    if (isDelivery) {
+      onCheckout("transfer", deliveryRef, memberPhone, orderType);
+    } else {
+      onCheckout(paymentMethod, "", memberPhone, orderType);
+    }
+    setShowPayment(false);
+    setCashReceived("");
+    setDeliveryRef(priceChannel === "grab" ? "GF-" : "");
     clearMember();
   };
 
@@ -123,6 +129,30 @@ export default function Cart({
         <h2 style={{ margin: 0, color: "#213547", fontSize: "1.1rem" }}>รายการขาย</h2>
         <button onClick={() => cart.length > 0 && onClearCart()} style={S.btnClear}>ล้างตะกร้า</button>
       </div>
+
+      {/* ── Order Type: ทานที่ร้าน / กลับบ้าน (POS only) ── */}
+      {!isDelivery && (
+        <div style={S.orderTypeSection}>
+          {[
+            { key: "dine_in", label: "🍽️ ทานที่ร้าน" },
+            { key: "takeaway", label: "🛍️ กลับบ้าน" },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setOrderType(key)}
+              style={{
+                ...S.orderTypeBtn,
+                backgroundColor: orderType === key ? "#213547" : "rgba(255,255,255,0.3)",
+                color: orderType === key ? "#fff" : "#213547",
+                fontWeight: orderType === key ? "bold" : "normal",
+                border: orderType === key ? "2px solid #213547" : "2px solid transparent",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Delivery Ref Input (แสดงทันทีเมื่อเลือก delivery channel) ── */}
       {isDelivery && (
@@ -249,7 +279,10 @@ export default function Cart({
               ) : (
                 <div>
                   {memberStatus === "notfound" && (
-                    <div style={{ fontSize: 12, color: "#c62828", marginBottom: 6 }}>ไม่พบสมาชิก — <button onClick={() => setShowRegister(true)} style={{ background: "none", border: "none", color: "#2e7d32", fontWeight: "bold", cursor: "pointer", fontSize: 12 }}>สมัครใหม่?</button></div>
+                    <div style={{ fontSize: 12, color: "#c62828", marginBottom: 6 }}>
+                      ไม่พบสมาชิก —{" "}
+                      <button onClick={() => setShowRegister(true)} style={{ background: "none", border: "none", color: "#2e7d32", fontWeight: "bold", cursor: "pointer", fontSize: 12 }}>สมัครใหม่?</button>
+                    </div>
                   )}
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
@@ -349,6 +382,13 @@ export default function Cart({
             <div style={S.totalDisplay}>
               <div style={{ fontSize: 13, color: "#888" }}>ยอดชำระสุทธิ</div>
               <div style={{ fontSize: 30, fontWeight: "bold" }}>฿{total.toLocaleString()}</div>
+              {!isDelivery && (
+                <div style={{ marginTop: 6, fontSize: 12, color: orderType === "dine_in" ? "#1565c0" : "#6a1b9a",
+                  background: orderType === "dine_in" ? "#e3f2fd" : "#f3e5f5",
+                  borderRadius: 8, padding: "3px 10px", display: "inline-block" }}>
+                  {orderType === "dine_in" ? "🍽️ ทานที่ร้าน" : "🛍️ กลับบ้าน"}
+                </div>
+              )}
               {memberPhone && pointsWillEarn > 0 && (
                 <div style={{ marginTop: 6, fontSize: 13, color: isBonus ? "#e65100" : "#555",
                   background: isBonus ? "#fff3e0" : "#f5f5f5", borderRadius: 8, padding: "4px 10px", display: "inline-block" }}>
@@ -459,6 +499,8 @@ const S = {
   container: { display: "flex", flexDirection: "column", height: "100%", padding: "15px", backgroundColor: "#ff9800", boxSizing: "border-box" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" },
   btnClear: { background: "rgba(255,255,255,0.3)", border: "1px solid #213547", padding: "4px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "13px", color: "#213547" },
+  orderTypeSection: { display: "flex", gap: 8, marginBottom: 10 },
+  orderTypeBtn: { flex: 1, padding: "8px 0", borderRadius: 10, fontSize: 13, cursor: "pointer", transition: "all 0.15s" },
   deliveryRefSection: { background: "rgba(255,255,255,0.9)", borderRadius: 12, padding: "10px 12px", marginBottom: 10 },
   memberSection: { background: "rgba(255,255,255,0.9)", borderRadius: 12, padding: "10px 12px", marginBottom: 10 },
   cartList: { flex: 1, overflowY: "auto", marginBottom: "10px" },
