@@ -10,7 +10,7 @@ export default function Cart({
   cart = [], decreaseQty, increaseQty, addToCart, total = 0,
   onCheckout, onClearCart, priceChannel = "pos",
   memberPhone = "", setMemberPhone,
-  memberInfo, setMemberInfo, memberStatus, setMemberStatus,
+  memberInfo, setMemberInfo, onMemberUpdate, memberStatus, setMemberStatus,
   subtotal = 0, discountTotal = 0, discounts = [],
   onApplyManualDiscount, onApplyRewardDiscount, onRemoveDiscount, onClearDiscounts,
   showToast, showConfirm,
@@ -21,7 +21,6 @@ export default function Cart({
   const [deliveryRef, setDeliveryRef] = useState("");
   const [showRedeem, setShowRedeem] = useState(false);
 
-  // member state (Removed local ones)
   const [memberInput, setMemberInput] = useState("");
   const [showRegister, setShowRegister] = useState(false);
   const [regNickname, setRegNickname] = useState("");
@@ -37,7 +36,7 @@ export default function Cart({
   const pointsWillEarn = memberPhone ? calcPoints(total, rate, tiers) : 0;
   const nextTier = nextThreshold(total, tiers);
   const needMore = nextTier ? nextTier.minSpend - total : null;
-  const currentMultiplier = [...tiers].sort((a,b) => b.minSpend - a.minSpend).find(t => total >= t.minSpend)?.multiplier || 1;
+  const currentMultiplier = [...tiers].sort((a, b) => b.minSpend - a.minSpend).find(t => total >= t.minSpend)?.multiplier || 1;
   const isBonus = currentMultiplier > 1;
 
   React.useEffect(() => {
@@ -46,6 +45,23 @@ export default function Cart({
       setCashReceived("");
     }
   }, [showPayment, priceChannel]);
+
+  // ── KEY FIX: mark coupon used ใน Supabase ทันที แล้ว sync members state ผ่าน onMemberUpdate
+  const markCouponUsed = async (couponId) => {
+    if (!memberInfo || !memberPhone) return;
+    const updatedRewards = (memberInfo.redeemed_rewards || []).map(r =>
+      r.id === couponId ? { ...r, used_at: new Date().toISOString() } : r
+    );
+    // อัปเดต UI ทันทีก่อน (optimistic update)
+    const updatedMember = { ...memberInfo, redeemed_rewards: updatedRewards };
+    onMemberUpdate?.(updatedMember);
+    // แล้วค่อย sync กับ Supabase
+    try {
+      await sb.from("members").update({ redeemed_rewards: updatedRewards }).eq("phone", memberPhone);
+    } catch (e) {
+      console.warn("markCouponUsed error:", e);
+    }
+  };
 
   // member lookup
   const lookupMember = async (phone) => {
@@ -65,8 +81,8 @@ export default function Cart({
       setMemberInfo(data); setMemberStatus("found"); setMemberPhone(memberInput);
       setShowRegister(false); setRegNickname("");
       showToast?.("สมัครสมาชิกเรียบร้อย ✨");
-    } catch (e) { 
-      showToast?.("สมัครไม่สำเร็จ: " + e.message, "error"); 
+    } catch (e) {
+      showToast?.("สมัครไม่สำเร็จ: " + e.message, "error");
     }
   };
 
@@ -75,7 +91,6 @@ export default function Cart({
     setMemberStatus("idle"); setMemberPhone("");
     setShowRegister(false); setRegNickname("");
   };
-
 
   const handleApplyManualDiscount = () => {
     const value = Number(discountInput);
@@ -151,10 +166,12 @@ export default function Cart({
                           <span style={{ fontSize: 12, color: "#2e7d32", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginRight: 8 }}>
                             🎁 {group.name} {group.count > 1 && <span style={{ color: "#4caf50" }}>x{group.count}</span>}
                           </span>
-                          <button 
-                            onClick={() => {
+                          <button
+                            onClick={async () => {
                               const coupon = group.sampleReward;
                               const rewardDiscount = parseRewardDiscount(coupon);
+                              // ── KEY FIX: mark used ทันทีที่กดปุ่มใช้
+                              await markCouponUsed(coupon.id);
                               if (rewardDiscount) {
                                 onApplyRewardDiscount?.({ ...rewardDiscount, couponId: coupon.id });
                               } else {
@@ -319,7 +336,6 @@ export default function Cart({
             <div style={S.totalDisplay}>
               <div style={{ fontSize: 13, color: "#888" }}>ยอดชำระสุทธิ</div>
               <div style={{ fontSize: 30, fontWeight: "bold" }}>฿{total.toLocaleString()}</div>
-              {/* แสดงแต้มที่จะได้ใน modal */}
               {memberPhone && pointsWillEarn > 0 && (
                 <div style={{ marginTop: 6, fontSize: 13, color: isBonus ? "#e65100" : "#555",
                   background: isBonus ? "#fff3e0" : "#f5f5f5", borderRadius: 8, padding: "4px 10px", display: "inline-block" }}>
@@ -376,12 +392,13 @@ export default function Cart({
           </div>
         </div>
       )}
+
       {showRedeem && memberInfo && (
         <RedeemModal
           memberPhone={memberPhone}
           memberInfo={memberInfo}
           onSuccess={(updatedMember, reward) => {
-            setMemberInfo(updatedMember);
+            onMemberUpdate?.(updatedMember);
             const rewardDiscount = parseRewardDiscount(reward);
             if (rewardDiscount) {
               onApplyRewardDiscount?.(rewardDiscount);
