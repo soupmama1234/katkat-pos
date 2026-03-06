@@ -77,7 +77,6 @@ function dbToOrder(row) {
     isSettled: row.is_settled,
     items: row.items || [],
     member_phone: row.member_phone || null,
-    orderType: row.order_type || 'dine-in',
   };
 }
 
@@ -189,7 +188,6 @@ const supabaseDriver = {
       total: order.total, actual_amount: order.actualAmount || 0,
       is_settled: order.isSettled || false, is_history: false, items: order.items,
       member_phone: order.member_phone || null,
-      order_type: order.orderType || 'dine-in',
     }).select().single();
     if (error) throw error;
     return dbToOrder(data);

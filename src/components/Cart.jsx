@@ -14,7 +14,6 @@ export default function Cart({
   subtotal = 0, discountTotal = 0, discounts = [],
   onApplyManualDiscount, onApplyRewardDiscount, onRemoveDiscount, onClearDiscounts,
   showToast, showConfirm,
-  orderType, setOrderType,
 }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -117,34 +116,6 @@ export default function Cart({
         <h2 style={{ margin: 0, color: "#213547", fontSize: "1.1rem" }}>รายการขาย</h2>
         <button onClick={() => cart.length > 0 && onClearCart()} style={S.btnClear}>ล้างตะกร้า</button>
       </div>
-
-      {/* ── Order Type Selector (POS only) ── */}
-      {!isDelivery && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-          <button 
-            onClick={() => setOrderType("dine-in")}
-            style={{ 
-              flex: 1, padding: "8px", borderRadius: "10px", border: "none", fontWeight: "bold", cursor: "pointer",
-              backgroundColor: orderType === "dine-in" ? "#213547" : "rgba(255,255,255,0.5)",
-              color: orderType === "dine-in" ? "#fff" : "#213547",
-              fontSize: "13px"
-            }}
-          >
-            🏠 ทานที่ร้าน
-          </button>
-          <button 
-            onClick={() => setOrderType("takeaway")}
-            style={{ 
-              flex: 1, padding: "8px", borderRadius: "10px", border: "none", fontWeight: "bold", cursor: "pointer",
-              backgroundColor: orderType === "takeaway" ? "#213547" : "rgba(255,255,255,0.5)",
-              color: orderType === "takeaway" ? "#fff" : "#213547",
-              fontSize: "13px"
-            }}
-          >
-            🥡 กลับบ้าน
-          </button>
-        </div>
-      )}
 
       {/* ── Member Section (POS only) ── */}
       {!isDelivery && (
@@ -322,7 +293,7 @@ export default function Cart({
           </select>
           <input value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} placeholder="ลด" type="number" inputMode="decimal" style={{ ...S.input, flex: 1, padding: "6px 8px", minWidth: 0 }} />
           <button onClick={handleApplyManualDiscount} style={{ ...S.btnSmall, background: "#000", color: "#fff", border: "1px solid #000", fontWeight: "bold", padding: "6px 12px" }}>ใช้</button>
-          <button onClick={() => onClearDiscounts?.()} style={{ ...S.btnSmall, background: "#333", color: "#fff", border: "none", padding: "6px 8px" }}>ล้าง</button>
+          <button onClick={() => onClearDiscounts?.()} style={{ ...S.btnSmall, padding: "6px 8px" }}>ล้าง</button>
         </div>
         {discounts.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
