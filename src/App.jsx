@@ -183,7 +183,7 @@ function App() {
     setCart(prev => prev.map(i => (i.id === id && i.channel === channel && (i.selectedModifier?.id || null) === (modId || null)) ? { ...i, qty: i.qty + 1 } : i));
   }, []);
 
-  const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
+  const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone ,orderType = "dine_in") => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
     try {
