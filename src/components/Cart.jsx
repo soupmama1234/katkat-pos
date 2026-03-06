@@ -85,19 +85,28 @@ export default function Cart({
   };
 
   const handleRefChange = (val) => {
+    const upperVal = val.toUpperCase();
     if (priceChannel === "grab") {
-      if (val.startsWith("GF-")) setDeliveryRef(val.toUpperCase());
-    } else if (priceChannel === "lineman") {
-      if (val.length <= 4) setDeliveryRef(val);
+      if (upperVal.startsWith("GF-")) {
+        setDeliveryRef(upperVal);
+      } else if (upperVal === "" || "GF-".startsWith(upperVal)) {
+        // ให้พิมพ์ GF- ได้สะดวกขึ้น หรือถ้าลบหมดให้กลับเป็น GF-
+        setDeliveryRef("GF-");
+      }
     } else {
-      setDeliveryRef(val);
+      setDeliveryRef(upperVal);
     }
   };
 
   const handleFinalConfirm = () => {
-    if (isDelivery) { onCheckout("transfer", deliveryRef); }
-    else { onCheckout(paymentMethod); }
-    setShowPayment(false); setCashReceived(""); setDeliveryRef("");
+    if (isDelivery) { 
+      onCheckout("transfer", deliveryRef); 
+    } else { 
+      onCheckout(paymentMethod); 
+    }
+    setShowPayment(false); 
+    setCashReceived(""); 
+    setDeliveryRef("");
     clearMember();
   };
 
@@ -106,7 +115,7 @@ export default function Cart({
     (isDelivery && (
       !deliveryRef ||
       (priceChannel === "grab" && (deliveryRef === "GF-" || deliveryRef.length < 4)) ||
-      (priceChannel === "lineman" && deliveryRef.length < 4)
+      (priceChannel !== "pos" && deliveryRef.trim().length === 0)
     ));
 
   return (
