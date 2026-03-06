@@ -199,10 +199,6 @@ function App() {
 
       if (phone) {
         try {
-          const { rate, tiers } = getPointSettings();
-          const pts = calcPoints(total, rate, tiers);
-          await sb.rpc("increment_member_points", { p_phone: phone, p_points: pts, p_spent: total });
-          
           // --- BUG FIX: ลบคูปองที่ถูกใช้งานแล้วออกจากระบบ ---
           const usedCouponIds = [
             ...discounts.filter(d => d.couponId).map(d => d.couponId),
@@ -210,21 +206,29 @@ function App() {
           ];
 
           if (usedCouponIds.length > 0) {
-            const { data: mem } = await sb.from("members").select("redeemed_rewards").eq("phone", phone).single();
-            if (mem && mem.redeemed_rewards) {
-              const updatedRewards = mem.redeemed_rewards.map(r => 
+            const { data: memData } = await sb.from("members").select("redeemed_rewards").eq("phone", phone).single();
+            if (memData && memData.redeemed_rewards) {
+              const updatedRewards = memData.redeemed_rewards.map(r => 
                 usedCouponIds.includes(r.id) ? { ...r, used_at: new Date().toISOString() } : r
               );
               await sb.from("members").update({ redeemed_rewards: updatedRewards }).eq("phone", phone);
+              // อัปเดต memberInfo ทันที เพื่อให้คูปองหายไปจาก UI
+              setMemberInfo(prev => prev ? { ...prev, redeemed_rewards: updatedRewards } : null);
             }
           }
-          // ------------------------------------------
 
+          const { rate, tiers } = getPointSettings();
+          const pts = calcPoints(total, rate, tiers);
+          await sb.rpc("increment_member_points", { p_phone: phone, p_points: pts, p_spent: total });
+          
           setHistoryTrigger(prev => prev + 1);
-        } catch (e) { console.warn(e); }
+        } catch (e) { console.warn("Reward update error:", e); }
       }
 
-      setCart([]); setDiscounts([]); setMemberPhone(""); setMemberInfo(null); setMemberStatus("idle");
+      setCart([]); 
+      setDiscounts([]); 
+      // เก็บ memberPhone/Info ไว้ก่อน เพื่อให้หน้าจอแสดงผลสำเร็จของสมาชิกคนเดิมได้
+      // setMemberPhone(""); setMemberInfo(null); setMemberStatus("idle"); 
       showToast(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "✨ ชำระเงินเรียบร้อยครับ");
     } catch (err) {
       showToast("❌ บันทึกออเดอร์ไม่ได้ กรุณาลองใหม่", "error");
