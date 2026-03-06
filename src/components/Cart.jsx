@@ -293,7 +293,7 @@ export default function Cart({
           </select>
           <input value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} placeholder="ลด" type="number" inputMode="decimal" style={{ ...S.input, flex: 1, padding: "6px 8px", minWidth: 0 }} />
           <button onClick={handleApplyManualDiscount} style={{ ...S.btnSmall, background: "#000", color: "#fff", border: "1px solid #000", fontWeight: "bold", padding: "6px 12px" }}>ใช้</button>
-          <button onClick={() => onClearDiscounts?.()} style={{ ...S.btnSmall, padding: "6px 8px" }}>ล้าง</button>
+          <button onClick={() => onClearDiscounts?.()} style={{ ...S.btnSmall, background: "#333", color: "#fff", border: "none", padding: "6px 8px" }}>ล้าง</button>
         </div>
         {discounts.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
