@@ -3,7 +3,7 @@ import { Trash2 } from "lucide-react";
 import { supabase as sb } from "../supabase";
 import { calcPoints, nextThreshold, getPointSettings } from "../utils/points";
 import RedeemModal from "./RedeemModal";
-import { parseRewardDiscount } from "../utils/discounts";
+
 import { groupAvailableCoupons } from "../utils/coupons";
 
 export default function MobilePOS({ 
@@ -258,9 +258,9 @@ export default function MobilePOS({
                             <button 
                               onClick={() => {
                                 const coupon = group.sampleReward;
+                                const { parseRewardDiscount } = require("../utils/discounts");
                                 const rewardDiscount = parseRewardDiscount(coupon);
                                 if (rewardDiscount) {
-
                                   onApplyRewardDiscount?.({ ...rewardDiscount, couponId: coupon.id });
                                 } else {
                                   addToCart?.({
