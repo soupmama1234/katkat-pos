@@ -31,6 +31,7 @@ function App() {
   const [memberPhone, setMemberPhone] = useState(""); 
   const [memberStatus, setMemberStatus] = useState("idle");
   const [discounts, setDiscounts] = useState([]); 
+  const [orderType, setOrderType] = useState("dine-in"); 
 
   // memberInfo derive จาก members state เพื่อให้ realtime update ทันที
   const memberInfo = useMemo(() => 
@@ -240,6 +241,7 @@ function App() {
         isSettled: !isDelivery,
         actualAmount: isDelivery ? 0 : total,
         member_phone: phone || null,
+        orderType: isDelivery ? 'delivery' : orderType,
       });
       setOrders(prev => [saved, ...prev]);
 
@@ -306,6 +308,7 @@ function App() {
     cart, addToCart, increaseQty, decreaseQty, total, subtotal, discountTotal, discounts,
     memberPhone, setMemberPhone, memberInfo, setMemberInfo, memberStatus, setMemberStatus,
     priceChannel, setPriceChannel,
+    orderType, setOrderType,
     onApplyManualDiscount: handleApplyManualDiscount,
     onApplyRewardDiscount: handleApplyRewardDiscount,
     onRemoveDiscount: handleRemoveDiscount,

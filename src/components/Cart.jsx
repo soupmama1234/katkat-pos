@@ -14,6 +14,7 @@ export default function Cart({
   subtotal = 0, discountTotal = 0, discounts = [],
   onApplyManualDiscount, onApplyRewardDiscount, onRemoveDiscount, onClearDiscounts,
   showToast, showConfirm,
+  orderType, setOrderType,
 }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -116,6 +117,34 @@ export default function Cart({
         <h2 style={{ margin: 0, color: "#213547", fontSize: "1.1rem" }}>รายการขาย</h2>
         <button onClick={() => cart.length > 0 && onClearCart()} style={S.btnClear}>ล้างตะกร้า</button>
       </div>
+
+      {/* ── Order Type Selector (POS only) ── */}
+      {!isDelivery && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+          <button 
+            onClick={() => setOrderType("dine-in")}
+            style={{ 
+              flex: 1, padding: "8px", borderRadius: "10px", border: "none", fontWeight: "bold", cursor: "pointer",
+              backgroundColor: orderType === "dine-in" ? "#213547" : "rgba(255,255,255,0.5)",
+              color: orderType === "dine-in" ? "#fff" : "#213547",
+              fontSize: "13px"
+            }}
+          >
+            🏠 ทานที่ร้าน
+          </button>
+          <button 
+            onClick={() => setOrderType("takeaway")}
+            style={{ 
+              flex: 1, padding: "8px", borderRadius: "10px", border: "none", fontWeight: "bold", cursor: "pointer",
+              backgroundColor: orderType === "takeaway" ? "#213547" : "rgba(255,255,255,0.5)",
+              color: orderType === "takeaway" ? "#fff" : "#213547",
+              fontSize: "13px"
+            }}
+          >
+            🥡 กลับบ้าน
+          </button>
+        </div>
+      )}
 
       {/* ── Member Section (POS only) ── */}
       {!isDelivery && (

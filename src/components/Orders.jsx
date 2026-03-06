@@ -69,14 +69,17 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
               <div key={order.id} style={{ ...styles.orderCard, opacity: isDeleting ? 0.4 : 1 }}>
                 <div style={styles.cardHeader}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                    <div style={{ display: "flex", alignItems: "center" }}>
                       <span style={{ ...styles.channelBadge, color: style.color, backgroundColor: style.bg }}>
                         {order.channel?.toUpperCase()}
                       </span>
+                      {order.orderType && order.orderType !== 'delivery' && (
+                        <span style={{ ...styles.typeBadge, backgroundColor: order.orderType === 'dine-in' ? "#213547" : "#555" }}>
+                          {order.orderType === 'dine-in' ? "🏠 ทานที่ร้าน" : "🥡 กลับบ้าน"}
+                        </span>
+                      )}
                       {order.refId && (
                         <span style={styles.refBadge}>#{order.refId}</span>
                       )}
-                    </div>
                     <span style={styles.time}>
                       {new Date(order.time).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.
                     </span>
@@ -144,6 +147,7 @@ const styles = {
   cardHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #333", paddingBottom: "10px" },
   btnDelete: { background: "none", border: "1px solid #333", borderRadius: "6px", padding: "5px", display: "flex", alignItems: "center", justifyContent: "center" },
   channelBadge: { padding: "3px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", marginRight: "8px" },
+  typeBadge: { padding: "3px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", marginRight: "8px", color: "#fff" },
   refBadge: { backgroundColor: "#444", color: "#fff", padding: "3px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold" },
   time: { fontSize: "13px", color: "#aaa" },
   orderId: { fontSize: "11px", color: "#555" },
