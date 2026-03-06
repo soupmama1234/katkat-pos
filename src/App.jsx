@@ -119,7 +119,6 @@ function App() {
     return () => {
       sb.removeChannel(channel);
     };
-    // -----------------------------
   }, []);
 
   useEffect(() => {
@@ -196,7 +195,8 @@ function App() {
     setCart(prev => prev.map(i => (i.id === id && i.channel === channel && (i.selectedModifier?.id || null) === (modId || null)) ? { ...i, qty: i.qty + 1 } : i));
   }, []);
 
-  const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone) => {
+  // ✅ เพิ่ม orderType parameter — รับจาก Cart/MobilePOS
+  const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone, orderType = "dine_in") => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
     try {
@@ -211,6 +211,7 @@ function App() {
         isSettled: !isDelivery,
         actualAmount: isDelivery ? 0 : total,
         member_phone: phone || null,
+        order_type: orderType,   // ✅ บันทึกลง Supabase
       });
       setOrders(prev => [saved, ...prev]);
 

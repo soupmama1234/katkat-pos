@@ -19,6 +19,7 @@ export default function Cart({
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashReceived, setCashReceived] = useState("");
   const [deliveryRef, setDeliveryRef] = useState("");
+  const [orderType, setOrderType] = useState("dine_in"); // 🆕 ทานที่ร้าน / กลับบ้าน
   const [showRedeem, setShowRedeem] = useState(false);
 
   const [memberInput, setMemberInput] = useState("");
@@ -39,9 +40,13 @@ export default function Cart({
   const currentMultiplier = [...tiers].sort((a, b) => b.minSpend - a.minSpend).find(t => total >= t.minSpend)?.multiplier || 1;
   const isBonus = currentMultiplier > 1;
 
+  // reset deliveryRef เมื่อเปลี่ยน channel
+  React.useEffect(() => {
+    setDeliveryRef(priceChannel === "grab" ? "GF-" : "");
+  }, [priceChannel]);
+
   React.useEffect(() => {
     if (showPayment) {
-      setDeliveryRef(priceChannel === "grab" ? "GF-" : "");
       setCashReceived("");
     }
   }, [showPayment, priceChannel]);
@@ -52,10 +57,8 @@ export default function Cart({
     const updatedRewards = (memberInfo.redeemed_rewards || []).map(r =>
       r.id === couponId ? { ...r, used_at: new Date().toISOString() } : r
     );
-    // อัปเดต UI ทันทีก่อน (optimistic update)
     const updatedMember = { ...memberInfo, redeemed_rewards: updatedRewards };
     onMemberUpdate?.(updatedMember);
-    // แล้วค่อย sync กับ Supabase
     try {
       await sb.from("members").update({ redeemed_rewards: updatedRewards }).eq("phone", memberPhone);
     } catch (e) {
@@ -99,20 +102,15 @@ export default function Cart({
     setDiscountInput("");
   };
 
-  const handleRefChange = (val) => {
-    if (priceChannel === "grab") {
-      if (val.startsWith("GF-")) setDeliveryRef(val.toUpperCase());
-    } else if (priceChannel === "lineman") {
-      if (val.length <= 4) setDeliveryRef(val);
-    } else {
-      setDeliveryRef(val);
-    }
-  };
-
   const handleFinalConfirm = () => {
-    if (isDelivery) { onCheckout("transfer", deliveryRef); }
-    else { onCheckout(paymentMethod); }
-    setShowPayment(false); setCashReceived(""); setDeliveryRef("");
+    if (isDelivery) {
+      onCheckout("transfer", deliveryRef, memberPhone, orderType);
+    } else {
+      onCheckout(paymentMethod, "", memberPhone, orderType);
+    }
+    setShowPayment(false);
+    setCashReceived("");
+    setDeliveryRef(priceChannel === "grab" ? "GF-" : "");
     clearMember();
   };
 
@@ -131,6 +129,66 @@ export default function Cart({
         <h2 style={{ margin: 0, color: "#213547", fontSize: "1.1rem" }}>รายการขาย</h2>
         <button onClick={() => cart.length > 0 && onClearCart()} style={S.btnClear}>ล้างตะกร้า</button>
       </div>
+
+      {/* ── Order Type: ทานที่ร้าน / กลับบ้าน (POS only) ── */}
+      {!isDelivery && (
+        <div style={S.orderTypeSection}>
+          {[
+            { key: "dine_in", label: "🍽️ ทานที่ร้าน" },
+            { key: "takeaway", label: "🛍️ กลับบ้าน" },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setOrderType(key)}
+              style={{
+                ...S.orderTypeBtn,
+                backgroundColor: orderType === key ? "#213547" : "rgba(255,255,255,0.3)",
+                color: orderType === key ? "#fff" : "#213547",
+                fontWeight: orderType === key ? "bold" : "normal",
+                border: orderType === key ? "2px solid #213547" : "2px solid transparent",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Delivery Ref Input (แสดงทันทีเมื่อเลือก delivery channel) ── */}
+      {isDelivery && (
+        <div style={S.deliveryRefSection}>
+          <div style={{ fontSize: 11, color: "#213547", fontWeight: "bold", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            📋 เลขอ้างอิง {priceChannel.toUpperCase()}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", background: "#fff", borderRadius: 8, border: "1px solid #ddd", overflow: "hidden" }}>
+            {priceChannel === "grab" && (
+              <span style={{ padding: "0 10px", color: "#00B14F", fontWeight: "bold", fontSize: 15, borderRight: "1px solid #ddd", whiteSpace: "nowrap" }}>
+                GF-
+              </span>
+            )}
+            <input
+              type={priceChannel === "lineman" ? "number" : "text"}
+              inputMode="numeric"
+              placeholder={priceChannel === "lineman" ? "เลข 4 หลัก" : "ระบุเลขอ้างอิง"}
+              value={priceChannel === "grab" ? deliveryRef.replace("GF-", "") : deliveryRef}
+              onChange={e => {
+                const val = e.target.value;
+                if (priceChannel === "grab") {
+                  setDeliveryRef("GF-" + val.toUpperCase());
+                } else if (priceChannel === "lineman") {
+                  if (val.length <= 4) setDeliveryRef(val);
+                } else {
+                  setDeliveryRef(val);
+                }
+              }}
+              style={{
+                flex: 1, padding: "10px 12px", border: "none", outline: "none",
+                fontSize: 16, background: "transparent", color: "#213547",
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── Member Section (POS only) ── */}
       {!isDelivery && (
@@ -170,24 +228,18 @@ export default function Cart({
                             onClick={async () => {
                               const coupon = group.sampleReward;
                               const rewardDiscount = parseRewardDiscount(coupon);
-                              // ── KEY FIX: mark used ทันทีที่กดปุ่มใช้
                               await markCouponUsed(coupon.id);
                               if (rewardDiscount) {
                                 onApplyRewardDiscount?.({ ...rewardDiscount, couponId: coupon.id });
                               } else {
                                 addToCart?.({
-                                  id: `coupon-${coupon.id}`,
+                                  id: `reward-${coupon.id}`,
                                   name: `🎁 ${coupon.name}`,
-                                  price: 0,
-                                  qty: 1,
-                                  category: "reward",
-                                  modifierGroups: [],
-                                  couponId: coupon.id
+                                  price: 0, qty: 1, category: "reward", modifierGroups: [],
                                 });
                               }
-                              showToast?.(`ใช้คูปอง "${coupon.name}" แล้ว`);
                             }}
-                            style={{ background: "#4caf50", color: "#fff", border: "none", borderRadius: 6, padding: "2px 10px", fontSize: 11, fontWeight: "bold", cursor: "pointer", flexShrink: 0 }}
+                            style={{ ...S.btnSmall, background: "#2e7d32", color: "#fff", border: "none", fontWeight: "bold", fontSize: 11, flexShrink: 0 }}
                           >
                             ใช้
                           </button>
@@ -198,60 +250,52 @@ export default function Cart({
                 );
               })()}
 
-              {/* Bonus Progress Bar */}
-              {total > 0 && (
-                <div style={{ background: "#f9f9f9", borderRadius: 10, padding: "8px 12px" }}>
-                  {nextTier ? (
-                    <>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, color: isBonus ? "#e65100" : "#555" }}>
-                          ⭐ จะได้ <strong>{pointsWillEarn}</strong> แต้ม
-                          {isBonus && <span style={{ color: "#e65100", marginLeft: 4 }}>({currentMultiplier}x 🔥)</span>}
-                        </span>
-                        <span style={{ fontSize: 12, color: "#ff9800", fontWeight: "bold" }}>
-                          อีก ฿{needMore} → {nextTier.multiplier}x 🚀
-                        </span>
-                      </div>
-                      <div style={{ height: 6, background: "#e0e0e0", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{
-                          height: "100%", borderRadius: 4,
-                          background: isBonus ? "linear-gradient(90deg,#ff9800,#f5c518)" : "linear-gradient(90deg,#4caf50,#8bc34a)",
-                          width: `${Math.min(100, (total / nextTier.minSpend) * 100)}%`,
-                          transition: "width 0.3s ease"
-                        }} />
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: 12, color: "#e65100", fontWeight: "bold" }}>
-                      ⭐ จะได้ {pointsWillEarn} แต้ม · {currentMultiplier}x 🔥 MAX BONUS!
-                    </div>
-                  )}
+              {/* Points preview */}
+              {total > 0 && pointsWillEarn > 0 && (
+                <div style={{ fontSize: 12, color: isBonus ? "#e65100" : "#2e7d32", background: isBonus ? "#fff3e0" : "#f1f8e9", borderRadius: 8, padding: "4px 8px", marginTop: 4 }}>
+                  ⭐ ได้รับ +{pointsWillEarn} แต้ม {isBonus ? `(${currentMultiplier}x 🔥)` : ""}
+                  {needMore && <span style={{ color: "#888", marginLeft: 6 }}>อีก ฿{needMore} รับโบนัส</span>}
                 </div>
               )}
             </div>
-          ) : showRegister ? (
-            <div>
-              <div style={{ fontSize: 12, color: "#e65100", marginBottom: 6 }}>✨ สมัครสมาชิกใหม่ · {memberInput}</div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <input placeholder="ชื่อเล่น" value={regNickname} onChange={e => setRegNickname(e.target.value)}
-                  style={{ ...S.input, flex: 1 }} autoFocus />
-                <button onClick={registerMember} style={{ ...S.btnSmall, background: "#2e7d32", color: "#fff", border: "none" }}>บันทึก</button>
-                <button onClick={clearMember} style={{ ...S.btnSmall, color: "#333" }}>✕</button>
-              </div>
-            </div>
+          ) : memberStatus === "loading" ? (
+            <div style={{ textAlign: "center", color: "#888", fontSize: 13 }}>🔍 กำลังค้นหา...</div>
           ) : (
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input type="tel" inputMode="numeric" placeholder="👤 เบอร์สมาชิก (optional)"
-                value={memberInput}
-                onChange={e => { setMemberInput(e.target.value); setMemberStatus("idle"); }}
-                onBlur={e => lookupMember(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && lookupMember(memberInput)}
-                style={{ ...S.input, flex: 1 }} />
-              {memberStatus === "loading" && <span style={{ fontSize: 12, color: "#aaa" }}>🔍</span>}
-              {memberStatus === "notfound" && memberInput.length >= 9 && (
-                <button onClick={() => setShowRegister(true)} style={{ ...S.btnSmall, background: "#ff9800", color: "#fff", border: "none", whiteSpace: "nowrap" }}>
-                  + สมัคร
-                </button>
+            <div>
+              {showRegister ? (
+                <div>
+                  <div style={{ fontSize: 12, color: "#213547", fontWeight: "bold", marginBottom: 6 }}>สมัครสมาชิก — {memberInput}</div>
+                  <input
+                    placeholder="ชื่อเล่น / ชื่อสมาชิก"
+                    value={regNickname}
+                    onChange={e => setRegNickname(e.target.value)}
+                    style={{ ...S.input, width: "100%", marginBottom: 6, boxSizing: "border-box" }}
+                  />
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={registerMember} style={{ ...S.btnSmall, background: "#213547", color: "#fff", border: "none", flex: 1 }}>สมัคร</button>
+                    <button onClick={() => { setShowRegister(false); setRegNickname(""); }} style={{ ...S.btnSmall, flex: 1 }}>ยกเลิก</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {memberStatus === "notfound" && (
+                    <div style={{ fontSize: 12, color: "#c62828", marginBottom: 6 }}>
+                      ไม่พบสมาชิก —{" "}
+                      <button onClick={() => setShowRegister(true)} style={{ background: "none", border: "none", color: "#2e7d32", fontWeight: "bold", cursor: "pointer", fontSize: 12 }}>สมัครใหม่?</button>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      type="tel"
+                      placeholder="เบอร์โทรสมาชิก"
+                      value={memberInput}
+                      onChange={e => setMemberInput(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && lookupMember(memberInput)}
+                      style={{ ...S.input, flex: 1, minWidth: 0 }}
+                    />
+                    <button onClick={() => lookupMember(memberInput)} style={{ ...S.btnSmall, background: "#213547", color: "#fff", border: "none" }}>ค้นหา</button>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -321,8 +365,10 @@ export default function Cart({
             ))}
           </div>
         )}
-        <button style={{ ...S.btnPay, backgroundColor: cart.length > 0 ? "#213547" : "#999", cursor: cart.length > 0 ? "pointer" : "not-allowed" }}
-          onClick={() => cart.length > 0 && setShowPayment(true)}>
+        <button
+          style={{ ...S.btnPay, backgroundColor: cart.length > 0 ? "#213547" : "#999", cursor: cart.length > 0 ? "pointer" : "not-allowed" }}
+          onClick={() => cart.length > 0 && setShowPayment(true)}
+        >
           {isDelivery ? `💾 บันทึก ${priceChannel.toUpperCase()}` : "💰 ชำระเงิน"}
         </button>
       </div>
@@ -336,6 +382,13 @@ export default function Cart({
             <div style={S.totalDisplay}>
               <div style={{ fontSize: 13, color: "#888" }}>ยอดชำระสุทธิ</div>
               <div style={{ fontSize: 30, fontWeight: "bold" }}>฿{total.toLocaleString()}</div>
+              {!isDelivery && (
+                <div style={{ marginTop: 6, fontSize: 12, color: orderType === "dine_in" ? "#1565c0" : "#6a1b9a",
+                  background: orderType === "dine_in" ? "#e3f2fd" : "#f3e5f5",
+                  borderRadius: 8, padding: "3px 10px", display: "inline-block" }}>
+                  {orderType === "dine_in" ? "🍽️ ทานที่ร้าน" : "🛍️ กลับบ้าน"}
+                </div>
+              )}
               {memberPhone && pointsWillEarn > 0 && (
                 <div style={{ marginTop: 6, fontSize: 13, color: isBonus ? "#e65100" : "#555",
                   background: isBonus ? "#fff3e0" : "#f5f5f5", borderRadius: 8, padding: "4px 10px", display: "inline-block" }}>
@@ -372,11 +425,32 @@ export default function Cart({
             ) : (
               <div style={{ marginBottom: 20 }}>
                 <p style={{ textAlign: "center", color: "#888", fontSize: 13, marginBottom: 10 }}>
-                  ระบุเลขอ้างอิง {priceChannel.toUpperCase()}
+                  ตรวจสอบเลขอ้างอิง {priceChannel.toUpperCase()}
                 </p>
-                <input type="text" placeholder={priceChannel === "lineman" ? "เลข 4 หลัก" : "ระบุเลขอ้างอิง"}
-                  style={S.inputModal} value={deliveryRef} onChange={e => handleRefChange(e.target.value)} autoFocus />
-                <p style={{ textAlign: "center", color: "#bbb", fontSize: 11, marginTop: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", background: "#f5f5f5", borderRadius: 8, border: "1px solid #ddd", overflow: "hidden", marginBottom: 8 }}>
+                  {priceChannel === "grab" && (
+                    <span style={{ padding: "0 10px", color: "#00B14F", fontWeight: "bold", fontSize: 15, borderRight: "1px solid #ddd" }}>GF-</span>
+                  )}
+                  <input
+                    type={priceChannel === "lineman" ? "number" : "text"}
+                    inputMode="numeric"
+                    placeholder={priceChannel === "lineman" ? "เลข 4 หลัก" : "ระบุเลขอ้างอิง"}
+                    value={priceChannel === "grab" ? deliveryRef.replace("GF-", "") : deliveryRef}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (priceChannel === "grab") {
+                        setDeliveryRef("GF-" + val.toUpperCase());
+                      } else if (priceChannel === "lineman") {
+                        if (val.length <= 4) setDeliveryRef(val);
+                      } else {
+                        setDeliveryRef(val);
+                      }
+                    }}
+                    style={{ flex: 1, padding: "12px", border: "none", outline: "none", fontSize: 18, textAlign: "center", background: "transparent", color: "#333" }}
+                    autoFocus
+                  />
+                </div>
+                <p style={{ textAlign: "center", color: "#bbb", fontSize: 11, marginTop: 0 }}>
                   ออเดอร์จะไปรอที่ Dashboard เพื่อใส่ยอดรับจริง
                 </p>
               </div>
@@ -425,6 +499,9 @@ const S = {
   container: { display: "flex", flexDirection: "column", height: "100%", padding: "15px", backgroundColor: "#ff9800", boxSizing: "border-box" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" },
   btnClear: { background: "rgba(255,255,255,0.3)", border: "1px solid #213547", padding: "4px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "13px", color: "#213547" },
+  orderTypeSection: { display: "flex", gap: 8, marginBottom: 10 },
+  orderTypeBtn: { flex: 1, padding: "8px 0", borderRadius: 10, fontSize: 13, cursor: "pointer", transition: "all 0.15s" },
+  deliveryRefSection: { background: "rgba(255,255,255,0.9)", borderRadius: 12, padding: "10px 12px", marginBottom: 10 },
   memberSection: { background: "rgba(255,255,255,0.9)", borderRadius: 12, padding: "10px 12px", marginBottom: 10 },
   cartList: { flex: 1, overflowY: "auto", marginBottom: "10px" },
   emptyText: { textAlign: "center", marginTop: "50px", color: "rgba(33,53,71,0.45)", fontSize: "15px" },

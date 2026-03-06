@@ -34,12 +34,10 @@ const INITIAL_PRODUCTS = [
 // =============================================
 // SUPABASE DRIVER
 // =============================================
-let _supabase = null;
 function getSupabase() {
   return _supabaseInstance;
 }
 
-// แปลง DB row → App format
 function dbToProduct(row) {
   return {
     id: row.id,
@@ -77,6 +75,7 @@ function dbToOrder(row) {
     isSettled: row.is_settled,
     items: row.items || [],
     member_phone: row.member_phone || null,
+    order_type: row.order_type || "dine_in", // 🆕
   };
 }
 
@@ -184,10 +183,16 @@ const supabaseDriver = {
   async addOrder(order) {
     const sb = getSupabase();
     const { data, error } = await sb.from("orders").insert({
-      channel: order.channel, payment: order.payment, ref_id: order.refId || "",
-      total: order.total, actual_amount: order.actualAmount || 0,
-      is_settled: order.isSettled || false, is_history: false, items: order.items,
+      channel: order.channel,
+      payment: order.payment,
+      ref_id: order.refId || "",
+      total: order.total,
+      actual_amount: order.actualAmount || 0,
+      is_settled: order.isSettled || false,
+      is_history: false,
+      items: order.items,
       member_phone: order.member_phone || null,
+      order_type: order.order_type || "dine_in", // 🆕 ทานที่ร้าน / กลับบ้าน
     }).select().single();
     if (error) throw error;
     return dbToOrder(data);
@@ -328,7 +333,6 @@ const localDriver = {
     ls.set("katkat_orders", []);
   },
 
-  // MEMBERS
   async fetchMembers() {
     return ls.get("katkat_members", []);
   },
