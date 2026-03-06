@@ -7,6 +7,9 @@ export default function Products({
   selectedCategory, 
   setSelectedCategory, 
   priceChannel,
+  setPriceChannel,
+  orderType,
+  setOrderType,
   modifierGroups = []
 }) {
   const [showModifierPopup, setShowModifierPopup] = useState(false);
@@ -23,7 +26,6 @@ export default function Products({
     return channelPrices[priceChannel] ?? product.price;
   };
 
-  // BUG#3 FIX: เช็ค product.modifierGroups (array of IDs) แทน product.modifiers
   const handleProductClick = (product) => {
     const productModGroups = modifierGroups.filter(g =>
       product.modifierGroups?.includes(g.id)
@@ -41,7 +43,6 @@ export default function Products({
     [products, selectedProductId]
   );
 
-  // BUG#5 FIX: filter เฉพาะ groups ที่ผูกกับ selectedProduct เท่านั้น
   const activeModifierGroups = useMemo(() =>
     modifierGroups.filter(g =>
       selectedProduct?.modifierGroups?.includes(g.id)
@@ -71,7 +72,61 @@ export default function Products({
   return (
     <div style={styles.container}>
       <div style={styles.headerRow}>
-        <h2 style={{ margin: 0 }}>เมนูสินค้า</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+            <h2 style={{ margin: 0 }}>เมนูสินค้า</h2>
+            
+            {/* ── Price Channel Selector (Desktop) ── */}
+            <div style={{ display: "flex", gap: "6px", backgroundColor: "#1a1a1a", padding: "4px", borderRadius: "10px", border: "1px solid #333" }}>
+              {[
+                { key: "pos", label: "POS", color: "#444" },
+                { key: "grab", label: "Grab", color: "#00B14F" },
+                { key: "lineman", label: "Lineman", color: "#00A84F" },
+                { key: "shopee", label: "Shopee", color: "#EE4D2D" },
+              ].map((ch) => (
+                <button
+                  key={ch.key}
+                  onClick={() => setPriceChannel(ch.key)}
+                  style={{
+                    padding: "6px 14px", borderRadius: "8px", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer",
+                    backgroundColor: priceChannel === ch.key ? ch.color : "transparent",
+                    color: priceChannel === ch.key ? "#fff" : "#666",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  {ch.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Order Type Selector (Desktop - POS only) ── */}
+          {priceChannel === "pos" && (
+            <div style={{ display: "flex", gap: "8px", backgroundColor: "#1a1a1a", padding: "4px", borderRadius: "10px", border: "1px solid #333", alignSelf: "flex-start" }}>
+              <button 
+                onClick={() => setOrderType("dine-in")}
+                style={{ 
+                  padding: "5px 15px", borderRadius: "8px", border: "none", fontWeight: "bold", cursor: "pointer", fontSize: "11px",
+                  backgroundColor: orderType === "dine-in" ? "#213547" : "transparent",
+                  color: orderType === "dine-in" ? "#fff" : "#555",
+                }}
+              >
+                🏠 ทานที่ร้าน
+              </button>
+              <button 
+                onClick={() => setOrderType("takeaway")}
+                style={{ 
+                  padding: "5px 15px", borderRadius: "8px", border: "none", fontWeight: "bold", cursor: "pointer", fontSize: "11px",
+                  backgroundColor: orderType === "takeaway" ? "#213547" : "transparent",
+                  color: orderType === "takeaway" ? "#fff" : "#555",
+                }}
+              >
+                🥡 กลับบ้าน
+              </button>
+            </div>
+          )}
+        </div>
+
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: "14px", color: "#888" }}>หมวดหมู่:</span>
           <select
@@ -113,7 +168,6 @@ export default function Products({
           <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
             <h3 style={{ marginTop: 0, color: "#fff" }}>เลือกตัวเลือก: {selectedProduct.name}</h3>
             <div style={{ maxHeight: "60vh", overflowY: "auto", margin: "20px 0" }}>
-              {/* BUG#5 FIX: ใช้ activeModifierGroups แทน modifierGroups ทั้งหมด */}
               {activeModifierGroups.map(group => (
                 <div key={group.id} style={{ marginBottom: "15px", textAlign: "left" }}>
                   <div style={{ fontSize: "14px", color: "#888", marginBottom: "8px", fontWeight: "bold" }}>
@@ -184,9 +238,8 @@ const styles = {
   select: { padding: "8px 12px", borderRadius: "8px", backgroundColor: "#262626", color: "#fff", border: "1px solid #444", outline: "none" },
   scrollArea: { flex: 1, overflowY: "auto", paddingRight: "5px" },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "10px" },
-  // BUG#7 FIX: "px" → "12px"
   productCard: { aspectRatio: "1 / 1", padding: "15px", backgroundColor: "#262626", border: "1px solid #333", borderRadius: "12px", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", color: "#fff" },
-  productName: { fontWeight: "bold", fontSize: "14px", marginBottom: "8px" },
+  productName: { fontWeight: "bold", fontSize: "14px", marginBottom: "8px", textAlign: "center" },
   productPrice: { color: "#4caf50", fontWeight: "bold", fontSize: "15px" },
   categoryTitle: { fontSize: "18px", fontWeight: "800", color: "#888", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "1px" },
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 },

@@ -350,7 +350,18 @@ function App() {
             {view === "pos" && (
               <>
                 <section style={{ flex: 1, overflowY: "auto", padding: 15, borderRight: "1px solid #333" }}>
-                  <Products products={products} addToCart={addToCart} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} priceChannel={priceChannel} setPriceChannel={setPriceChannel} modifierGroups={modifierGroups} />
+                  <Products 
+                    products={products} 
+                    addToCart={addToCart} 
+                    categories={categories} 
+                    selectedCategory={selectedCategory} 
+                    setSelectedCategory={setSelectedCategory} 
+                    priceChannel={priceChannel} 
+                    setPriceChannel={setPriceChannel} 
+                    orderType={orderType}
+                    setOrderType={setOrderType}
+                    modifierGroups={modifierGroups} 
+                  />
                 </section>
                 <aside style={{ width: 400 }}>
                   <Cart {...commonProps} onClearCart={() => { setCart([]); setDiscounts([]); }} />
