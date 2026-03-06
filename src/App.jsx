@@ -29,9 +29,19 @@ function App() {
   const [modifierGroups, setModifierGroups] = useState([]);
   const [members, setMembers] = useState([]);
   const [memberPhone, setMemberPhone] = useState(""); 
-  const [memberInfo, setMemberInfo] = useState(null);
   const [memberStatus, setMemberStatus] = useState("idle");
   const [discounts, setDiscounts] = useState([]); 
+
+  // memberInfo derive จาก members state เพื่อให้ realtime update ทันที
+  const memberInfo = useMemo(() => 
+    members.find(m => m.phone === memberPhone) || null
+  , [members, memberPhone]);
+
+  const setMemberInfo = (info) => {
+    if (info && !members.find(m => m.phone === info.phone)) {
+      setMembers(prev => [...prev, info]);
+    }
+  };
   
   // Modern UI states
   const [toast, setToast] = useState(null); 
@@ -149,12 +159,46 @@ function App() {
   const discountTotal = useMemo(() => computeDiscountTotal(subtotal, discounts), [subtotal, discounts]);
   const total = Math.max(0, Math.round(subtotal - discountTotal));
 
+  // ✅ FIX: markCouponUsed — อัปเดต Supabase แล้ว sync members state ทันที ให้ UI refresh realtime
+  const markCouponUsed = useCallback(async (couponId, isUsed) => {
+    if (!memberPhone || !couponId) return;
+    try {
+      const { data: mem } = await sb.from("members").select("redeemed_rewards").eq("phone", memberPhone).single();
+      if (mem && mem.redeemed_rewards) {
+        const updatedRewards = mem.redeemed_rewards.map(r => 
+          r.id === couponId ? { ...r, used_at: isUsed ? new Date().toISOString() : null } : r
+        );
+        await sb.from("members").update({ redeemed_rewards: updatedRewards }).eq("phone", memberPhone);
+        // sync local state ทันที ไม่ต้องรอ realtime subscription
+        setMembers(prev => prev.map(m => 
+          m.phone === memberPhone ? { ...m, redeemed_rewards: updatedRewards } : m
+        ));
+      }
+    } catch (e) { console.error("Coupon update failed:", e); }
+  }, [memberPhone]);
+
   const handleApplyManualDiscount = useCallback((disc) => setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random(), source: "manual", label: disc.mode === "percent" ? `${disc.value}%` : `฿${disc.value}` }]), []);
-  const handleApplyRewardDiscount = useCallback((disc) => setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random() }]), []);
-  const handleRemoveDiscount = useCallback((id) => setDiscounts(prev => prev.filter(d => d.id !== id)), []);
-  const handleClearDiscounts = useCallback(() => setDiscounts([]), []);
+  
+  const handleApplyRewardDiscount = useCallback((disc) => {
+    setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random() }]);
+    if (disc.couponId) markCouponUsed(disc.couponId, true);
+  }, [markCouponUsed]);
+
+  const handleRemoveDiscount = useCallback((id) => {
+    setDiscounts(prev => {
+      const disc = prev.find(d => d.id === id);
+      if (disc?.couponId) markCouponUsed(disc.couponId, false);
+      return prev.filter(d => d.id !== id);
+    });
+  }, [markCouponUsed]);
+
+  const handleClearDiscounts = useCallback(() => {
+    discounts.forEach(d => { if (d.couponId) markCouponUsed(d.couponId, false); });
+    setDiscounts([]);
+  }, [discounts, markCouponUsed]);
 
   const addToCart = useCallback((product, channel = priceChannel) => {
+    if (product.couponId) markCouponUsed(product.couponId, true);
     setCart(prev => {
       const modId = product.selectedModifier?.id || null;
       const idx = prev.findIndex(i => i.id === product.id && i.channel === channel && (i.selectedModifier?.id || null) === modId);
@@ -163,17 +207,19 @@ function App() {
       const modPrice = Number(product.selectedModifier?.price) || 0;
       return [...prev, { ...product, price: base + modPrice, qty: 1, channel, selectedModifier: product.selectedModifier || null }];
     });
-  }, [priceChannel]);
+  }, [priceChannel, markCouponUsed]);
 
   const decreaseQty = useCallback((id, channel, modId = null) => {
     setCart(prev => {
       const idx = prev.findIndex(i => i.id === id && i.channel === channel && (i.selectedModifier?.id || null) === (modId || null));
       if (idx === -1) return prev;
+      const item = prev[idx];
       const n = [...prev];
       if (n[idx].qty > 1) { n[idx].qty -= 1; return n; }
+      if (item.couponId) markCouponUsed(item.couponId, false);
       return n.filter((_, i) => i !== idx);
     });
-  }, []);
+  }, [markCouponUsed]);
 
   const increaseQty = useCallback((id, channel, modId = null) => {
     setCart(prev => prev.map(i => (i.id === id && i.channel === channel && (i.selectedModifier?.id || null) === (modId || null)) ? { ...i, qty: i.qty + 1 } : i));
@@ -203,7 +249,7 @@ function App() {
           const pts = calcPoints(total, rate, tiers);
           await sb.rpc("increment_member_points", { p_phone: phone, p_points: pts, p_spent: total });
           
-          // --- BUG FIX: ลบคูปองที่ถูกใช้งานแล้วออกจากระบบ ---
+          // --- ลบคูปองที่ถูกใช้งานแล้วออกจากระบบ ---
           const usedCouponIds = [
             ...discounts.filter(d => d.couponId).map(d => d.couponId),
             ...cart.filter(i => i.couponId).map(i => i.couponId)
@@ -216,6 +262,9 @@ function App() {
                 usedCouponIds.includes(r.id) ? { ...r, used_at: new Date().toISOString() } : r
               );
               await sb.from("members").update({ redeemed_rewards: updatedRewards }).eq("phone", phone);
+              setMembers(prev => prev.map(m => 
+                m.phone === phone ? { ...m, redeemed_rewards: updatedRewards } : m
+              ));
             }
           }
           // ------------------------------------------
@@ -224,7 +273,7 @@ function App() {
         } catch (e) { console.warn(e); }
       }
 
-      setCart([]); setDiscounts([]); setMemberPhone(""); setMemberInfo(null); setMemberStatus("idle");
+      setCart([]); setDiscounts([]); setMemberPhone(""); setMemberStatus("idle");
       showToast(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "✨ ชำระเงินเรียบร้อยครับ");
     } catch (err) {
       showToast("❌ บันทึกออเดอร์ไม่ได้ กรุณาลองใหม่", "error");
