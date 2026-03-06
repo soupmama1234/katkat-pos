@@ -41,11 +41,18 @@ export default function Cart({
   const isBonus = currentMultiplier > 1;
 
   React.useEffect(() => {
-    if (showPayment) {
-      setDeliveryRef(priceChannel === "grab" ? "GF-" : "");
-      setCashReceived("");
+    if (priceChannel === "grab") {
+      if (!deliveryRef.startsWith("GF-")) {
+        setDeliveryRef("GF-" + deliveryRef.replace("GF-", ""));
+      }
+    } else if (isDelivery) {
+      // สำหรับช่องทางอื่น ถ้ายังเป็น GF- ให้ล้างออก
+      if (deliveryRef.startsWith("GF-")) setDeliveryRef("");
+    } else {
+      setDeliveryRef("");
     }
-  }, [showPayment, priceChannel]);
+    setCashReceived("");
+  }, [priceChannel]);
 
   // member lookup
   const lookupMember = async (phone) => {
@@ -87,11 +94,17 @@ export default function Cart({
   const handleRefChange = (val) => {
     const upperVal = val.toUpperCase();
     if (priceChannel === "grab") {
-      if (upperVal.startsWith("GF-")) {
-        setDeliveryRef(upperVal);
-      } else if (upperVal === "" || "GF-".startsWith(upperVal)) {
-        // ให้พิมพ์ GF- ได้สะดวกขึ้น หรือถ้าลบหมดให้กลับเป็น GF-
+      // ถ้าลบจนว่าง ให้เหลือแค่ GF-
+      if (upperVal === "") {
         setDeliveryRef("GF-");
+      } 
+      // ถ้าพิมพ์แค่เลข (ไม่มี GF-) ให้เติมให้
+      else if (!upperVal.startsWith("GF-")) {
+        setDeliveryRef("GF-" + upperVal);
+      } 
+      // ถ้ามี GF- อยู่แล้วก็ตามนั้น
+      else {
+        setDeliveryRef(upperVal);
       }
     } else {
       setDeliveryRef(upperVal);

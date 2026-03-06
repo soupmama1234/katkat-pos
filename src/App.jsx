@@ -299,12 +299,12 @@ function App() {
           </header>
           {view === "pos" && (
             <div style={styles.desktopChannelBar}>
-              <span style={{ fontSize: "12px", color: "#888" }}>ช่องทางราคา:</span>
+              <span style={{ fontSize: "12px", color: "#888", fontWeight: "bold" }}>ช่องทางราคา:</span>
               {[
-                { key: "pos", label: "POS", color: "#4a4a4a" },
-                { key: "grab", label: "Grab", color: "#00B14F" },
-                { key: "lineman", label: "Line Man", color: "#00A84F" },
-                { key: "shopee", label: "Shopee", color: "#EE4D2D" },
+                { key: "pos", label: "หน้าร้าน (POS)", color: "#444" },
+                { key: "grab", label: "GrabFood", color: "#008a3e" },
+                { key: "lineman", label: "LINE MAN", color: "#00b0b9" },
+                { key: "shopee", label: "ShopeeFood", color: "#f53d2d" },
               ].map((ch) => (
                 <button
                   key={ch.key}
