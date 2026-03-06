@@ -36,6 +36,8 @@ export default function MobilePOS({
   onClearDiscounts,
   showToast,
   showConfirm,
+  orderType,
+  setOrderType,
 }) {
   const [showCart, setShowCart] = useState(false);
   const [refValue, setRefValue] = useState("");
@@ -204,6 +206,34 @@ export default function MobilePOS({
           </button>
         ))}
       </div>
+
+      {/* 2.2 เลือกประเภท (เฉพาะ POS) */}
+      {priceChannel === "pos" && (
+        <div style={{ display: "flex", padding: "0 12px 10px", gap: 8, backgroundColor: "#000" }}>
+          <button 
+            onClick={() => setOrderType("dine-in")}
+            style={{ 
+              flex: 1, padding: "10px", borderRadius: "10px", border: "none", fontWeight: "bold",
+              backgroundColor: orderType === "dine-in" ? "#fff" : "#222",
+              color: orderType === "dine-in" ? "#000" : "#fff",
+              fontSize: "13px"
+            }}
+          >
+            🏠 ทานที่ร้าน
+          </button>
+          <button 
+            onClick={() => setOrderType("takeaway")}
+            style={{ 
+              flex: 1, padding: "10px", borderRadius: "10px", border: "none", fontWeight: "bold",
+              backgroundColor: orderType === "takeaway" ? "#fff" : "#222",
+              color: orderType === "takeaway" ? "#000" : "#fff",
+              fontSize: "13px"
+            }}
+          >
+            🥡 กลับบ้าน
+          </button>
+        </div>
+      )}
 
       {/* 2.5 ช่องเลข ref — โชว์ทันทีเมื่อเลือก Delivery channel */}
       {["grab", "lineman", "shopee"].includes(priceChannel) && (
