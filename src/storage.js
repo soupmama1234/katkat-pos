@@ -34,7 +34,6 @@ const INITIAL_PRODUCTS = [
 // =============================================
 // SUPABASE DRIVER
 // =============================================
-let _supabase = null;
 function getSupabase() {
   return _supabaseInstance;
 }
@@ -77,6 +76,9 @@ function dbToOrder(row) {
     isSettled: row.is_settled,
     items: row.items || [],
     member_phone: row.member_phone || null,
+    // ── ใหม่: dine-in / takeaway + เลขโต๊ะ ──
+    orderType: row.order_type || "dine_in",
+    tableNumber: row.table_number || null,
   };
 }
 
@@ -184,10 +186,18 @@ const supabaseDriver = {
   async addOrder(order) {
     const sb = getSupabase();
     const { data, error } = await sb.from("orders").insert({
-      channel: order.channel, payment: order.payment, ref_id: order.refId || "",
-      total: order.total, actual_amount: order.actualAmount || 0,
-      is_settled: order.isSettled || false, is_history: false, items: order.items,
+      channel: order.channel,
+      payment: order.payment,
+      ref_id: order.refId || "",
+      total: order.total,
+      actual_amount: order.actualAmount || 0,
+      is_settled: order.isSettled || false,
+      is_history: false,
+      items: order.items,
       member_phone: order.member_phone || null,
+      // ── ใหม่ ──
+      order_type: order.orderType || "dine_in",
+      table_number: order.tableNumber || null,
     }).select().single();
     if (error) throw error;
     return dbToOrder(data);
@@ -305,7 +315,12 @@ const localDriver = {
     return ls.get("katkat_orders", []);
   },
   async addOrder(order) {
-    const saved = { ...order, id: Date.now() };
+    const saved = {
+      ...order,
+      id: Date.now(),
+      orderType: order.orderType || "dine_in",
+      tableNumber: order.tableNumber || null,
+    };
     const orders = ls.get("katkat_orders", []);
     ls.set("katkat_orders", [saved, ...orders]);
     return saved;
