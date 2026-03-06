@@ -93,10 +93,10 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
     <div style={{ padding: "16px", color: "#fff", backgroundColor: "#121212", minHeight: "100vh", width: "100%", boxSizing: "border-box", flex: 1 }}>
 
       {/* Header */}
-      <div style={{ marginBottom: "16px", maxWidth: "1200px", margin: "0 auto 16px auto" }}>
+      <div style={{ marginBottom: "16px", maxWidth: "900px", margin: "0 auto 16px auto" }}>
         <h2 style={{ margin: "0 0 2px 0", fontSize: "20px" }}>LIVE DASHBOARD</h2>
         <p style={{ color: "#666", margin: "0 0 12px 0", fontSize: "12px" }}>{todayStr}</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", maxWidth: "400px" }}>
+        <div style={{ display: "flex", gap: "8px", maxWidth: "400px" }}>
           <button onClick={() => exportToCSV(orders, "Daily_Backup")} style={s.btnExport}>
             📥 สำรอง CSV
           </button>
@@ -106,7 +106,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
         </div>
       </div>
 
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
         {/* Stats Grid */}
         <div style={s.statsGrid}>
           <div style={{ ...s.card, borderTop: "3px solid #ff9800" }}>
@@ -131,7 +131,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
         </div>
 
         {/* Channel breakdown */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
           {Object.keys(stats.channelMap).length > 0 && (
             <div style={s.panel}>
               <div style={s.panelTitle}>สัดส่วนรายได้แยกช่องทาง</div>
