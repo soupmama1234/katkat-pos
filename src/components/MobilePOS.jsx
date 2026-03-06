@@ -37,6 +37,11 @@ export default function MobilePOS({
   onClearDiscounts,
   showToast,
   showConfirm,
+  // ── ใหม่ ──
+  orderType = "dine_in",
+  setOrderType,
+  tableNumber = "",
+  setTableNumber,
 }) {
   const [showCart, setShowCart] = useState(false);
   const [refValue, setRefValue] = useState("");
@@ -60,27 +65,21 @@ export default function MobilePOS({
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [tempSelection, setTempSelection] = useState([]);
 
-  // ── bonus points calculation ──
   const { rate, tiers } = getPointSettings();
   const pointsWillEarn = memberPhone ? calcPoints(total, rate, tiers) : 0;
   const nextTier = nextThreshold(total, tiers);
   const needMore = nextTier ? nextTier.minSpend - total : null;
 
-  // ── KEY FIX: mark coupon used ใน Supabase ทันที แล้ว sync members state ผ่าน onMemberUpdate
+  // mark coupon used ทันที (optimistic) แล้ว sync Supabase
   const markCouponUsed = async (couponId) => {
     if (!memberInfo || !memberPhone) return;
     const updatedRewards = (memberInfo.redeemed_rewards || []).map(r =>
       r.id === couponId ? { ...r, used_at: new Date().toISOString() } : r
     );
-    // optimistic update ก่อน
-    const updatedMember = { ...memberInfo, redeemed_rewards: updatedRewards };
-    onMemberUpdate?.(updatedMember);
-    // แล้วค่อย sync กับ Supabase
+    onMemberUpdate?.({ ...memberInfo, redeemed_rewards: updatedRewards });
     try {
       await sb.from("members").update({ redeemed_rewards: updatedRewards }).eq("phone", memberPhone);
-    } catch (e) {
-      console.warn("markCouponUsed error:", e);
-    }
+    } catch (e) { console.warn("markCouponUsed error:", e); }
   };
 
   const lookupMember = async (phone) => {
@@ -100,9 +99,7 @@ export default function MobilePOS({
       setMemberInfo(data); setMemberStatus("found"); setMemberPhone(memberInput);
       setShowRegister(false); setRegNickname("");
       showToast?.("สมัครสมาชิกเรียบร้อย ✨");
-    } catch (e) {
-      showToast?.("สมัครไม่สำเร็จ: " + e.message, "error");
-    }
+    } catch (e) { showToast?.("สมัครไม่สำเร็จ: " + e.message, "error"); }
   };
 
   const clearMember = () => {
@@ -112,12 +109,7 @@ export default function MobilePOS({
   };
 
   const getDisplayPrice = (product) => {
-    const channelPrices = {
-      pos: product.price,
-      grab: product.grabPrice,
-      lineman: product.linemanPrice,
-      shopee: product.shopeePrice
-    };
+    const channelPrices = { pos: product.price, grab: product.grabPrice, lineman: product.linemanPrice, shopee: product.shopeePrice };
     return channelPrices[priceChannel] ?? product.price;
   };
 
@@ -132,9 +124,7 @@ export default function MobilePOS({
   );
 
   const handleProductClick = (product) => {
-    const productModGroups = modifierGroups.filter(g =>
-      product.modifierGroups?.includes(g.id)
-    );
+    const productModGroups = modifierGroups.filter(g => product.modifierGroups?.includes(g.id));
     if (productModGroups.length > 0) {
       setSelectedProductId(product.id);
       setShowModifierPopup(true);
@@ -175,29 +165,22 @@ export default function MobilePOS({
     setShowCart(false);
   };
 
+  const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
   const totalQty = cart.reduce((sum, i) => sum + i.qty, 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", backgroundColor: "#000", position: "relative" }}>
 
-      {/* 1. หมวดหมู่ */}
+      {/* หมวดหมู่ */}
       <div style={styles.categoryBar}>
         {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            style={{
-              ...styles.catBtn,
-              backgroundColor: selectedCategory === cat ? "#fff" : "#222",
-              color: selectedCategory === cat ? "#000" : "#fff",
-            }}
-          >
+          <button key={cat} onClick={() => setSelectedCategory(cat)} style={{ ...styles.catBtn, backgroundColor: selectedCategory === cat ? "#fff" : "#222", color: selectedCategory === cat ? "#000" : "#fff" }}>
             {cat}
           </button>
         ))}
       </div>
 
-      {/* 2. แถบช่องทาง */}
+      {/* แถบช่องทาง */}
       <div style={styles.channelBar}>
         {[
           { key: "pos", label: "POS", color: "#4a4a4a" },
@@ -205,43 +188,70 @@ export default function MobilePOS({
           { key: "lineman", label: "Lineman", color: "#00A84F" },
           { key: "shopee", label: "Shopee", color: "#EE4D2D" },
         ].map((ch) => (
-          <button
-            key={ch.key}
-            onClick={() => { setPriceChannel(ch.key); setRefValue(""); }}
-            style={{
-              ...styles.channelBtn,
-              background: priceChannel === ch.key ? ch.color : "#262626",
-              border: priceChannel === ch.key ? "2px solid #fff" : "2px solid transparent",
-              opacity: priceChannel === ch.key ? 1 : 0.6,
-            }}
-          >
+          <button key={ch.key} onClick={() => { setPriceChannel(ch.key); setRefValue(""); }} style={{ ...styles.channelBtn, background: priceChannel === ch.key ? ch.color : "#262626", border: priceChannel === ch.key ? "2px solid #fff" : "2px solid transparent", opacity: priceChannel === ch.key ? 1 : 0.6 }}>
             {ch.label}
           </button>
         ))}
       </div>
 
-      {/* 2.5 ช่องเลข ref */}
-      {["grab", "lineman", "shopee"].includes(priceChannel) && (
+      {/* ช่องเลข ref สำหรับ Delivery */}
+      {isDelivery && (
         <div style={{ padding: "8px 12px", backgroundColor: "#111", borderBottom: "1px solid #222" }}>
           <div style={styles.inputGroup}>
-            {priceChannel === "grab" && (
-              <span style={styles.prefixLabel}>GF-</span>
-            )}
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder={priceChannel === "grab" ? "ระบุตัวเลข" : "เลขที่อ้างอิง"}
-              value={refValue}
-              onChange={(e) => setRefValue(e.target.value)}
-              style={{ ...styles.innerInput, fontSize: "16px", padding: "10px 12px" }}
-              autoFocus
-            />
+            {priceChannel === "grab" && <span style={styles.prefixLabel}>GF-</span>}
+            <input type="number" inputMode="numeric" placeholder={priceChannel === "grab" ? "ระบุตัวเลข" : "เลขที่อ้างอิง"} value={refValue} onChange={(e) => setRefValue(e.target.value)} style={{ ...styles.innerInput, fontSize: "16px", padding: "10px 12px" }} />
           </div>
         </div>
       )}
 
-      {/* ── Member Bar (POS only) ── */}
-      {priceChannel === "pos" && (
+      {/* ── Dine-in / Takeaway toggle + เลขโต๊ะ (POS เท่านั้น) ── */}
+      {!isDelivery && (
+        <div style={{ padding: "8px 12px", backgroundColor: "#0a0a0a", borderBottom: "1px solid #1a1a1a", display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            onClick={() => setOrderType?.("dine_in")}
+            style={{
+              flex: 1, padding: "9px 0", borderRadius: 8, border: "none", fontSize: 13, cursor: "pointer", transition: "all 0.15s",
+              background: orderType === "dine_in" ? "#fff" : "#1a1a1a",
+              color: orderType === "dine_in" ? "#000" : "#888",
+              fontWeight: orderType === "dine_in" ? "bold" : "normal",
+            }}
+          >
+            🍽️ ทานที่ร้าน
+          </button>
+          <button
+            onClick={() => { setOrderType?.("takeaway"); setTableNumber?.(""); }}
+            style={{
+              flex: 1, padding: "9px 0", borderRadius: 8, border: "none", fontSize: 13, cursor: "pointer", transition: "all 0.15s",
+              background: orderType === "takeaway" ? "#fff" : "#1a1a1a",
+              color: orderType === "takeaway" ? "#000" : "#888",
+              fontWeight: orderType === "takeaway" ? "bold" : "normal",
+            }}
+          >
+            🥡 กลับบ้าน
+          </button>
+
+          {/* เลขโต๊ะ */}
+          {orderType === "dine_in" && (
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="โต๊ะ"
+              value={tableNumber}
+              onChange={e => setTableNumber?.(e.target.value)}
+              maxLength={4}
+              style={{
+                width: 64, padding: "8px 6px", borderRadius: 8,
+                border: "1.5px solid #444", background: "#1a1a1a",
+                color: "#fff", fontSize: 14, textAlign: "center",
+                fontWeight: "bold", outline: "none",
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Member Bar (POS only) */}
+      {!isDelivery && (
         <div style={{ padding: "8px 12px", backgroundColor: "#0a0a0a", borderBottom: "1px solid #1a1a1a" }}>
           {memberStatus === "found" && memberInfo ? (
             <div>
@@ -250,10 +260,7 @@ export default function MobilePOS({
                   <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: 13 }}>👤 {memberInfo.nickname}</span>
                   <span style={{ color: "#666", fontSize: 12, marginLeft: 8 }}>⭐ {memberInfo.points} แต้ม</span>
                 </div>
-                <button onClick={() => setShowRedeem(true)}
-                  style={{ background: "#f5c518", border: "none", color: "#000", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: "bold", cursor: "pointer", marginRight: 4 }}>
-                  🎁 แลก
-                </button>
+                <button onClick={() => setShowRedeem(true)} style={{ background: "#f5c518", border: "none", color: "#000", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: "bold", cursor: "pointer", marginRight: 4 }}>🎁 แลก</button>
                 <button onClick={clearMember} style={{ background: "none", border: "1px solid #333", color: "#666", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>เปลี่ยน</button>
               </div>
 
@@ -273,28 +280,14 @@ export default function MobilePOS({
                           <button
                             onClick={async () => {
                               const coupon = group.sampleReward;
-                              // ── KEY FIX: mark used ทันที + import แบบ ESM (ไม่ใช้ require)
                               await markCouponUsed(coupon.id);
                               const rewardDiscount = parseRewardDiscount(coupon);
-                              if (rewardDiscount) {
-                                onApplyRewardDiscount?.({ ...rewardDiscount, couponId: coupon.id });
-                              } else {
-                                addToCart?.({
-                                  id: `coupon-${coupon.id}`,
-                                  name: `🎁 ${coupon.name}`,
-                                  price: 0,
-                                  qty: 1,
-                                  category: "reward",
-                                  modifierGroups: [],
-                                  couponId: coupon.id
-                                });
-                              }
+                              if (rewardDiscount) { onApplyRewardDiscount?.({ ...rewardDiscount, couponId: coupon.id }); }
+                              else { addToCart?.({ id: `coupon-${coupon.id}`, name: `🎁 ${coupon.name}`, price: 0, qty: 1, category: "reward", modifierGroups: [], couponId: coupon.id }); }
                               showToast?.(`ใช้คูปอง "${coupon.name}" แล้ว`);
                             }}
                             style={{ background: "#4caf50", color: "#000", border: "none", borderRadius: 6, padding: "3px 12px", fontSize: 11, fontWeight: "bold", cursor: "pointer" }}
-                          >
-                            ใช้
-                          </button>
+                          >ใช้</button>
                         </div>
                       ))}
                     </div>
@@ -302,33 +295,16 @@ export default function MobilePOS({
                 );
               })()}
 
-              {/* Bonus Progress Bar */}
-              {total > 0 && (
+              {/* Bonus Progress */}
+              {total > 0 && nextTier && (
                 <div style={{ marginTop: 6 }}>
-                  {nextTier ? (
-                    <div>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                        <span style={{ fontSize: 11, color: "#f5c518" }}>
-                          ⭐ จะได้ {pointsWillEarn} แต้ม
-                          {calcPoints(total, rate, tiers) > calcPoints(total, rate, []) && (
-                            <span style={{ color: "#ff9800", marginLeft: 4 }}>
-                              ({tiers.sort((a, b) => b.minSpend - a.minSpend).find(t => total >= t.minSpend)?.multiplier || 1}x!)
-                            </span>
-                          )}
-                        </span>
-                        <span style={{ fontSize: 11, color: "#ff9800" }}>อีก ฿{needMore} → {nextTier.multiplier}x 🚀</span>
-                      </div>
-                      <div style={{ height: 4, background: "#222", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{ height: "100%", borderRadius: 4, background: "linear-gradient(90deg,#f5c518,#ff9800)",
-                          width: `${Math.min(100, (total / nextTier.minSpend) * 100)}%`, transition: "width 0.3s" }} />
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: 11, color: "#f5c518" }}>
-                      ⭐ จะได้ {pointsWillEarn} แต้ม
-                      {calcPoints(total, rate, tiers) > calcPoints(total, rate, []) && " 🔥 MAX BONUS!"}
-                    </div>
-                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                    <span style={{ fontSize: 11, color: "#f5c518" }}>⭐ จะได้ {pointsWillEarn} แต้ม</span>
+                    <span style={{ fontSize: 11, color: "#ff9800" }}>อีก ฿{needMore} → {nextTier.multiplier}x 🚀</span>
+                  </div>
+                  <div style={{ height: 4, background: "#222", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: 4, background: "linear-gradient(90deg,#f5c518,#ff9800)", width: `${Math.min(100, (total / nextTier.minSpend) * 100)}%`, transition: "width 0.3s" }} />
+                  </div>
                 </div>
               )}
             </div>
@@ -336,8 +312,7 @@ export default function MobilePOS({
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ fontSize: 12, color: "#ff9800" }}>✨ สมัครสมาชิกใหม่ · {memberInput}</div>
               <div style={{ display: "flex", gap: 6 }}>
-                <input placeholder="ชื่อเล่น" value={regNickname} onChange={e => setRegNickname(e.target.value)}
-                  style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }} autoFocus />
+                <input placeholder="ชื่อเล่น" value={regNickname} onChange={e => setRegNickname(e.target.value)} style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }} autoFocus />
                 <button onClick={registerMember} style={{ background: "#4caf50", border: "none", color: "#000", borderRadius: 8, padding: "8px 14px", fontWeight: "bold", cursor: "pointer" }}>บันทึก</button>
                 <button onClick={clearMember} style={{ background: "#222", border: "1px solid #444", color: "#888", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}>✕</button>
               </div>
@@ -352,17 +327,14 @@ export default function MobilePOS({
                 style={{ flex: 1, background: "#1a1a1a", border: "1px solid #222", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14 }} />
               {memberStatus === "loading" && <span style={{ color: "#666", fontSize: 12 }}>🔍</span>}
               {memberStatus === "notfound" && memberInput.length >= 9 && (
-                <button onClick={() => setShowRegister(true)}
-                  style={{ background: "#ff9800", border: "none", color: "#000", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
-                  + สมัคร
-                </button>
+                <button onClick={() => setShowRegister(true)} style={{ background: "#ff9800", border: "none", color: "#000", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>+ สมัคร</button>
               )}
             </div>
           )}
         </div>
       )}
 
-      {/* 3. รายการสินค้า */}
+      {/* รายการสินค้า */}
       <div style={styles.productGrid}>
         {products
           .filter(p => !selectedCategory || selectedCategory === "All" || p.category === selectedCategory)
@@ -371,18 +343,14 @@ export default function MobilePOS({
             return (
               <button key={p.id} onClick={() => handleProductClick(p)} style={styles.productCard}>
                 <div style={{ fontSize: "15px", fontWeight: "bold", marginBottom: "6px", lineHeight: 1.3 }}>{p.name}</div>
-                <div style={{ color: "#4caf50", fontWeight: "bold", fontSize: "16px" }}>
-                  ฿{(p[`${priceChannel}Price`] || p.price || 0).toLocaleString()}
-                </div>
-                {hasModifiers && (
-                  <div style={styles.modifierBadge}>⚙️ มีตัวเลือก</div>
-                )}
+                <div style={{ color: "#4caf50", fontWeight: "bold", fontSize: "16px" }}>฿{(p[`${priceChannel}Price`] || p.price || 0).toLocaleString()}</div>
+                {hasModifiers && <div style={styles.modifierBadge}>⚙️ มีตัวเลือก</div>}
               </button>
             );
           })}
       </div>
 
-      {/* 4. ปุ่มลอย */}
+      {/* ปุ่มลอย */}
       {cart.length > 0 && !showCart && (
         <button style={styles.floatingCart} onClick={() => setShowCart(true)}>
           <span>🛒 {totalQty} รายการ</span>
@@ -390,39 +358,59 @@ export default function MobilePOS({
         </button>
       )}
 
-      {/* 5. ตะกร้า Overlay */}
+      {/* Cart Overlay */}
       {showCart && (
         <div style={styles.cartOverlay}>
           <div style={styles.cartHeader}>
             <div>
               <h3 style={{ margin: 0 }}>ตะกร้าสินค้า</h3>
-              <span style={{ fontSize: "12px", color: "#888" }}>ช่องทาง: {priceChannel.toUpperCase()}</span>
-              {["grab", "lineman", "shopee"].includes(priceChannel) && refValue && (
-                <span style={{ fontSize: "12px", color: "#4caf50", marginLeft: 8 }}>
-                  · {priceChannel === "grab" ? `GF-${refValue}` : refValue}
-                </span>
-              )}
+              <span style={{ fontSize: "12px", color: "#888" }}>
+                {isDelivery
+                  ? `${priceChannel.toUpperCase()}${refValue ? ` · ${priceChannel === "grab" ? "GF-" : ""}${refValue}` : ""}`
+                  : orderType === "dine_in"
+                    ? `🍽️ ทานที่ร้าน${tableNumber ? ` · โต๊ะ ${tableNumber}` : ""}`
+                    : "🥡 กลับบ้าน"
+                }
+              </span>
             </div>
             <button onClick={() => setShowCart(false)} style={styles.closeBtn}>✕</button>
           </div>
+
+          {/* ── Dine-in / Takeaway toggle ใน cart overlay ── */}
+          {!isDelivery && (
+            <div style={{ padding: "10px 16px", backgroundColor: "#1a1a1a", borderBottom: "1px solid #2a2a2a", display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                onClick={() => setOrderType?.("dine_in")}
+                style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", fontSize: 13, cursor: "pointer", background: orderType === "dine_in" ? "#fff" : "#2a2a2a", color: orderType === "dine_in" ? "#000" : "#888", fontWeight: orderType === "dine_in" ? "bold" : "normal" }}
+              >🍽️ ทานที่ร้าน</button>
+              <button
+                onClick={() => { setOrderType?.("takeaway"); setTableNumber?.(""); }}
+                style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", fontSize: 13, cursor: "pointer", background: orderType === "takeaway" ? "#fff" : "#2a2a2a", color: orderType === "takeaway" ? "#000" : "#888", fontWeight: orderType === "takeaway" ? "bold" : "normal" }}
+              >🥡 กลับบ้าน</button>
+              {orderType === "dine_in" && (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="โต๊ะ"
+                  value={tableNumber}
+                  onChange={e => setTableNumber?.(e.target.value)}
+                  maxLength={4}
+                  style={{ width: 64, padding: "9px 6px", borderRadius: 10, border: "1.5px solid #444", background: "#111", color: "#fff", fontSize: 14, textAlign: "center", fontWeight: "bold", outline: "none" }}
+                />
+              )}
+            </div>
+          )}
 
           <div style={styles.cartList}>
             {cart.map((item, idx) => (
               <div key={`${item.id}-${idx}`} style={styles.cartItem}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: "bold", fontSize: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {item.name}
-                  </div>
-                  {item.selectedModifier && (
-                    <div style={{ fontSize: "12px", color: "#aaa", fontStyle: "italic" }}>
-                      • {item.selectedModifier.name}
-                    </div>
-                  )}
+                  <div style={{ fontWeight: "bold", fontSize: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
+                  {item.selectedModifier && <div style={{ fontSize: "12px", color: "#aaa", fontStyle: "italic" }}>• {item.selectedModifier.name}</div>}
                   <div style={{ fontSize: "13px", color: "#888", marginTop: 2 }}>
                     ฿{item.price.toLocaleString()} × {item.qty} = <strong style={{ color: "#fff" }}>฿{(item.price * item.qty).toLocaleString()}</strong>
                   </div>
                 </div>
-
                 <div style={styles.qtyControl}>
                   <button onClick={() => decreaseQty(item.id, item.channel, item.selectedModifier?.id)} style={styles.qtyBtn}>−</button>
                   <span style={styles.qtyNumber}>{item.qty}</span>
@@ -430,55 +418,37 @@ export default function MobilePOS({
                 </div>
               </div>
             ))}
-
             {cart.length > 0 && (
-              <button onClick={onClearCart} style={styles.btnClear}>
-                <Trash2 size={16} /> ล้างทั้งหมด
-              </button>
+              <button onClick={onClearCart} style={styles.btnClear}><Trash2 size={16} /> ล้างทั้งหมด</button>
             )}
           </div>
 
           <div style={styles.cartFooter}>
             {discountTotal > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "14px", color: "#888" }}>
-                <span>ยอดก่อนลด</span>
-                <span>฿{subtotal.toLocaleString()}</span>
-              </div>
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "14px", color: "#888" }}>
+                  <span>ยอดก่อนลด</span><span>฿{subtotal.toLocaleString()}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "14px", color: "#ff5252" }}>
+                  <span>ส่วนลดรวม</span><span>-฿{discountTotal.toLocaleString()}</span>
+                </div>
+              </>
             )}
-            {discountTotal > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "14px", color: "#ff5252" }}>
-                <span>ส่วนลดรวม</span>
-                <span>-฿{discountTotal.toLocaleString()}</span>
-              </div>
-            )}
-
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <span style={{ fontSize: "18px", fontWeight: "bold" }}>รวมทั้งหมด</span>
               <span style={{ fontSize: "24px", fontWeight: "bold", color: "#4caf50" }}>฿{total.toLocaleString()}</span>
             </div>
 
-            {/* Discount Section */}
+            {/* Discount */}
             <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-              <select
-                value={discountMode}
-                onChange={(e) => setDiscountMode(e.target.value)}
-                style={{ ...styles.innerInput, backgroundColor: "#222", borderRadius: "8px", padding: "8px", flex: "0 0 80px", fontSize: "14px", border: "1px solid #333" }}
-              >
+              <select value={discountMode} onChange={(e) => setDiscountMode(e.target.value)} style={{ backgroundColor: "#222", borderRadius: "8px", padding: "8px", flex: "0 0 70px", fontSize: "14px", border: "1px solid #333", color: "#fff" }}>
                 <option value="amount">฿</option>
                 <option value="percent">%</option>
               </select>
-              <input
-                type="number"
-                inputMode="decimal"
-                placeholder="ส่วนลด"
-                value={discountInput}
-                onChange={(e) => setDiscountInput(e.target.value)}
-                style={{ ...styles.innerInput, backgroundColor: "#222", borderRadius: "8px", padding: "8px 12px", flex: 1, fontSize: "14px", border: "1px solid #333" }}
-              />
-              <button onClick={handleApplyManualDiscount} style={{ backgroundColor: "#2196f3", color: "#fff", border: "none", borderRadius: "8px", padding: "0 15px", fontWeight: "bold" }}>ใช้</button>
-              <button onClick={() => onClearDiscounts?.()} style={{ backgroundColor: "#333", color: "#fff", border: "none", borderRadius: "8px", padding: "0 10px" }}>ล้าง</button>
+              <input type="number" inputMode="decimal" placeholder="ส่วนลด" value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} style={{ backgroundColor: "#222", borderRadius: "8px", padding: "8px 12px", flex: 1, fontSize: "14px", border: "1px solid #333", color: "#fff", outline: "none" }} />
+              <button onClick={handleApplyManualDiscount} style={{ backgroundColor: "#2196f3", color: "#fff", border: "none", borderRadius: "8px", padding: "0 15px", fontWeight: "bold", cursor: "pointer" }}>ใช้</button>
+              <button onClick={() => onClearDiscounts?.()} style={{ backgroundColor: "#333", color: "#fff", border: "none", borderRadius: "8px", padding: "0 10px", cursor: "pointer" }}>ล้าง</button>
             </div>
-
             {discounts.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
                 {discounts.map((d) => (
@@ -489,17 +459,14 @@ export default function MobilePOS({
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: priceChannel === "pos" ? "1fr 1fr" : "1fr", gap: "12px" }}>
-              {priceChannel === "pos" ? (
+            <div style={{ display: "grid", gridTemplateColumns: !isDelivery ? "1fr 1fr" : "1fr", gap: "12px" }}>
+              {!isDelivery ? (
                 <>
                   <button onClick={() => handleConfirmCheckout("cash")} style={{ ...styles.payBtn, backgroundColor: "#4caf50" }}>💵 เงินสด</button>
                   <button onClick={() => handleConfirmCheckout("transfer")} style={{ ...styles.payBtn, backgroundColor: "#2196f3" }}>📱 โอนเงิน</button>
                 </>
               ) : (
-                <button
-                  onClick={() => handleConfirmCheckout(priceChannel)}
-                  style={{ ...styles.payBtn, backgroundColor: "#1e293b", fontSize: "18px" }}
-                >
+                <button onClick={() => handleConfirmCheckout(priceChannel)} style={{ ...styles.payBtn, backgroundColor: "#1e293b", fontSize: "18px" }}>
                   💾 บันทึก {priceChannel.toUpperCase()}
                 </button>
               )}
@@ -508,43 +475,26 @@ export default function MobilePOS({
         </div>
       )}
 
-      {/* 6. Modifier Popup */}
+      {/* Modifier Popup */}
       {showModifierPopup && selectedProduct && (
         <div style={styles.modifierOverlay} onClick={() => { setShowModifierPopup(false); setTempSelection([]); }}>
           <div style={styles.modifierModal} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, color: "#fff", fontSize: "18px" }}>{selectedProduct.name}</h3>
-              <button
-                onClick={() => { setShowModifierPopup(false); setTempSelection([]); }}
-                style={{ background: "none", border: "none", color: "#888", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}
-              >✕</button>
+              <button onClick={() => { setShowModifierPopup(false); setTempSelection([]); }} style={{ background: "none", border: "none", color: "#888", fontSize: "24px", cursor: "pointer", lineHeight: 1 }}>✕</button>
             </div>
-
             <div style={{ overflowY: "auto", maxHeight: "45vh" }}>
               {activeModifierGroups.map(group => (
                 <div key={group.id} style={{ marginBottom: "18px" }}>
-                  <div style={{ fontSize: "13px", color: "#888", marginBottom: "10px", fontWeight: "bold" }}>
-                    {group.name}
-                  </div>
+                  <div style={{ fontSize: "13px", color: "#888", marginBottom: "10px", fontWeight: "bold" }}>{group.name}</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                     {group.options && group.options.map(opt => {
                       const optionKey = `${group.id}:${opt.id}`;
                       const isSelected = tempSelection.find(s => s.key === optionKey);
                       return (
-                        <button
-                          key={opt.id}
-                          onClick={() => toggleModifier(group.id, opt)}
-                          style={{
-                            padding: "14px 10px",
-                            backgroundColor: isSelected ? "#4caf50" : "#2a2a2a",
-                            border: isSelected ? "2px solid #fff" : "1px solid #444",
-                            color: "#fff", borderRadius: "10px", cursor: "pointer", textAlign: "center", transition: "all 0.15s"
-                          }}
-                        >
+                        <button key={opt.id} onClick={() => toggleModifier(group.id, opt)} style={{ padding: "14px 10px", backgroundColor: isSelected ? "#4caf50" : "#2a2a2a", border: isSelected ? "2px solid #fff" : "1px solid #444", color: "#fff", borderRadius: "10px", cursor: "pointer", textAlign: "center" }}>
                           <div style={{ fontWeight: "bold", fontSize: "14px" }}>{opt.name}</div>
-                          <div style={{ color: isSelected ? "#fff" : "#4caf50", fontSize: "13px", marginTop: "4px" }}>
-                            +{Number(opt.price).toLocaleString()} ฿
-                          </div>
+                          <div style={{ color: isSelected ? "#fff" : "#4caf50", fontSize: "13px", marginTop: "4px" }}>+{Number(opt.price).toLocaleString()} ฿</div>
                         </button>
                       );
                     })}
@@ -552,11 +502,9 @@ export default function MobilePOS({
                 </div>
               ))}
             </div>
-
             <div style={{ borderTop: "1px solid #333", paddingTop: "14px", marginTop: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "14px", color: "#aaa" }}>
-                <span>ราคาสินค้า</span>
-                <span>฿{getDisplayPrice(selectedProduct).toLocaleString()}</span>
+                <span>ราคาสินค้า</span><span>฿{getDisplayPrice(selectedProduct).toLocaleString()}</span>
               </div>
               {tempSelection.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "14px", color: "#aaa" }}>
@@ -566,14 +514,9 @@ export default function MobilePOS({
               )}
               <div style={{ display: "flex", justifyContent: "space-between", margin: "12px 0 16px", fontSize: "20px", fontWeight: "bold" }}>
                 <span>รวม</span>
-                <span style={{ color: "#4caf50" }}>
-                  ฿{(getDisplayPrice(selectedProduct) + tempSelection.reduce((s, m) => s + Number(m.price), 0)).toLocaleString()}
-                </span>
+                <span style={{ color: "#4caf50" }}>฿{(getDisplayPrice(selectedProduct) + tempSelection.reduce((s, m) => s + Number(m.price), 0)).toLocaleString()}</span>
               </div>
-              <button
-                onClick={handleConfirmModifier}
-                style={{ width: "100%", padding: "16px", backgroundColor: "#2196f3", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "bold", fontSize: "17px", cursor: "pointer" }}
-              >
+              <button onClick={handleConfirmModifier} style={{ width: "100%", padding: "16px", backgroundColor: "#2196f3", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "bold", fontSize: "17px", cursor: "pointer" }}>
                 เพิ่มลงตะกร้า
               </button>
             </div>
@@ -589,18 +532,8 @@ export default function MobilePOS({
           onSuccess={(updatedMember, reward) => {
             onMemberUpdate?.(updatedMember);
             const rewardDiscount = parseRewardDiscount(reward);
-            if (rewardDiscount) {
-              onApplyRewardDiscount?.(rewardDiscount);
-            } else {
-              addToCart({
-                id: `reward-${reward.id}`,
-                name: `🎁 ${reward.name}`,
-                price: 0,
-                qty: 1,
-                category: "reward",
-                modifierGroups: [],
-              });
-            }
+            if (rewardDiscount) { onApplyRewardDiscount?.(rewardDiscount); }
+            else { addToCart({ id: `reward-${reward.id}`, name: `🎁 ${reward.name}`, price: 0, qty: 1, category: "reward", modifierGroups: [] }); }
             setShowRedeem(false);
           }}
           onClose={() => setShowRedeem(false)}
@@ -624,7 +557,7 @@ const styles = {
   closeBtn: { background: "none", border: "none", color: "#fff", fontSize: "26px", cursor: "pointer", lineHeight: 1 },
   cartList: { flex: 1, overflowY: "auto", padding: "16px" },
   cartItem: { display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid #222" },
-  qtyControl: { display: "flex", alignItems: "center", gap: "0", backgroundColor: "#222", borderRadius: "10px", border: "1px solid #444", overflow: "hidden", flexShrink: 0 },
+  qtyControl: { display: "flex", alignItems: "center", backgroundColor: "#222", borderRadius: "10px", border: "1px solid #444", overflow: "hidden", flexShrink: 0 },
   qtyBtn: { width: "38px", height: "38px", background: "none", border: "none", color: "#fff", fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0 },
   qtyNumber: { minWidth: "32px", textAlign: "center", fontWeight: "bold", fontSize: "16px", color: "#fff", borderLeft: "1px solid #444", borderRight: "1px solid #444", height: "38px", display: "flex", alignItems: "center", justifyContent: "center" },
   btnClear: { width: "100%", background: "none", border: "1px solid #333", color: "#ff5252", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", borderRadius: "8px", cursor: "pointer", marginTop: "8px" },
