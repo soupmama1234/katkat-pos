@@ -28,6 +28,8 @@ export default function Cart({
   lookupMember, registerMember, clearMember,
   // ui
   showToast, showConfirm,
+  // pending
+  pendingOrders = [], onSavePending, onRestorePending, onDeletePending,
 }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -35,6 +37,8 @@ export default function Cart({
   const [showRedeem, setShowRedeem] = useState(false);
   const [discountMode, setDiscountMode] = useState("amount");
   const [discountInput, setDiscountInput] = useState("");
+  const [showPending, setShowPending] = useState(false);
+  const [pendingLabel, setPendingLabel] = useState("");
 
   const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
   const receivedNumber = Number(cashReceived) || 0;
@@ -75,7 +79,20 @@ export default function Cart({
       {/* Header */}
       <div style={S.header}>
         <h2 style={{ margin: 0, color: "#213547", fontSize: "1.1rem" }}>รายการขาย</h2>
-        <button onClick={() => cart.length > 0 && onClearCart()} style={S.btnClear}>ล้างตะกร้า</button>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {pendingOrders.length > 0 && (
+            <button onClick={() => setShowPending(true)} style={{ ...S.btnClear, position: "relative", paddingRight: 22 }}>
+              พัก
+              <span style={{ position: "absolute", top: -6, right: -6, background: "#e53935", color: "#fff", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {pendingOrders.length}
+              </span>
+            </button>
+          )}
+          {pendingOrders.length === 0 && (
+            <button onClick={() => setShowPending(true)} style={S.btnClear}>พัก</button>
+          )}
+          <button onClick={() => cart.length > 0 && onClearCart()} style={S.btnClear}>ล้างตะกร้า</button>
+        </div>
       </div>
 
       {/* ── shared: Order type ── */}
@@ -258,6 +275,72 @@ export default function Cart({
           }}
           onClose={() => setShowRedeem(false)}
         />
+      )}
+
+      {/* ── Pending Orders Drawer ── */}
+      {showPending && (
+        <div style={S.modalOverlay} onClick={() => setShowPending(false)}>
+          <div style={{ ...S.modalContent, width: 340, maxHeight: "80vh", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, color: "#213547" }}>🗂️ ออเดอร์ที่พักไว้</h3>
+              <button onClick={() => setShowPending(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#555" }}>✕</button>
+            </div>
+
+            {/* save current cart */}
+            {cart.length > 0 && (
+              <div style={{ marginBottom: 14, padding: 12, background: "#f5f5f5", borderRadius: 10 }}>
+                <div style={{ fontSize: 13, color: "#555", marginBottom: 8 }}>พักออเดอร์ปัจจุบัน ({cart.length} รายการ)</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    value={pendingLabel}
+                    onChange={e => setPendingLabel(e.target.value)}
+                    placeholder="ชื่อออเดอร์ (เช่น โต๊ะ 3)"
+                    style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid #ddd", fontSize: 13, outline: "none", color: "#333" }}
+                  />
+                  <button onClick={() => {
+                    onSavePending?.(pendingLabel);
+                    setPendingLabel("");
+                    setShowPending(false);
+                  }} style={{ background: "#213547", color: "#fff", border: "none", borderRadius: 8, padding: "7px 14px", fontWeight: "bold", fontSize: 13, cursor: "pointer" }}>
+                    พัก
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* list */}
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              {pendingOrders.length === 0 ? (
+                <div style={{ textAlign: "center", color: "#aaa", padding: "30px 0", fontSize: 14 }}>ยังไม่มีออเดอร์ที่พักไว้</div>
+              ) : (
+                pendingOrders.map(p => (
+                  <div key={p.id} style={{ background: "#f9f9f9", border: "1px solid #eee", borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <div>
+                        <div style={{ fontWeight: "bold", fontSize: 14, color: "#213547" }}>
+                          {p.label || "ออเดอร์ไม่มีชื่อ"}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#aaa", marginTop: 2 }}>
+                          {new Date(p.savedAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} · {p.cart.length} รายการ · ฿{p.cart.reduce((s, i) => s + i.price * i.qty, 0).toLocaleString()}
+                        </div>
+                      </div>
+                      <button onClick={() => onDeletePending?.(p.id)}
+                        style={{ background: "none", border: "none", color: "#e53935", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 2 }}>✕</button>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#777", marginBottom: 8 }}>
+                      {p.cart.slice(0, 3).map((item, i) => <span key={i}>{item.name}{i < Math.min(p.cart.length, 3) - 1 ? ", " : ""}</span>)}
+                      {p.cart.length > 3 && <span> +{p.cart.length - 3} อื่นๆ</span>}
+                    </div>
+                    <button onClick={() => { onRestorePending?.(p); setShowPending(false); }}
+                      style={{ width: "100%", background: "#213547", color: "#fff", border: "none", borderRadius: 8, padding: "8px", fontWeight: "bold", fontSize: 13, cursor: "pointer" }}>
+                      ดึงกลับมา
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
