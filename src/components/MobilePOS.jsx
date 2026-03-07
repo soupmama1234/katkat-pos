@@ -3,11 +3,11 @@ import { Trash2 } from "lucide-react";
 import { calcPoints, nextThreshold, getPointSettings } from "../utils/points";
 import RedeemModal from "./RedeemModal";
 import { parseRewardDiscount } from "../utils/discounts";
-import ChannelBar from "./pos/ChannelBar";
-import OrderTypeBar from "./pos/OrderTypeBar";
-import DeliveryRefInput from "./pos/DeliveryRefInput";
-import MemberBar from "./pos/MemberBar";
-import ModifierPopup from "./pos/ModifierPopup";
+import ChannelBar from "./pos/ChannelBar.jsx";
+import OrderTypeBar from "./pos/OrderTypeBar.jsx";
+import DeliveryRefInput from "./pos/DeliveryRefInput.jsx";
+import MemberBar from "./pos/MemberBar.jsx";
+import ModifierPopup from "./pos/ModifierPopup.jsx";
 
 export default function MobilePOS({
   // products
