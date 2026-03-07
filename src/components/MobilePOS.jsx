@@ -152,11 +152,23 @@ export default function MobilePOS({
           })}
       </div>
 
-      {/* 7. Floating cart button */}
-      {cart.length > 0 && !showCart && (
-        <button style={st.floatingCart} onClick={() => setShowCart(true)}>
-          <span>🛒 {totalQty} รายการ</span>
-          <span style={{ marginLeft: "auto", fontWeight: "bold" }}>ดูตะกร้า ฿{total.toLocaleString()}</span>
+      {/* 7. Floating cart button — แสดงตลอด */}
+      {!showCart && (
+        <button style={{
+          ...st.floatingCart,
+          backgroundColor: cart.length > 0 ? "#4caf50" : "#222",
+          color: cart.length > 0 ? "#000" : "#fff",
+          border: cart.length > 0 ? "none" : "1px solid #444",
+        }} onClick={() => setShowCart(true)}>
+          <span>🛒 {cart.length > 0 ? `${totalQty} รายการ` : "ตะกร้า"}</span>
+          {cart.length > 0 && (
+            <span style={{ marginLeft: "auto", fontWeight: "bold" }}>ดูตะกร้า ฿{total.toLocaleString()}</span>
+          )}
+          {pendingOrders.length > 0 && (
+            <span style={{ marginLeft: cart.length > 0 ? 8 : "auto", background: "#e53935", color: "#fff", borderRadius: 12, padding: "2px 8px", fontSize: 12, fontWeight: "bold" }}>
+              พัก {pendingOrders.length}
+            </span>
+          )}
         </button>
       )}
 
@@ -321,13 +333,13 @@ export default function MobilePOS({
             {/* save current cart */}
             {cart.length > 0 && (
               <div style={{ marginBottom: 14, padding: 12, background: "#222", borderRadius: 12 }}>
-                <div style={{ fontSize: 13, color: "#aaa", marginBottom: 8 }}>พักออเดอร์ปัจจุบัน ({cart.length} รายการ)</div>
+                <div style={{ fontSize: 13, color: "#ccc", marginBottom: 8 }}>พักออเดอร์ปัจจุบัน ({cart.length} รายการ)</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input
                     value={pendingLabel}
                     onChange={e => setPendingLabel(e.target.value)}
                     placeholder="ชื่อออเดอร์ (เช่น โต๊ะ 3)"
-                    style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#111", color: "#fff", fontSize: 13, outline: "none" }}
+                    style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: "1px solid #555", background: "#333", color: "#fff", fontSize: 13, outline: "none" }}
                   />
                   <button onClick={() => {
                     onSavePending?.(pendingLabel);
