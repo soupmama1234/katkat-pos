@@ -26,6 +26,7 @@ export function computeDiscountTotal(subtotal = 0, discounts = []) {
 export function parseRewardDiscount(reward) {
   if (!reward) return null;
 
+  // ── ลำดับ 1: discount_mode / discount_value (legacy) ──
   const explicitMode = reward.discount_mode;
   const explicitValue = Number(reward.discount_value);
   if (["amount", "percent"].includes(explicitMode) && explicitValue > 0) {
@@ -38,6 +39,20 @@ export function parseRewardDiscount(reward) {
     };
   }
 
+  // ── ลำดับ 2: discount_amount / discount_type (RedeemModal saves these) ──
+  const amount = Number(reward.discount_amount);
+  const type = reward.discount_type; // "amount" | "percent"
+  if (amount > 0 && ["amount", "percent"].includes(type)) {
+    return {
+      mode: type,
+      value: amount,
+      label: `🎁 ${reward.name}`,
+      source: "reward",
+      rewardId: reward.id,
+    };
+  }
+
+  // ── ลำดับ 3: description DISCOUNT_AMOUNT:xx / DISCOUNT_PERCENT:xx ──
   const desc = String(reward.description || "");
   const matched = desc.match(/DISCOUNT_(AMOUNT|PERCENT)\s*:\s*(\d+(?:\.\d+)?)/i);
   if (!matched) return null;

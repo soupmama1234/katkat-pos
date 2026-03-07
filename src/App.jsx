@@ -8,11 +8,11 @@ import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
 import Members from "./components/Members";
+import ChannelBar from "./components/pos/ChannelBar.jsx";
 import { computeDiscountTotal } from "./utils/discounts";
 import { calcPoints, getPointSettings } from "./utils/points";
 import { supabase as sb } from "./supabase";
 
-// storage.js จะ auto-switch ระหว่าง Supabase และ localStorage
 import db, { isUsingSupabase } from "./storage";
 
 function App() {
@@ -32,25 +32,31 @@ function App() {
   const [memberStatus, setMemberStatus] = useState("idle");
   const [discounts, setDiscounts] = useState([]);
 
-  // Modern UI states
+  // ── POS order meta (lifted — single source of truth) ──
+  const [orderType, setOrderType] = useState("dine_in"); // "dine_in" | "takeaway"
+  const [tableNumber, setTableNumber] = useState("");
+  const [deliveryRef, setDeliveryRef] = useState("");   // เลข ref grab/lineman/shopee
+
+  // ── Member input state (lifted — ใช้ร่วมกัน Cart + MobilePOS) ──
+  const [memberInput, setMemberInput] = useState("");
+  const [showRegister, setShowRegister] = useState(false);
+  const [regNickname, setRegNickname] = useState("");
+
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [historyTrigger, setHistoryTrigger] = useState(0);
 
-  // ── KEY FIX: memberInfo derived จาก members array + memberPhone
-  //    เมื่อ realtime อัปเดต members → memberInfo อัปเดตอัตโนมัติทันที
+  // memberInfo derived จาก members array + memberPhone → realtime อัปเดตอัตโนมัติ
   const memberInfo = useMemo(
     () => members.find(m => m.phone === memberPhone) || null,
     [members, memberPhone]
   );
 
-  // setMemberInfo ยังคงใช้ได้ผ่าน onMemberUpdate ซึ่งอัปเดต members array แทน
   const setMemberInfo = useCallback((updatedMember) => {
     if (!updatedMember) return;
     setMembers(prev => prev.map(m => m.phone === updatedMember.phone ? updatedMember : m));
   }, []);
 
-  // onMemberUpdate — ให้ Cart/MobilePOS เรียกหลัง mark coupon used ใน Supabase
   const onMemberUpdate = useCallback((updatedMember) => {
     setMembers(prev => prev.map(m => m.phone === updatedMember.phone ? updatedMember : m));
   }, []);
@@ -98,27 +104,16 @@ function App() {
     }
     loadAll();
 
-    // --- REALTIME SUBSCRIPTION ---
     const channel = sb
       .channel("members-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "members" },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            setMembers((prev) => [...prev, payload.new]);
-          } else if (payload.eventType === "UPDATE") {
-            setMembers((prev) => prev.map(m => m.phone === payload.new.phone ? payload.new : m));
-          } else if (payload.eventType === "DELETE") {
-            setMembers((prev) => prev.filter(m => m.phone !== payload.old.phone));
-          }
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "members" }, (payload) => {
+        if (payload.eventType === "INSERT") setMembers(prev => [...prev, payload.new]);
+        else if (payload.eventType === "UPDATE") setMembers(prev => prev.map(m => m.phone === payload.new.phone ? payload.new : m));
+        else if (payload.eventType === "DELETE") setMembers(prev => prev.filter(m => m.phone !== payload.old.phone));
+      })
       .subscribe();
 
-    return () => {
-      sb.removeChannel(channel);
-    };
+    return () => { sb.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
@@ -167,8 +162,41 @@ function App() {
 
   const handleApplyManualDiscount = useCallback((disc) => setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random(), source: "manual", label: disc.mode === "percent" ? `${disc.value}%` : `฿${disc.value}` }]), []);
   const handleApplyRewardDiscount = useCallback((disc) => setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random() }]), []);
-  const handleRemoveDiscount = useCallback((id) => setDiscounts(prev => prev.filter(d => d.id !== id)), []);
   const handleClearDiscounts = useCallback(() => setDiscounts([]), []);
+
+  // ── คืนคูปองให้สมาชิกเมื่อลบออกจากตะกร้า ──
+  const unmarkCouponUsed = useCallback(async (couponId) => {
+    setMembers(prev => prev.map(m => {
+      if (m.phone !== memberPhone) return m;
+      return { ...m, redeemed_rewards: (m.redeemed_rewards || []).map(r => r.id === couponId ? { ...r, used_at: null } : r) };
+    }));
+    try {
+      const member = members.find(m => m.phone === memberPhone);
+      if (!member) return;
+      const updated = (member.redeemed_rewards || []).map(r => r.id === couponId ? { ...r, used_at: null } : r);
+      await sb.from("members").update({ redeemed_rewards: updated }).eq("phone", memberPhone);
+    } catch (e) { console.warn("unmarkCouponUsed error:", e); }
+  }, [memberPhone, members]);
+
+  // ── ลบ discount — ถ้ามี couponId ให้คืนคูปองด้วย ──
+  const handleRemoveDiscount = useCallback((id) => {
+    setDiscounts(prev => {
+      const disc = prev.find(d => d.id === id);
+      if (disc?.couponId) unmarkCouponUsed(disc.couponId);
+      return prev.filter(d => d.id !== id);
+    });
+  }, [unmarkCouponUsed]);
+
+  const clearCart = useCallback(() => {
+    setCart(prev => {
+      prev.forEach(item => { if (item.couponId) unmarkCouponUsed(item.couponId); });
+      return [];
+    });
+    setDiscounts(prev => {
+      prev.forEach(d => { if (d.couponId) unmarkCouponUsed(d.couponId); });
+      return [];
+    });
+  }, [unmarkCouponUsed]);
 
   const addToCart = useCallback((product, channel = priceChannel) => {
     setCart(prev => {
@@ -187,18 +215,74 @@ function App() {
       if (idx === -1) return prev;
       const n = [...prev];
       if (n[idx].qty > 1) { n[idx].qty -= 1; return n; }
+      if (n[idx].couponId) unmarkCouponUsed(n[idx].couponId);
       return n.filter((_, i) => i !== idx);
     });
-  }, []);
+  }, [unmarkCouponUsed]);
 
   const increaseQty = useCallback((id, channel, modId = null) => {
     setCart(prev => prev.map(i => (i.id === id && i.channel === channel && (i.selectedModifier?.id || null) === (modId || null)) ? { ...i, qty: i.qty + 1 } : i));
   }, []);
 
-  // ✅ เพิ่ม orderType parameter — รับจาก Cart/MobilePOS
-  const handleCheckout = async (paymentMethod, refId = "", phone = memberPhone, orderType = "dine_in") => {
+  // ── Member actions (lifted — single source of truth) ──
+  const lookupMember = useCallback(async (phone) => {
+    if (!phone || phone.length < 9) return;
+    setMemberStatus("loading");
+    try {
+      const { data } = await sb.from("members").select("*").eq("phone", phone).single();
+      if (data) {
+        setMembers(prev => prev.some(m => m.phone === data.phone) ? prev.map(m => m.phone === data.phone ? data : m) : [...prev, data]);
+        setMemberPhone(phone);
+        setMemberStatus("found");
+      } else {
+        setMemberPhone("");
+        setMemberStatus("notfound");
+      }
+    } catch {
+      setMemberPhone("");
+      setMemberStatus("notfound");
+    }
+  }, []);
+
+  const registerMember = useCallback(async () => {
+    if (!memberInput || !regNickname) return;
+    try {
+      const { data } = await sb.from("members").insert({ phone: memberInput, nickname: regNickname }).select().single();
+      setMembers(prev => [...prev, data]);
+      setMemberPhone(memberInput);
+      setMemberStatus("found");
+      setShowRegister(false);
+      setRegNickname("");
+      showToast("สมัครสมาชิกเรียบร้อย ✨");
+    } catch (e) {
+      showToast("สมัครไม่สำเร็จ: " + e.message, "error");
+    }
+  }, [memberInput, regNickname, showToast]);
+
+  const clearMember = useCallback(() => {
+    setMemberInput("");
+    setMemberPhone("");
+    setMemberStatus("idle");
+    setShowRegister(false);
+    setRegNickname("");
+  }, []);
+
+  // ── เปลี่ยน channel → reset deliveryRef ──
+  const handleSetPriceChannel = useCallback((ch) => {
+    setPriceChannel(ch);
+    setDeliveryRef("");
+  }, []);
+
+  // ── handleCheckout อ่าน state โดยตรงทั้งหมด ──
+  const handleCheckout = useCallback(async (paymentMethod) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
+    // validate delivery ref
+    if (isDelivery) {
+      if (!deliveryRef || deliveryRef === "GF-") return showToast("กรุณาระบุเลขอ้างอิง", "error");
+      if (priceChannel === "grab" && deliveryRef.length < 7) return showToast("เลข GrabFood ไม่ครบ", "error");
+      if (priceChannel === "lineman" && deliveryRef.replace("GF-","").length < 4) return showToast("เลข LINE MAN ไม่ครบ", "error");
+    }
     try {
       const saved = await db.addOrder({
         time: new Date().toISOString(),
@@ -207,32 +291,36 @@ function App() {
         discount: discountTotal || undefined,
         payment: isDelivery ? "transfer" : paymentMethod,
         channel: priceChannel,
-        refId,
+        refId: isDelivery ? deliveryRef : "",
         isSettled: !isDelivery,
         actualAmount: isDelivery ? 0 : total,
-        member_phone: phone || null,
-        order_type: orderType,   // ✅ บันทึกลง Supabase
+        member_phone: memberPhone || null,
+        orderType: isDelivery ? "delivery" : orderType,
+        tableNumber: (!isDelivery && orderType === "dine_in") ? (tableNumber.trim() || null) : null,
       });
       setOrders(prev => [saved, ...prev]);
 
-      if (phone) {
+      if (memberPhone) {
         try {
           const { rate, tiers } = getPointSettings();
           const pts = calcPoints(total, rate, tiers);
-          await sb.rpc("increment_member_points", { p_phone: phone, p_points: pts, p_spent: total });
+          await sb.rpc("increment_member_points", { p_phone: memberPhone, p_points: pts, p_spent: total });
           setHistoryTrigger(prev => prev + 1);
         } catch (e) { console.warn("Points update error:", e); }
       }
 
+      // ── reset ทุกอย่างหลัง checkout ──
       setCart([]);
       setDiscounts([]);
-      setMemberPhone("");
-      setMemberStatus("idle");
+      setOrderType("dine_in");
+      setTableNumber("");
+      setDeliveryRef("");
+      clearMember();
       showToast(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "✨ ชำระเงินเรียบร้อยครับ");
     } catch (err) {
       showToast("❌ บันทึกออเดอร์ไม่ได้ กรุณาลองใหม่", "error");
     }
-  };
+  }, [cart, total, discountTotal, priceChannel, deliveryRef, memberPhone, orderType, tableNumber, clearMember, showToast]);
 
   const handleUpdateActual = async (orderId, value) => {
     const amount = parseFloat(value) || 0;
@@ -257,29 +345,70 @@ function App() {
   };
 
   const commonProps = {
-    cart, addToCart, increaseQty, decreaseQty, total, subtotal, discountTotal, discounts,
-    memberPhone, setMemberPhone,
-    memberInfo, setMemberInfo, onMemberUpdate,
-    memberStatus, setMemberStatus,
-    priceChannel, setPriceChannel,
+    cart, addToCart, increaseQty, decreaseQty,
+    total, subtotal, discountTotal, discounts,
     onApplyManualDiscount: handleApplyManualDiscount,
     onApplyRewardDiscount: handleApplyRewardDiscount,
     onRemoveDiscount: handleRemoveDiscount,
     onClearDiscounts: handleClearDiscounts,
-    onCheckout: handleCheckout, showToast, showConfirm, historyTrigger
+    onCheckout: handleCheckout,
+    priceChannel, setPriceChannel: handleSetPriceChannel,
+    orderType, setOrderType,
+    tableNumber, setTableNumber,
+    deliveryRef, setDeliveryRef,
+    memberPhone,
+    memberInfo, onMemberUpdate,
+    memberStatus, setMemberStatus,
+    memberInput, setMemberInput,
+    showRegister, setShowRegister,
+    regNickname, setRegNickname,
+    lookupMember, registerMember, clearMember,
+    showToast, showConfirm, historyTrigger,
   };
 
-  if (loading) return <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff" }}>🍖 KATKAT POS...</div>;
+  if (loading) return (
+    <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff" }}>
+      🍖 KATKAT POS...
+    </div>
+  );
 
   return (
     <div style={{ height: "100vh", width: "100vw", backgroundColor: "#1a1a1a", color: "#fff", overflow: "hidden" }}>
       {isMobile ? (
         <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
           <main style={{ flex: 1, overflowY: "auto", paddingBottom: "80px" }}>
-            {view === "pos" && <MobilePOS {...commonProps} products={products} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} onClearCart={() => { setCart([]); setDiscounts([]); }} modifierGroups={modifierGroups} />}
+            {view === "pos" && (
+              <MobilePOS
+                {...commonProps}
+                products={products}
+                categories={categories}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                onClearCart={clearCart}
+                modifierGroups={modifierGroups}
+              />
+            )}
             {view === "dashboard" && <Dashboard orders={orders} setOrders={setOrders} onCloseDay={handleCloseDay} onUpdateActual={handleUpdateActual} />}
-            {view === "orders" && <Orders orders={orders} onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }} onClearAll={async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }} />}
-            {view === "menu" && <div style={{ padding: "10px" }}><MenuManager products={products} categories={categories} addProduct={addProduct} deleteProduct={deleteProduct} updateProduct={updateProduct} addCategory={addCategory} deleteCategory={deleteCategory} modifierGroups={modifierGroups} /><hr style={{ margin: "30px 0", borderColor: "#333" }} /><ModifierManager modifierGroups={modifierGroups} addModifierGroup={async n => { await db.addModifierGroup(n); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }} addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} /></div>}
+            {view === "orders" && (
+              <Orders
+                orders={orders}
+                onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }}
+                onClearAll={async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }}
+              />
+            )}
+            {view === "menu" && (
+              <div style={{ padding: "10px" }}>
+                <MenuManager products={products} categories={categories} addProduct={addProduct} deleteProduct={deleteProduct} updateProduct={updateProduct} addCategory={addCategory} deleteCategory={deleteCategory} modifierGroups={modifierGroups} />
+                <hr style={{ margin: "30px 0", borderColor: "#333" }} />
+                <ModifierManager
+                  modifierGroups={modifierGroups}
+                  addModifierGroup={async n => { await db.addModifierGroup(n); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+                  deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }}
+                  addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+                  deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+                />
+              </div>
+            )}
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
           </main>
           <nav style={styles.bottomNav}>
@@ -302,25 +431,14 @@ function App() {
               ))}
             </nav>
           </header>
+
           {view === "pos" && (
             <div style={styles.desktopChannelBar}>
               <span style={{ fontSize: "12px", color: "#888", fontWeight: "bold" }}>ช่องทางราคา:</span>
-              {[
-                { key: "pos", label: "หน้าร้าน (POS)", color: "#444" },
-                { key: "grab", label: "GrabFood", color: "#008a3e" },
-                { key: "lineman", label: "LINE MAN", color: "#00b0b9" },
-                { key: "shopee", label: "ShopeeFood", color: "#f53d2d" },
-              ].map((ch) => (
-                <button
-                  key={ch.key}
-                  onClick={() => setPriceChannel(ch.key)}
-                  style={styles.channelBtn(priceChannel === ch.key, ch.color)}
-                >
-                  {ch.label}
-                </button>
-              ))}
+              <ChannelBar priceChannel={priceChannel} setPriceChannel={handleSetPriceChannel} variant="light" />
             </div>
           )}
+
           <main style={{ flex: 1, display: "flex", overflow: "hidden" }}>
             {view === "pos" && (
               <>
@@ -328,22 +446,42 @@ function App() {
                   <Products products={products} addToCart={addToCart} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} priceChannel={priceChannel} setPriceChannel={setPriceChannel} modifierGroups={modifierGroups} />
                 </section>
                 <aside style={{ width: 400 }}>
-                  <Cart {...commonProps} onClearCart={() => { setCart([]); setDiscounts([]); }} />
+                  <Cart {...commonProps} onClearCart={clearCart} />
                 </aside>
               </>
             )}
             {view === "dashboard" && <Dashboard orders={orders} setOrders={setOrders} onCloseDay={handleCloseDay} onUpdateActual={handleUpdateActual} />}
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
-            {view === "menu" && <div style={{ flex: 1, overflowY: "auto", padding: 30 }}><MenuManager products={products} categories={categories} addProduct={addProduct} deleteProduct={deleteProduct} updateProduct={updateProduct} addCategory={addCategory} deleteCategory={deleteCategory} modifierGroups={modifierGroups} /><hr style={{ margin: "40px 0", borderColor: "#333" }} /><ModifierManager modifierGroups={modifierGroups} addModifierGroup={async n => { await db.addModifierGroup(n); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }} addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }} /></div>}
-            {view === "orders" && <div style={{ flex: 1, overflowY: "auto" }}><Orders orders={orders} onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }} onClearAll={async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }} /></div>}
+            {view === "menu" && (
+              <div style={{ flex: 1, overflowY: "auto", padding: 30 }}>
+                <MenuManager products={products} categories={categories} addProduct={addProduct} deleteProduct={deleteProduct} updateProduct={updateProduct} addCategory={addCategory} deleteCategory={deleteCategory} modifierGroups={modifierGroups} />
+                <hr style={{ margin: "40px 0", borderColor: "#333" }} />
+                <ModifierManager
+                  modifierGroups={modifierGroups}
+                  addModifierGroup={async n => { await db.addModifierGroup(n); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+                  deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }}
+                  addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+                  deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+                />
+              </div>
+            )}
+            {view === "orders" && (
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                <Orders
+                  orders={orders}
+                  onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }}
+                  onClearAll={async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }}
+                />
+              </div>
+            )}
           </main>
         </div>
       )}
 
-      {/* Modern Dialogs */}
+      {/* Confirm Dialog */}
       {confirm && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: 20 }}>
-          <div style={{ backgroundColor: "#1a1a1a", borderRadius: "20px", padding: "28px", width: "100%", maxWidth: "340px", border: "1px solid #333", textAlign: "center", animation: "modalIn 0.2s ease-out" }}>
+          <div style={{ backgroundColor: "#1a1a1a", borderRadius: "20px", padding: "28px", width: "100%", maxWidth: "340px", border: "1px solid #333", textAlign: "center" }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>{confirm.type === "danger" ? "⚠️" : "💡"}</div>
             <h3 style={{ margin: "0 0 10px", color: "#fff" }}>{confirm.title}</h3>
             <p style={{ margin: "0 0 24px", color: "#888", fontSize: "14px", lineHeight: "1.5" }}>{confirm.message}</p>
@@ -355,8 +493,9 @@ function App() {
         </div>
       )}
 
+      {/* Toast */}
       {toast && (
-        <div style={{ position: "fixed", top: isMobile ? "20px" : "30px", left: "50%", transform: "translateX(-50%)", backgroundColor: toast.type === "error" ? "#ff4444" : "#222", color: "#fff", padding: "12px 24px", borderRadius: "12px", boxShadow: "0 8px 30px rgba(0,0,0,0.3)", zIndex: 9999, display: "flex", alignItems: "center", gap: 10, animation: "toastIn 0.3s ease-out forwards", fontWeight: "bold", border: toast.type === "error" ? "none" : "1px solid #444" }}>
+        <div style={{ position: "fixed", top: isMobile ? "20px" : "30px", left: "50%", transform: "translateX(-50%)", backgroundColor: toast.type === "error" ? "#ff4444" : "#222", color: "#fff", padding: "12px 24px", borderRadius: "12px", boxShadow: "0 8px 30px rgba(0,0,0,0.3)", zIndex: 9999, display: "flex", alignItems: "center", gap: 10, fontWeight: "bold", border: toast.type === "error" ? "none" : "1px solid #444" }}>
           <span>{toast.type === "error" ? "❌" : "✅"}</span>
           {toast.message}
         </div>
@@ -365,8 +504,6 @@ function App() {
       <style>{`
         @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
         @keyframes modalIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );
@@ -376,9 +513,8 @@ const styles = {
   bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
   navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer", padding: "0 4px" }),
   desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
-  desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }),
+  desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
   desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10, alignItems: "center" },
-  channelBtn: (isActive, color) => ({ padding: "6px 18px", borderRadius: "20px", border: "none", background: isActive ? color : "#262626", color: "#fff", cursor: "pointer", transition: "0.2s", fontSize: "12px" }),
 };
 
 export default App;
