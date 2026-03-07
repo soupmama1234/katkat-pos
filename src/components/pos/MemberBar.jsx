@@ -119,9 +119,12 @@ export default function MemberBar({
                         const coupon = group.sampleReward;
                         await markCouponUsed(coupon.id);
                         const rd = parseRewardDiscount(coupon);
-                        if (rd) onApplyRewardDiscount?.({ ...rd, couponId: coupon.id });
-                        else addToCart?.({ id: `coupon-${coupon.id}`, name: `🎁 ${coupon.name}`, price: 0, qty: 1, category: "reward", modifierGroups: [], couponId: coupon.id });
-                        showToast?.(`ใช้คูปอง "${coupon.name}" แล้ว`);
+                        if (rd) {
+                          onApplyRewardDiscount?.({ ...rd, couponId: coupon.id });
+                          showToast?.(`ใช้คูปอง "${coupon.name}" แล้ว`);
+                        } else {
+                          showToast?.(`✅ ใช้คูปอง "${coupon.name}" แล้ว — กรุณาเพิ่มสินค้าในตะกร้าด้วย`);
+                        }
                       }}
                       style={btnStyle("#4caf50", isDark ? "#000" : "#fff")}>
                       ใช้
