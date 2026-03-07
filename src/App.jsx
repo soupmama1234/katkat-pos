@@ -162,8 +162,41 @@ function App() {
 
   const handleApplyManualDiscount = useCallback((disc) => setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random(), source: "manual", label: disc.mode === "percent" ? `${disc.value}%` : `฿${disc.value}` }]), []);
   const handleApplyRewardDiscount = useCallback((disc) => setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random() }]), []);
-  const handleRemoveDiscount = useCallback((id) => setDiscounts(prev => prev.filter(d => d.id !== id)), []);
   const handleClearDiscounts = useCallback(() => setDiscounts([]), []);
+
+  // ── คืนคูปองให้สมาชิกเมื่อลบออกจากตะกร้า ──
+  const unmarkCouponUsed = useCallback(async (couponId) => {
+    setMembers(prev => prev.map(m => {
+      if (m.phone !== memberPhone) return m;
+      return { ...m, redeemed_rewards: (m.redeemed_rewards || []).map(r => r.id === couponId ? { ...r, used_at: null } : r) };
+    }));
+    try {
+      const member = members.find(m => m.phone === memberPhone);
+      if (!member) return;
+      const updated = (member.redeemed_rewards || []).map(r => r.id === couponId ? { ...r, used_at: null } : r);
+      await sb.from("members").update({ redeemed_rewards: updated }).eq("phone", memberPhone);
+    } catch (e) { console.warn("unmarkCouponUsed error:", e); }
+  }, [memberPhone, members]);
+
+  // ── ลบ discount — ถ้ามี couponId ให้คืนคูปองด้วย ──
+  const handleRemoveDiscount = useCallback((id) => {
+    setDiscounts(prev => {
+      const disc = prev.find(d => d.id === id);
+      if (disc?.couponId) unmarkCouponUsed(disc.couponId);
+      return prev.filter(d => d.id !== id);
+    });
+  }, [unmarkCouponUsed]);
+
+  const clearCart = useCallback(() => {
+    setCart(prev => {
+      prev.forEach(item => { if (item.couponId) unmarkCouponUsed(item.couponId); });
+      return [];
+    });
+    setDiscounts(prev => {
+      prev.forEach(d => { if (d.couponId) unmarkCouponUsed(d.couponId); });
+      return [];
+    });
+  }, [unmarkCouponUsed]);
 
   const addToCart = useCallback((product, channel = priceChannel) => {
     setCart(prev => {
@@ -182,9 +215,10 @@ function App() {
       if (idx === -1) return prev;
       const n = [...prev];
       if (n[idx].qty > 1) { n[idx].qty -= 1; return n; }
+      if (n[idx].couponId) unmarkCouponUsed(n[idx].couponId);
       return n.filter((_, i) => i !== idx);
     });
-  }, []);
+  }, [unmarkCouponUsed]);
 
   const increaseQty = useCallback((id, channel, modId = null) => {
     setCart(prev => prev.map(i => (i.id === id && i.channel === channel && (i.selectedModifier?.id || null) === (modId || null)) ? { ...i, qty: i.qty + 1 } : i));
@@ -350,7 +384,7 @@ function App() {
                 categories={categories}
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
-                onClearCart={() => { setCart([]); setDiscounts([]); }}
+                onClearCart={clearCart}
                 modifierGroups={modifierGroups}
               />
             )}
@@ -412,7 +446,7 @@ function App() {
                   <Products products={products} addToCart={addToCart} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} priceChannel={priceChannel} setPriceChannel={setPriceChannel} modifierGroups={modifierGroups} />
                 </section>
                 <aside style={{ width: 400 }}>
-                  <Cart {...commonProps} onClearCart={() => { setCart([]); setDiscounts([]); }} />
+                  <Cart {...commonProps} onClearCart={clearCart} />
                 </aside>
               </>
             )}
