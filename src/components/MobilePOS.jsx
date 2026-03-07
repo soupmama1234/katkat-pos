@@ -288,7 +288,6 @@ export default function MobilePOS({
             onMemberUpdate?.(updatedMember);
             const rd = parseRewardDiscount(reward);
             if (rd) onApplyRewardDiscount?.(rd);
-            else addToCart({ id: `reward-${reward.id}`, name: `🎁 ${reward.name}`, price: 0, qty: 1, category: "reward", modifierGroups: [] });
             setShowRedeem(false);
           }}
           onClose={() => setShowRedeem(false)}
