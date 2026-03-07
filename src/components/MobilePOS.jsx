@@ -160,13 +160,11 @@ export default function MobilePOS({
           color: cart.length > 0 ? "#000" : "#fff",
           border: cart.length > 0 ? "none" : "1px solid #444",
         }} onClick={() => setShowCart(true)}>
-          <span>🛒 {cart.length > 0 ? `${totalQty} รายการ` : "ตะกร้า"}</span>
-          {cart.length > 0 && (
-            <span style={{ marginLeft: "auto", fontWeight: "bold" }}>ดูตะกร้า ฿{total.toLocaleString()}</span>
-          )}
-          {pendingOrders.length > 0 && (
-            <span style={{ marginLeft: cart.length > 0 ? 8 : "auto", background: "#e53935", color: "#fff", borderRadius: 12, padding: "2px 8px", fontSize: 12, fontWeight: "bold" }}>
-              พัก {pendingOrders.length}
+          <span style={{ fontSize: 20 }}>🛒</span>
+          {cart.length > 0 && <span>฿{total.toLocaleString()}</span>}
+          {(cart.length > 0 || pendingOrders.length > 0) && (
+            <span style={{ background: cart.length > 0 ? "rgba(0,0,0,0.15)" : "#e53935", color: cart.length > 0 ? "#000" : "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 12, fontWeight: "bold" }}>
+              {cart.length > 0 ? totalQty : `พัก ${pendingOrders.length}`}
             </span>
           )}
         </button>
@@ -397,7 +395,7 @@ const st = {
   productGrid:  { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: 12, overflowY: "auto", flex: 1 },
   productCard:  { backgroundColor: "#1a1a1a", border: "1px solid #333", borderRadius: 16, color: "#fff", padding: "20px 12px", textAlign: "center", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" },
   modBadge:     { marginTop: 8, fontSize: 10, color: "#888", background: "#2a2a2a", padding: "3px 8px", borderRadius: 10 },
-  floatingCart: { position: "fixed", bottom: 90, left: 16, right: 16, backgroundColor: "#4caf50", color: "#000", border: "none", borderRadius: 14, padding: "16px 20px", fontSize: 16, fontWeight: "bold", display: "flex", alignItems: "center", zIndex: 100, cursor: "pointer" },
+  floatingCart: { position: "fixed", bottom: 90, right: 16, backgroundColor: "#4caf50", color: "#000", border: "none", borderRadius: 28, padding: "12px 18px", fontSize: 14, fontWeight: "bold", display: "flex", alignItems: "center", gap: 8, zIndex: 100, cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" },
   cartOverlay:  { position: "fixed", inset: 0, backgroundColor: "#111", zIndex: 2000, display: "flex", flexDirection: "column" },
   cartHeader:   { padding: 20, borderBottom: "1px solid #333", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#1a1a1a", flexShrink: 0 },
   cartList:     { flex: 1, overflowY: "auto", padding: 16 },
