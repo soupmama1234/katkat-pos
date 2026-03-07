@@ -3,9 +3,9 @@ import { Trash2 } from "lucide-react";
 import { calcPoints, getPointSettings } from "../utils/points";
 import RedeemModal from "./RedeemModal";
 import { parseRewardDiscount } from "../utils/discounts";
-import OrderTypeBar from "./pos/OrderTypeBar";
-import DeliveryRefInput from "./pos/DeliveryRefInput";
-import MemberBar from "./pos/MemberBar";
+import OrderTypeBar from "./pos/OrderTypeBar.jsx";
+import DeliveryRefInput from "./pos/DeliveryRefInput.jsx";
+import MemberBar from "./pos/MemberBar.jsx";
 
 export default function Cart({
   // cart
