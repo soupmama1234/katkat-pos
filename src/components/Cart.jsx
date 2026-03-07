@@ -295,7 +295,7 @@ export default function Cart({
                     value={pendingLabel}
                     onChange={e => setPendingLabel(e.target.value)}
                     placeholder="ชื่อออเดอร์ (เช่น โต๊ะ 3)"
-                    style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid #ddd", fontSize: 13, outline: "none", color: "#333" }}
+                    style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid #bbb", background: "#fff", color: "#213547", fontSize: 13, outline: "none" }}
                   />
                   <button onClick={() => {
                     onSavePending?.(pendingLabel);
