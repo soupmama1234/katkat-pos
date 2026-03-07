@@ -75,7 +75,7 @@ function dbToOrder(row) {
     isSettled: row.is_settled,
     items: row.items || [],
     member_phone: row.member_phone || null,
-    order_type: row.order_type || "dine_in", // 🆕
+    orderType: row.order_type || null, // ✅ camelCase — ไม่ fallback เพื่อให้ badge ไม่แสดงผิด
   };
 }
 
@@ -192,7 +192,7 @@ const supabaseDriver = {
       is_history: false,
       items: order.items,
       member_phone: order.member_phone || null,
-      order_type: order.order_type || "dine_in", // 🆕 ทานที่ร้าน / กลับบ้าน
+      order_type: order.orderType || null, // ✅ รับ camelCase จาก App → แปลงเป็น snake_case ให้ db
     }).select().single();
     if (error) throw error;
     return dbToOrder(data);
@@ -310,7 +310,7 @@ const localDriver = {
     return ls.get("katkat_orders", []);
   },
   async addOrder(order) {
-    const saved = { ...order, id: Date.now() };
+    const saved = { ...order, id: Date.now() }; // ✅ camelCase ผ่านมาตรง ไม่ต้องแปลง
     const orders = ls.get("katkat_orders", []);
     ls.set("katkat_orders", [saved, ...orders]);
     return saved;
