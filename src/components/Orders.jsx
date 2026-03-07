@@ -11,6 +11,7 @@ const CHANNEL_CONFIG = {
 const ORDER_TYPE_CONFIG = {
   dine_in:  { label: "🍽️ ทานที่ร้าน", color: "#1565c0", bg: "#e3f2fd" },
   takeaway: { label: "🛍️ กลับบ้าน",  color: "#6a1b9a", bg: "#f3e5f5" },
+  delivery: { label: "🛵 Delivery",   color: "#e65100", bg: "#fff3e0" },
 };
 
 const PAYMENT_CONFIG = {
@@ -34,9 +35,8 @@ function ChannelBadge({ channel }) {
 }
 
 function OrderTypeBadge({ orderType }) {
-  // delivery channels ไม่แสดง badge นี้
-  if (!orderType || !ORDER_TYPE_CONFIG[orderType]) return null;
   const cfg = ORDER_TYPE_CONFIG[orderType];
+  if (!cfg) return null;
   return (
     <span style={{
       padding: "3px 9px", borderRadius: 6, fontSize: 11, fontWeight: "bold",
@@ -90,8 +90,6 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
     }
   };
 
-  const isDelivery = (ch) => ["grab", "lineman", "shopee"].includes(ch);
-
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -113,7 +111,6 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
         ) : (
           orders.map((order) => {
             const deleting = deletingId === order.id;
-            const delivery = isDelivery(order.channel);
             return (
               <div key={order.id} style={{ ...styles.orderCard, opacity: deleting ? 0.4 : 1 }}>
 
@@ -124,10 +121,7 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
                     {/* Row 1: channel + orderType badges */}
                     <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
                       <ChannelBadge channel={order.channel} />
-                      {/* ทานที่ร้าน/กลับบ้าน: แสดงเฉพาะ POS */}
-                      {!delivery && (
-                        <OrderTypeBadge orderType={order.order_type || "dine_in"} />
-                      )}
+                      <OrderTypeBadge orderType={order.orderType} />
                       {order.refId && (
                         <span style={styles.refBadge}>#{order.refId}</span>
                       )}
@@ -173,9 +167,7 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
                 {/* ── Footer ── */}
                 <div style={styles.cardFooter}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {/* payment badge */}
                     <PaymentBadge payment={order.payment} />
-                    {/* settled status */}
                     <span style={{
                       fontSize: 12, fontWeight: "bold",
                       color: order.isSettled ? "#4caf50" : "#ff9800"

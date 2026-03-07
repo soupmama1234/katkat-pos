@@ -22,8 +22,8 @@ export default function DeliveryRefInput({
   // ── Validation / formatting per channel ──
   const handleChange = (raw) => {
     if (priceChannel === "grab") {
-      // ตัด prefix GF- ออก เอาแค่ digits แล้วใส่กลับ
-      const digits = raw.replace(/\D/g, "");
+      // max 3 digits
+      const digits = raw.replace(/\D/g, "").slice(0, 3);
       setDeliveryRef("GF-" + digits);
     } else if (priceChannel === "lineman") {
       // max 4 digits
@@ -34,8 +34,7 @@ export default function DeliveryRefInput({
   };
 
   // ค่าที่แสดงใน input (ตัด prefix GF- ออกเพราะแสดงแยก)
-  const displayValue = priceChannel === "grab" ? deliveryRef.replace("GF-", "") : deliveryRef;
-  const inputValue   = priceChannel === "grab" ? displayValue : deliveryRef;
+  const inputValue = priceChannel === "grab" ? deliveryRef.replace("GF-", "") : deliveryRef;
 
   // ── Styles ──
   const wrapStyle = isDark
@@ -48,15 +47,16 @@ export default function DeliveryRefInput({
 
   const innerWrapStyle = isDark
     ? { display: "flex", alignItems: "center", background: "#1a1a1a", borderRadius: 10, border: "1px solid #333", overflow: "hidden" }
-    : { display: "flex", alignItems: "center", background: "#fff", borderRadius: 8, border: "1px solid #ddd", overflow: "hidden" };
+    : { display: "flex", alignItems: "center", background: "#fff", borderRadius: 8, border: "1px solid #bbb", overflow: "hidden" };
 
   const prefixStyle = isDark
     ? { padding: "0 10px", color: "#00B14F", fontWeight: "bold", fontSize: 16, borderRight: "1px solid #333", whiteSpace: "nowrap" }
-    : { padding: "0 10px", color: "#00B14F", fontWeight: "bold", fontSize: 15, borderRight: "1px solid #ddd", whiteSpace: "nowrap" };
+    : { padding: "0 10px", color: "#00B14F", fontWeight: "bold", fontSize: 15, borderRight: "1px solid #bbb", whiteSpace: "nowrap" };
 
+  // ✅ ทั้ง dark และ light ต้องระบุ color ชัดเจน ไม่งั้นกลืนกับพื้นหลัง
   const inputStyle = isDark
     ? { flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: 16, padding: "10px 12px", outline: "none" }
-    : { flex: 1, padding: "10px 12px", border: "none", outline: "none", fontSize: 16, color: "#333" };
+    : { flex: 1, background: "transparent", border: "none", color: "#213547", fontSize: 16, padding: "10px 12px", outline: "none" };
 
   const channelLabel = { grab: "GrabFood", lineman: "LINE MAN", shopee: "ShopeeFood" }[priceChannel] || priceChannel.toUpperCase();
 
@@ -70,7 +70,11 @@ export default function DeliveryRefInput({
         <input
           type="text"
           inputMode="numeric"
-          placeholder={priceChannel === "lineman" ? "เลข 4 หลัก" : "ระบุเลขอ้างอิง"}
+          placeholder={
+            priceChannel === "lineman" ? "เลข 4 หลัก" :
+            priceChannel === "grab"    ? "เลข 3 หลัก" :
+            "ระบุเลขอ้างอิง"
+          }
           value={inputValue}
           onChange={e => handleChange(priceChannel === "grab" ? "GF-" + e.target.value : e.target.value)}
           style={inputStyle}
