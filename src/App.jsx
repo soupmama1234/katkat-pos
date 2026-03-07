@@ -8,6 +8,7 @@ import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
 import Members from "./components/Members";
+import ChannelBar from "./components/pos/ChannelBar";
 import { computeDiscountTotal } from "./utils/discounts";
 import { calcPoints, getPointSettings } from "./utils/points";
 import { supabase as sb } from "./supabase";
@@ -321,8 +322,8 @@ function App() {
     orderType, setOrderType,
     tableNumber, setTableNumber,
     deliveryRef, setDeliveryRef,
-    memberPhone, setMemberPhone,
-    memberInfo, setMemberInfo, onMemberUpdate,
+    memberPhone,
+    memberInfo, onMemberUpdate,
     memberStatus, setMemberStatus,
     memberInput, setMemberInput,
     showRegister, setShowRegister,
@@ -400,16 +401,7 @@ function App() {
           {view === "pos" && (
             <div style={styles.desktopChannelBar}>
               <span style={{ fontSize: "12px", color: "#888", fontWeight: "bold" }}>ช่องทางราคา:</span>
-              {[
-                { key: "pos", label: "หน้าร้าน (POS)", color: "#444" },
-                { key: "grab", label: "GrabFood", color: "#008a3e" },
-                { key: "lineman", label: "LINE MAN", color: "#00b0b9" },
-                { key: "shopee", label: "ShopeeFood", color: "#f53d2d" },
-              ].map((ch) => (
-                <button key={ch.key} onClick={() => handleSetPriceChannel(ch.key)} style={styles.channelBtn(priceChannel === ch.key, ch.color)}>
-                  {ch.label}
-                </button>
-              ))}
+              <ChannelBar priceChannel={priceChannel} setPriceChannel={handleSetPriceChannel} variant="light" />
             </div>
           )}
 
@@ -489,7 +481,6 @@ const styles = {
   desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
   desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
   desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10, alignItems: "center" },
-  channelBtn: (isActive, color) => ({ padding: "6px 18px", borderRadius: "20px", border: "none", background: isActive ? color : "#262626", color: "#fff", cursor: "pointer", fontSize: "12px" }),
 };
 
 export default App;
