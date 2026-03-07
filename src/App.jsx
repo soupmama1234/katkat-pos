@@ -14,6 +14,7 @@ import { calcPoints, getPointSettings } from "./utils/points";
 import { supabase as sb } from "./supabase";
 
 import db, { isUsingSupabase } from "./storage";
+import { savePendingOrder, getPendingOrders, deletePendingOrder } from "./utils/pending";
 
 function App() {
   const [view, setView] = useState("pos");
@@ -45,6 +46,9 @@ function App() {
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [historyTrigger, setHistoryTrigger] = useState(0);
+
+  // ── Pending orders (พักออเดอร์) ──
+  const [pendingOrders, setPendingOrders] = useState(() => getPendingOrders());
 
   // memberInfo derived จาก members array + memberPhone → realtime อัปเดตอัตโนมัติ
   const memberInfo = useMemo(
@@ -267,6 +271,50 @@ function App() {
     setRegNickname("");
   }, []);
 
+  // ── Pending order handlers ──
+  const handleSavePending = useCallback((label = "") => {
+    if (cart.length === 0) return showToast("ตะกร้าว่างอยู่ครับ", "error");
+    const entry = savePendingOrder({
+      cart, discounts, orderType, tableNumber,
+      priceChannel, deliveryRef, memberPhone, label,
+    });
+    setPendingOrders(getPendingOrders());
+    // reset cart หลัง save
+    setCart([]);
+    setDiscounts([]);
+    setOrderType("dine_in");
+    setTableNumber("");
+    setDeliveryRef("");
+    clearMember();
+    showToast(`พักออเดอร์ "${entry.label || "ออเดอร์ใหม่"}" แล้ว ✅`);
+  }, [cart, discounts, orderType, tableNumber, priceChannel, deliveryRef, memberPhone, clearMember, showToast]);
+
+  const handleRestorePending = useCallback((pending) => {
+    if (cart.length > 0) {
+      showToast("กรุณาล้างตะกร้าก่อนดึงออเดอร์กลับ", "error");
+      return;
+    }
+    setCart(pending.cart);
+    setDiscounts(pending.discounts);
+    setOrderType(pending.orderType);
+    setTableNumber(pending.tableNumber);
+    setDeliveryRef(pending.deliveryRef);
+    if (pending.memberPhone) {
+      setMemberInput(pending.memberPhone);
+      // trigger lookup
+      setTimeout(() => lookupMember(pending.memberPhone), 100);
+    }
+    deletePendingOrder(pending.id);
+    setPendingOrders(getPendingOrders());
+    showToast(`ดึงออเดอร์ "${pending.label || "ออเดอร์"}" กลับมาแล้ว`);
+  }, [cart.length, lookupMember, showToast]);
+
+  const handleDeletePending = useCallback((id) => {
+    deletePendingOrder(id);
+    setPendingOrders(getPendingOrders());
+    showToast("ลบออเดอร์ที่พักไว้แล้ว");
+  }, [showToast]);
+
   // ── เปลี่ยน channel → reset deliveryRef ──
   const handleSetPriceChannel = useCallback((ch) => {
     setPriceChannel(ch);
@@ -280,7 +328,7 @@ function App() {
     // validate delivery ref
     if (isDelivery) {
       if (!deliveryRef || deliveryRef === "GF-") return showToast("กรุณาระบุเลขอ้างอิง", "error");
-      if (priceChannel === "grab" && deliveryRef.replace("GF-", "").length < 3) return showToast("เลข GrabFood ไม่ครบ", "error");
+      if (priceChannel === "grab" && deliveryRef.length < 7) return showToast("เลข GrabFood ไม่ครบ", "error");
       if (priceChannel === "lineman" && deliveryRef.replace("GF-","").length < 4) return showToast("เลข LINE MAN ไม่ครบ", "error");
     }
     try {
@@ -364,6 +412,11 @@ function App() {
     regNickname, setRegNickname,
     lookupMember, registerMember, clearMember,
     showToast, showConfirm, historyTrigger,
+    // ── pending ──
+    pendingOrders,
+    onSavePending: handleSavePending,
+    onRestorePending: handleRestorePending,
+    onDeletePending: handleDeletePending,
   };
 
   if (loading) return (
