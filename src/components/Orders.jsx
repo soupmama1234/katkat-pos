@@ -126,7 +126,7 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
                       <ChannelBadge channel={order.channel} />
                       {/* ทานที่ร้าน/กลับบ้าน: แสดงเฉพาะ POS */}
                       {!delivery && (
-                        <OrderTypeBadge orderType={order.orderType || "dine_in"} />
+                        <OrderTypeBadge orderType={order.orderType} />
                       )}
                       {order.refId && (
                         <span style={styles.refBadge}>#{order.refId}</span>
