@@ -8,7 +8,7 @@ import Orders from "./components/Orders";
 import ModifierManager from "./components/ModifierManager";
 import MobilePOS from "./components/MobilePOS";
 import Members from "./components/Members";
-import ChannelBar from "./components/pos/ChannelBar";
+import ChannelBar from "./components/pos/ChannelBar.jsx";
 import { computeDiscountTotal } from "./utils/discounts";
 import { calcPoints, getPointSettings } from "./utils/points";
 import { supabase as sb } from "./supabase";
