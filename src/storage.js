@@ -38,6 +38,7 @@ function getSupabase() {
   return _supabaseInstance;
 }
 
+// แปลง DB row → App format
 function dbToProduct(row) {
   return {
     id: row.id,
@@ -63,7 +64,7 @@ function productToDb(p) {
   };
 }
 
-function dbToOrder(row) {
+function dbToOrder(row, items = []) {
   return {
     id: row.id,
     time: row.created_at,
@@ -73,9 +74,21 @@ function dbToOrder(row) {
     total: row.total,
     actualAmount: row.actual_amount,
     isSettled: row.is_settled,
-    items: row.items || [],
+    items: items.map(i => ({
+      id: i.id,
+      name: i.name,
+      qty: i.qty,
+      price: i.price,
+      channel: i.channel,
+      category: i.category || null,
+      couponId: i.coupon_id || null,
+      selectedModifier: i.modifier_name
+        ? { name: i.modifier_name, price: i.modifier_price || 0 }
+        : null,
+    })),
     member_phone: row.member_phone || null,
-    orderType: row.order_type || null, // ✅ camelCase — ไม่ fallback เพื่อให้ badge ไม่แสดงผิด
+    orderType: row.order_type || null,
+    tableNumber: row.table_number || null,
   };
 }
 
@@ -176,12 +189,20 @@ const supabaseDriver = {
   // ORDERS
   async fetchOrders() {
     const sb = getSupabase();
-    const { data, error } = await sb.from("orders").select("*").eq("is_history", false).order("created_at", { ascending: false });
+    const { data: ordersData, error } = await sb
+      .from("orders")
+      .select("*, order_items(*)")
+      .eq("is_history", false)
+      .order("created_at", { ascending: false });
     if (error) throw error;
-    return data.map(dbToOrder);
+    return ordersData.map(row => {
+      const { order_items: items, ...orderRow } = row;
+      return dbToOrder(orderRow, items || []);
+    });
   },
   async addOrder(order) {
     const sb = getSupabase();
+    // 1. insert order (ไม่มี items แล้ว)
     const { data, error } = await sb.from("orders").insert({
       channel: order.channel,
       payment: order.payment,
@@ -190,12 +211,31 @@ const supabaseDriver = {
       actual_amount: order.actualAmount || 0,
       is_settled: order.isSettled || false,
       is_history: false,
-      items: order.items,
       member_phone: order.member_phone || null,
-      order_type: order.orderType || null, // ✅ รับ camelCase จาก App → แปลงเป็น snake_case ให้ db
+      order_type: order.orderType || null,
+      table_number: order.tableNumber || null,
     }).select().single();
     if (error) throw error;
-    return dbToOrder(data);
+
+    // 2. insert order_items
+    const items = order.items || [];
+    if (items.length > 0) {
+      const rows = items.map(i => ({
+        order_id: data.id,
+        name: i.name,
+        qty: i.qty,
+        price: i.price,
+        channel: i.channel || order.channel,
+        category: i.category || null,
+        coupon_id: i.couponId || null,
+        modifier_name: i.selectedModifier?.name || null,
+        modifier_price: i.selectedModifier?.price || null,
+      }));
+      const { error: itemsError } = await sb.from("order_items").insert(rows);
+      if (itemsError) throw itemsError;
+    }
+
+    return dbToOrder(data, items);
   },
   async updateOrder(id, fields) {
     const sb = getSupabase();
@@ -310,7 +350,12 @@ const localDriver = {
     return ls.get("katkat_orders", []);
   },
   async addOrder(order) {
-    const saved = { ...order, id: Date.now() }; // ✅ camelCase ผ่านมาตรง ไม่ต้องแปลง
+    const saved = {
+      ...order,
+      id: Date.now(),
+      orderType: order.orderType || "dine_in",
+      tableNumber: order.tableNumber || null,
+    };
     const orders = ls.get("katkat_orders", []);
     ls.set("katkat_orders", [saved, ...orders]);
     return saved;
@@ -333,6 +378,7 @@ const localDriver = {
     ls.set("katkat_orders", []);
   },
 
+  // MEMBERS
   async fetchMembers() {
     return ls.get("katkat_members", []);
   },
