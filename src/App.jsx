@@ -280,7 +280,7 @@ function App() {
     // validate delivery ref
     if (isDelivery) {
       if (!deliveryRef || deliveryRef === "GF-") return showToast("กรุณาระบุเลขอ้างอิง", "error");
-      if (priceChannel === "grab" && deliveryRef.length < 7) return showToast("เลข GrabFood ไม่ครบ", "error");
+      if (priceChannel === "grab" && deliveryRef.replace("GF-", "").length < 3) return showToast("เลข GrabFood ไม่ครบ", "error");
       if (priceChannel === "lineman" && deliveryRef.replace("GF-","").length < 4) return showToast("เลข LINE MAN ไม่ครบ", "error");
     }
     try {
