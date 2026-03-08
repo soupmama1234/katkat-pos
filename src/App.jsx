@@ -15,6 +15,10 @@ import { supabase as sb } from "./supabase";
 
 import db, { isUsingSupabase } from "./storage";
 import { savePendingOrder, getPendingOrders, deletePendingOrder } from "./utils/pending";
+import { getSession, logout, can } from "./utils/auth";
+import CustomerOrder from "./components/CustomerOrder";
+import LoginScreen from "./components/LoginScreen";
+import StaffManager from "./components/StaffManager";
 
 function App() {
   const [view, setView] = useState("pos");
@@ -22,6 +26,7 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState(() => getSession());
 
   const [cart, setCart] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -419,6 +424,20 @@ function App() {
     onDeletePending: handleDeletePending,
   };
 
+  const handleLogout = () => {
+    logout();
+    setSession(null);
+  };
+
+  // ── Guard: ถ้าเป็น customer mode (URL มี ?customer=1) ──
+  const isCustomerMode = new URLSearchParams(window.location.search).get("customer") === "1";
+  if (isCustomerMode) return <CustomerOrder />;
+
+  // ── Guard: ถ้าไม่มี session → โชว์ LoginScreen ──
+  if (!session) {
+    return <LoginScreen onLogin={(s) => setSession(s)} />;
+  }
+
   if (loading) return (
     <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#fff" }}>
       🍖 KATKAT POS...
@@ -445,8 +464,8 @@ function App() {
             {view === "orders" && (
               <Orders
                 orders={orders}
-                onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }}
-                onClearAll={async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }}
+                onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
+                onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
               />
             )}
             {view === "menu" && (
@@ -463,25 +482,32 @@ function App() {
               </div>
             )}
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
+            {view === "staff" && <StaffManager session={session} />}
           </main>
           <nav style={styles.bottomNav}>
             <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
-            <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>
-            <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>
-            <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>
-            <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>
+            {can(session.role, "dashboard") && <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>}
+            {can(session.role, "orders") && <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>}
+            {can(session.role, "members") && <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>}
+            {can(session.role, "menu_manager") && <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>}
+            {can(session.role, "staff_manager") && <button onClick={() => setView("staff")} style={styles.navBtn(view === "staff")}><span>👤</span> Staff</button>}
+            <button onClick={handleLogout} style={styles.navBtn(false)}><span>🚪</span> ออก</button>
           </nav>
         </div>
       ) : (
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <header style={styles.desktopHeader}>
             <h2 style={{ margin: 0 }}>KATKAT POS</h2>
-            <nav style={{ display: "flex", gap: 10 }}>
-              {["pos", "dashboard", "orders", "members", "menu"].map(v => (
-                <button key={v} onClick={() => setView(v)} style={styles.desktopNavBtn(view === v)}>
-                  {v === "pos" ? "🛍️ ขาย" : v === "dashboard" ? "📊 สรุป" : v === "orders" ? "📜 บิล" : v === "members" ? "👥 สมาชิก" : "🍴 เมนู"}
-                </button>
-              ))}
+            <nav style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              {can(session.role, "pos") && <button onClick={() => setView("pos")} style={styles.desktopNavBtn(view === "pos")}>🛍️ ขาย</button>}
+              {can(session.role, "dashboard") && <button onClick={() => setView("dashboard")} style={styles.desktopNavBtn(view === "dashboard")}>📊 สรุป</button>}
+              {can(session.role, "orders") && <button onClick={() => setView("orders")} style={styles.desktopNavBtn(view === "orders")}>📜 บิล</button>}
+              {can(session.role, "members") && <button onClick={() => setView("members")} style={styles.desktopNavBtn(view === "members")}>👥 สมาชิก</button>}
+              {can(session.role, "menu_manager") && <button onClick={() => setView("menu")} style={styles.desktopNavBtn(view === "menu")}>🍴 เมนู</button>}
+              {can(session.role, "staff_manager") && <button onClick={() => setView("staff")} style={styles.desktopNavBtn(view === "staff")}>👤 Staff</button>}
+              <div style={{ width: "1px", height: "20px", background: "#444", margin: "0 4px" }} />
+              <span style={{ color: "#888", fontSize: "12px" }}>👤 {session.name}</span>
+              <button onClick={handleLogout} style={{ ...styles.desktopNavBtn(false), color: "#FF453A", borderColor: "#FF453A44" }}>🚪 ออก</button>
             </nav>
           </header>
 
@@ -522,9 +548,14 @@ function App() {
               <div style={{ flex: 1, overflowY: "auto" }}>
                 <Orders
                   orders={orders}
-                  onDeleteOrder={async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } }}
-                  onClearAll={async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } }}
+                  onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
+                  onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
                 />
+              </div>
+            )}
+            {view === "staff" && (
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                <StaffManager session={session} />
               </div>
             )}
           </main>

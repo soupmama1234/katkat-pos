@@ -11,7 +11,6 @@ const CHANNEL_CONFIG = {
 const ORDER_TYPE_CONFIG = {
   dine_in:  { label: "🍽️ ทานที่ร้าน", color: "#1565c0", bg: "#e3f2fd" },
   takeaway: { label: "🛍️ กลับบ้าน",  color: "#6a1b9a", bg: "#f3e5f5" },
-  delivery: { label: "🛵 Delivery",   color: "#e65100", bg: "#fff3e0" },
 };
 
 const PAYMENT_CONFIG = {
@@ -35,8 +34,9 @@ function ChannelBadge({ channel }) {
 }
 
 function OrderTypeBadge({ orderType }) {
+  // delivery channels ไม่แสดง badge นี้
+  if (!orderType || !ORDER_TYPE_CONFIG[orderType]) return null;
   const cfg = ORDER_TYPE_CONFIG[orderType];
-  if (!cfg) return null;
   return (
     <span style={{
       padding: "3px 9px", borderRadius: 6, fontSize: 11, fontWeight: "bold",
@@ -63,6 +63,7 @@ function PaymentBadge({ payment }) {
 // ─────────────────────────────────────────────────────────
 
 export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
+  const canDelete = typeof onDeleteOrder === "function";
   const [deletingId, setDeletingId] = useState(null);
   const [clearing, setClearing] = useState(false);
 
@@ -90,6 +91,8 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
     }
   };
 
+  const isDelivery = (ch) => ["grab", "lineman", "shopee"].includes(ch);
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -97,7 +100,7 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
           <h2 style={{ margin: 0 }}>ประวัติการขาย</h2>
           <span style={styles.countBadge}>ทั้งหมด {orders.length} รายการ</span>
         </div>
-        {orders.length > 0 && (
+        {orders.length > 0 && canDelete && (
           <button onClick={handleClearRequest} disabled={clearing}
             style={{ ...styles.btnClearAll, opacity: clearing ? 0.5 : 1 }}>
             {clearing ? "กำลังลบ..." : "ล้างประวัติทั้งหมด"}
@@ -111,6 +114,7 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
         ) : (
           orders.map((order) => {
             const deleting = deletingId === order.id;
+            const delivery = isDelivery(order.channel);
             return (
               <div key={order.id} style={{ ...styles.orderCard, opacity: deleting ? 0.4 : 1 }}>
 
@@ -121,7 +125,10 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
                     {/* Row 1: channel + orderType badges */}
                     <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
                       <ChannelBadge channel={order.channel} />
-                      <OrderTypeBadge orderType={order.orderType} />
+                      {/* ทานที่ร้าน/กลับบ้าน: แสดงเฉพาะ POS */}
+                      {!delivery && (
+                        <OrderTypeBadge orderType={order.orderType || "dine_in"} />
+                      )}
                       {order.refId && (
                         <span style={styles.refBadge}>#{order.refId}</span>
                       )}
@@ -138,14 +145,14 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
 
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={styles.orderId}>#{order.id.toString().slice(-6)}</div>
-                    <button onClick={() => handleDelete(order.id)} disabled={deleting}
+                    {canDelete && <button onClick={() => handleDelete(order.id)} disabled={deleting}
                       style={{ ...styles.btnDelete, cursor: deleting ? "not-allowed" : "pointer" }}
                       title="ลบรายการนี้">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
                         <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
                       </svg>
-                    </button>
+                    </button>}
                   </div>
                 </div>
 
@@ -167,7 +174,9 @@ export default function Orders({ orders = [], onDeleteOrder, onClearAll }) {
                 {/* ── Footer ── */}
                 <div style={styles.cardFooter}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {/* payment badge */}
                     <PaymentBadge payment={order.payment} />
+                    {/* settled status */}
                     <span style={{
                       fontSize: 12, fontWeight: "bold",
                       color: order.isSettled ? "#4caf50" : "#ff9800"
