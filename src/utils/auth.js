@@ -14,7 +14,7 @@ const PERMISSIONS = {
     "pos", "dashboard", "orders",
     "delete_order", "close_day",
   ],
-  staff: ["pos"],
+  staff: ["pos", "orders"],
 };
 
 export function can(role, action) {
@@ -136,5 +136,4 @@ function bumpRate(errorMsg) {
   }
   setRateState({ count: newCount, lockedUntil: 0 });
   return { ok: false, error: `${errorMsg} (${newCount}/${MAX_ATTEMPTS})` };
-    }
-    
+}
