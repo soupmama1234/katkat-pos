@@ -16,6 +16,7 @@ import { supabase as sb } from "./supabase";
 import db, { isUsingSupabase } from "./storage";
 import { savePendingOrder, getPendingOrders, deletePendingOrder } from "./utils/pending";
 import { getSession, logout, can } from "./utils/auth";
+import CustomerOrder from "./components/CustomerOrder";
 import LoginScreen from "./components/LoginScreen";
 import StaffManager from "./components/StaffManager";
 
@@ -427,6 +428,10 @@ function App() {
     logout();
     setSession(null);
   };
+
+  // ── Guard: ถ้าเป็น customer mode (URL มี ?customer=1) ──
+  const isCustomerMode = new URLSearchParams(window.location.search).get("customer") === "1";
+  if (isCustomerMode) return <CustomerOrder />;
 
   // ── Guard: ถ้าไม่มี session → โชว์ LoginScreen ──
   if (!session) {
