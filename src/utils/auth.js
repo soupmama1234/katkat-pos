@@ -47,28 +47,29 @@ export function logout() {
   localStorage.removeItem(SESSION_KEY);
 }
 
-// ── Simple hash (bcrypt-compatible check via Supabase RPC หรือ JS) ─
-// ใช้ bcryptjs สำหรับ hash/verify
-async function loadBcrypt() {
-  // โหลด bcryptjs แบบ dynamic (ไม่ต้อง install เพิ่ม ใช้ CDN fallback)
-  if (window._bcrypt) return window._bcrypt;
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js";
-    s.onload = () => { window._bcrypt = window.dcodeIO?.bcrypt || window.bcrypt; resolve(window._bcrypt); };
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
+// ── Hash ด้วย Web Crypto API (built-in ทุก browser ไม่ต้อง install) ──
+// format: "sha256:salt:hash"
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 export async function hashPin(pin) {
-  const bcrypt = await loadBcrypt();
-  return bcrypt.hash(String(pin), 10);
+  const salt = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+  const hash = await sha256(salt + String(pin));
+  return `sha256:${salt}:${hash}`;
 }
 
-async function verifyPin(pin, hash) {
-  const bcrypt = await loadBcrypt();
-  return bcrypt.compare(String(pin), hash);
+async function verifyPin(pin, stored) {
+  if (stored && stored.startsWith("sha256:")) {
+    const parts = stored.split(":");
+    const salt = parts[1];
+    const hash = parts[2];
+    const check = await sha256(salt + String(pin));
+    return check === hash;
+  }
+  // fallback plain (dev only)
+  return String(pin) === stored;
 }
 
 // ── Rate limiting (localStorage) ─────────────────────────────
@@ -135,5 +136,5 @@ function bumpRate(errorMsg) {
   }
   setRateState({ count: newCount, lockedUntil: 0 });
   return { ok: false, error: `${errorMsg} (${newCount}/${MAX_ATTEMPTS})` };
-                       }
-                     
+    }
+    
