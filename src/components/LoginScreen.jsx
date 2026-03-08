@@ -29,18 +29,20 @@ export default function LoginScreen({ onLogin }) {
 
   const handlePinKey = (digit) => {
     if (pin.length >= 6) return;
-    setPin(prev => prev + digit);
+    const newPin = pin + digit;
+    setPin(newPin);
     setError("");
+    // auto-submit เมื่อครบ 6 หลัก — ส่ง newPin ตรงๆ ไม่รอ state
+    if (newPin.length === 6) doLogin(newPin);
   };
 
   const handleDelete = () => setPin(prev => prev.slice(0, -1));
 
-  const handleSubmit = async () => {
+  const doLogin = async (pinValue) => {
     if (!name.trim()) { setError("กรุณากรอกชื่อ"); return; }
-    if (pin.length !== 6) { setError("PIN ต้องครบ 6 หลัก"); return; }
     setLoading(true);
     setError("");
-    const result = await login(name, pin);
+    const result = await login(name, pinValue);
     setLoading(false);
     if (result.ok) {
       onLogin(result.session);
@@ -52,10 +54,10 @@ export default function LoginScreen({ onLogin }) {
     }
   };
 
-  // กด Enter บน keyboard
-  useEffect(() => {
-    if (pin.length === 6) handleSubmit();
-  }, [pin]);
+  const handleSubmit = () => {
+    if (pin.length !== 6) { setError("PIN ต้องครบ 6 หลัก"); return; }
+    doLogin(pin);
+  };
 
   const isLocked = lockSec > 0;
 
@@ -234,4 +236,4 @@ const s = {
     transition: "opacity 0.2s",
   },
 };
-            
+          
