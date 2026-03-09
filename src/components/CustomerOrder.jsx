@@ -202,7 +202,7 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
   const [loading, setLoading] = useState(true);
   const [showCart, setShowCart] = useState(false);
   const [modModal, setModModal] = useState(null); // {product}
-  const [selectedMod, setSelectedMod] = useState(null);
+  const [selectedMods, setSelectedMods] = useState({}); // { groupId: option }
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -233,7 +233,7 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
   const handleAddProduct = (product) => {
     const groups = modGroups.filter(g => (product.modifier_group_ids || []).includes(g.id));
     if (groups.length > 0) {
-      setSelectedMod(null);
+      setSelectedMods({});
       setModModal({ product, groups });
     } else {
       addToCart(product);
@@ -276,7 +276,7 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
   );
 
   return (
-    <div style={{ background: "#0a0a0a", minHeight: "100vh", paddingBottom: 100 }}>
+    <div style={{ background: "#0a0a0a", minHeight: "100vh", paddingBottom: 100, fontFamily: "'Noto Sans Thai', sans-serif", overflowX: "hidden" }}>
       {/* Header */}
       <div style={s.menuHeader}>
         <div>
@@ -345,8 +345,8 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
                 {g.options.map(opt => (
                   <div
                     key={opt.id}
-                    style={{ ...s.modOption, ...(selectedMod?.id === opt.id ? s.modOptionActive : {}) }}
-                    onClick={() => setSelectedMod(opt)}
+                    style={{ ...s.modOption, ...(selectedMods[g.id]?.id === opt.id ? s.modOptionActive : {}) }}
+                    onClick={() => setSelectedMods(prev => ({ ...prev, [g.id]: opt }))}
                   >
                     <span>{opt.name}</span>
                     {opt.price > 0 && <span style={{ color: BRAND }}>+฿{opt.price}</span>}
@@ -356,7 +356,17 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
             ))}
             <button
               style={{ ...s.primaryBtn, marginTop: 16 }}
-              onClick={() => { addToCart(modModal.product, selectedMod); setModModal(null); setSelectedMod(null); }}
+onClick={() => {
+                const mods = Object.values(selectedMods);
+                const combinedMod = mods.length > 0 ? {
+                  id: mods.map(m => m.id).join("-"),
+                  name: mods.map(m => m.name).join(", "),
+                  price: mods.reduce((s, m) => s + (m.price || 0), 0),
+                } : null;
+                addToCart(modModal.product, combinedMod);
+                setModModal(null);
+                setSelectedMods({});
+              }}
             >
               เพิ่มลงตะกร้า
             </button>
@@ -367,7 +377,7 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
       {/* Cart Modal */}
       {showCart && (
         <div style={s.modalOverlay} onClick={() => setShowCart(false)}>
-          <div style={{ ...s.modalBox, maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...s.modalBox, maxHeight: "85vh", overflowY: "auto", paddingBottom: 32 }} onClick={e => e.stopPropagation()}>
             <div style={s.modalTitle}>🛒 รายการสั่ง</div>
             {cart.length === 0
               ? <div style={{ color: "#555", textAlign: "center", padding: "24px 0" }}>ยังไม่มีรายการ</div>
