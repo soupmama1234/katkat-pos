@@ -133,7 +133,25 @@ function App() {
       })
       .subscribe();
 
-    return () => { sb.removeChannel(channel); };
+    const ordersChannel = sb
+      .channel("orders-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, async () => {
+        try {
+          const [cp, ac] = await Promise.all([db.fetchPendingOrders(), db.fetchAcceptedOrders()]);
+          setCustomerPendingOrders(cp);
+          setAcceptedOrders(ac);
+        } catch {}
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async () => {
+        try {
+          const [cp, ac] = await Promise.all([db.fetchPendingOrders(), db.fetchAcceptedOrders()]);
+          setCustomerPendingOrders(cp);
+          setAcceptedOrders(ac);
+        } catch {}
+      })
+      .subscribe();
+
+    return () => { sb.removeChannel(channel); sb.removeChannel(ordersChannel); };
   }, []);
 
   useEffect(() => {
