@@ -417,7 +417,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   );
 }
 
-function MemberRow({ m, stats, fav = [], tierColor, daysSince, rank, onDelete, onAdjust, showDelete, onDeleteCoupon }) {
+function MemberRow({ m, stats, fav = [], tierColor, daysSince, daysUntil, rank, onDelete, onAdjust, showDelete, onDeleteCoupon }) {
   const visits = stats?.count || 0;
   const couponGroups = groupAvailableCoupons(m.redeemed_rewards);
   const totalCoupons = couponGroups.reduce((s, g) => s + g.count, 0);
