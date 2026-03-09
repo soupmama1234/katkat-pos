@@ -471,6 +471,12 @@ function App() {
     onDeletePending: handleDeletePending,
   };
 
+  const handleCancelPending = async (order) => {
+    await db.cancelPendingOrder(order.id);
+    setCustomerPendingOrders(prev => prev.filter(o => o.id !== order.id));
+    showToast("ยกเลิกออเดอร์แล้ว");
+  };
+
   const handleAcceptPending = async (order) => {
     await db.acceptPendingOrder(order.id);
     setCustomerPendingOrders(prev => prev.filter(o => o.id !== order.id));
@@ -517,6 +523,7 @@ function App() {
                 orders={orders}
                 pendingOrders={customerPendingOrders}
                 onAcceptPending={handleAcceptPending}
+                onCancelPending={handleCancelPending}
                 onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
                 onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
               />
@@ -624,6 +631,7 @@ function App() {
                   orders={orders}
                   pendingOrders={customerPendingOrders}
                   onAcceptPending={handleAcceptPending}
+                  onCancelPending={handleCancelPending}
                   onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
                   onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
                 />
