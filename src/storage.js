@@ -253,6 +253,11 @@ const supabaseDriver = {
       return dbToOrder(orderRow, items || []);
     });
   },
+  async cancelPendingOrder(id) {
+    const sb = getSupabase();
+    const { error } = await sb.from("orders").delete().eq("id", id);
+    if (error) throw error;
+  },
   async acceptPendingOrder(id) {
     const sb = getSupabase();
     const { error } = await sb
@@ -385,6 +390,7 @@ const localDriver = {
     return saved;
   },
   async fetchPendingOrders() { return []; },
+  async cancelPendingOrder(id) {},
   async acceptPendingOrder(id) {},
   async updateOrder(id, fields) {
     const orders = ls.get("katkat_orders", []);
