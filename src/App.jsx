@@ -20,35 +20,6 @@ import LoginScreen from "./components/LoginScreen";
 import CustomerOrder from "./components/CustomerOrder";
 import StaffManager from "./components/StaffManager";
 
-// ── เสียงแจ้งเตือน (Web Audio API) ──────────────────────────
-let _audioCtx = null;
-function getAudioCtx() {
-  if (!_audioCtx) {
-    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
-  }
-  return _audioCtx;
-}
-function playNotificationSound() {
-  try {
-    const ctx = getAudioCtx();
-    if (!ctx) return;
-    if (ctx.state === "suspended") ctx.resume();
-    const times = [0, 0.15, 0.3];
-    times.forEach(t => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 880;
-      osc.type = "sine";
-      gain.gain.setValueAtTime(0, ctx.currentTime + t);
-      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + t + 0.02);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + t + 0.12);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.15);
-    });
-  } catch {}
-}
 
 function App() {
   const [view, setView] = useState("pos");
@@ -87,27 +58,8 @@ function App() {
   // ── Customer pending orders (Supabase) ──
   const [customerPendingOrders, setCustomerPendingOrders] = useState([]);
   const [acceptedOrders, setAcceptedOrders] = useState([]);
-  const prevPendingCount = React.useRef(0);
 
   // memberInfo derived จาก members array + memberPhone → realtime อัปเดตอัตโนมัติ
-  // ── แจ้งเตือนเมื่อมี customer order ใหม่ ──
-  React.useEffect(() => {
-    const curr = customerPendingOrders.length;
-    const prev = prevPendingCount.current;
-    if (curr > prev) {
-      playNotificationSound();
-      // Browser notification (ถ้าได้รับอนุญาต)
-      if (Notification.permission === "granted") {
-        new Notification("🔔 มีออเดอร์ใหม่!", {
-          body: `${curr - prev} ออเดอร์รอรับ — คลิกเพื่อดู`,
-          icon: "/favicon.ico",
-        });
-      } else if (Notification.permission !== "denied") {
-        Notification.requestPermission();
-      }
-    }
-    prevPendingCount.current = curr;
-  }, [customerPendingOrders.length]);
 
   const memberInfo = useMemo(
     () => members.find(m => m.phone === memberPhone) || null,
