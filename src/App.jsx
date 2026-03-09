@@ -21,9 +21,18 @@ import CustomerOrder from "./components/CustomerOrder";
 import StaffManager from "./components/StaffManager";
 
 // ── เสียงแจ้งเตือน (Web Audio API) ──────────────────────────
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+  }
+  return _audioCtx;
+}
 function playNotificationSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
     const times = [0, 0.15, 0.3];
     times.forEach(t => {
       const osc = ctx.createOscillator();
