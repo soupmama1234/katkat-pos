@@ -17,6 +17,7 @@ import db, { isUsingSupabase } from "./storage";
 import { savePendingOrder, getPendingOrders, deletePendingOrder } from "./utils/pending";
 import { getSession, logout, can } from "./utils/auth";
 import LoginScreen from "./components/LoginScreen";
+import CustomerOrder from "./components/CustomerOrder";
 import StaffManager from "./components/StaffManager";
 
 // ── เสียงแจ้งเตือน (Web Audio API) ──────────────────────────
@@ -382,7 +383,7 @@ function App() {
     // validate delivery ref
     if (isDelivery) {
       if (!deliveryRef || deliveryRef === "GF-") return showToast("กรุณาระบุเลขอ้างอิง", "error");
-      if (priceChannel === "grab" && deliveryRef.length < 7) return showToast("เลข GrabFood ไม่ครบ", "error");
+      if (priceChannel === "grab" && deliveryRef.replace("GF-", "").length < 3) return showToast("เลข GrabFood ไม่ครบ", "error");
       if (priceChannel === "lineman" && deliveryRef.replace("GF-","").length < 4) return showToast("เลข LINE MAN ไม่ครบ", "error");
     }
     try {
@@ -498,6 +499,10 @@ function App() {
     logout();
     setSession(null);
   };
+
+  // ── Guard: customer mode ──
+  const isCustomerMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("customer") === "1";
+  if (isCustomerMode) return <CustomerOrder />;
 
   // ── Guard: ถ้าไม่มี session → โชว์ LoginScreen ──
   if (!session) {
