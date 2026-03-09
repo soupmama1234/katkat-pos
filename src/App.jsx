@@ -76,6 +76,7 @@ function App() {
   const [pendingOrders, setPendingOrders] = useState(() => getPendingOrders());
   // ── Customer pending orders (Supabase) ──
   const [customerPendingOrders, setCustomerPendingOrders] = useState([]);
+  const [acceptedOrders, setAcceptedOrders] = useState([]);
   const prevPendingCount = React.useRef(0);
 
   // memberInfo derived จาก members array + memberPhone → realtime อัปเดตอัตโนมัติ
@@ -153,8 +154,9 @@ function App() {
         setLoading(false);
         // fetch customer pending orders
         try {
-          const cp = await db.fetchPendingOrders();
+          const [cp, ac] = await Promise.all([db.fetchPendingOrders(), db.fetchAcceptedOrders()]);
           setCustomerPendingOrders(cp);
+          setAcceptedOrders(ac);
         } catch {}
       }
     }
@@ -471,6 +473,14 @@ function App() {
     onDeletePending: handleDeletePending,
   };
 
+  const handleSettleOrder = async (order, payment, actual) => {
+    await db.settleOrder(order.id, payment, actual);
+    setAcceptedOrders(prev => prev.filter(o => o.id !== order.id));
+    const ords = await db.fetchOrders();
+    setOrders(ords);
+    showToast(`รับเงินโต๊ะ ${order.tableNumber || ""} เรียบร้อย 💰`);
+  };
+
   const handleCancelPending = async (order) => {
     await db.cancelPendingOrder(order.id);
     setCustomerPendingOrders(prev => prev.filter(o => o.id !== order.id));
@@ -480,8 +490,7 @@ function App() {
   const handleAcceptPending = async (order) => {
     await db.acceptPendingOrder(order.id);
     setCustomerPendingOrders(prev => prev.filter(o => o.id !== order.id));
-    const ords = await db.fetchOrders();
-    setOrders(ords);
+    setAcceptedOrders(prev => [...prev, { ...order, status: "accepted" }]);
     showToast(`รับออเดอร์โต๊ะ ${order.tableNumber || ""} แล้ว ✅`);
   };
 
@@ -522,8 +531,10 @@ function App() {
               <Orders
                 orders={orders}
                 pendingOrders={customerPendingOrders}
+                acceptedOrders={acceptedOrders}
                 onAcceptPending={handleAcceptPending}
                 onCancelPending={handleCancelPending}
+                onSettleOrder={handleSettleOrder}
                 onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
                 onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
               />
@@ -630,8 +641,10 @@ function App() {
                 <Orders
                   orders={orders}
                   pendingOrders={customerPendingOrders}
+                  acceptedOrders={acceptedOrders}
                   onAcceptPending={handleAcceptPending}
                   onCancelPending={handleCancelPending}
+                  onSettleOrder={handleSettleOrder}
                   onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
                   onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
                 />
