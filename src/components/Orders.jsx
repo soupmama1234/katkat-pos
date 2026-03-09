@@ -44,7 +44,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
       onClick={onClose}>
-      <div style={{ background: "#141414", border: "1px solid #2a2a2a", borderRadius: "24px 24px 0 0", padding: "24px 20px 40px", width: "100%", maxWidth: 480 }}
+      <div style={{ background: "#141414", border: "1px solid #2a2a2a", borderRadius: "24px 24px 0 0", padding: "24px 20px 40px", width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", boxSizing: "border-box" }}
         onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 4 }}>💳 รับชำระเงิน</div>
         {order.tableNumber && <div style={{ color: "#666", fontSize: 13, marginBottom: 16 }}>โต๊ะ {order.tableNumber}</div>}
