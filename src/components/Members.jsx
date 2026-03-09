@@ -10,9 +10,8 @@ import {
   calcPoints,
 } from "../utils/points";
 import { groupAvailableCoupons } from "../utils/coupons";
-import db from "../storage";
 
-const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards", "📢 ส่งคูปอง"];
+const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards"];
 
 export default function Members({ orders = [], members: initMembers = [], onMembersChange, historyTrigger, showToast, showConfirm }) {
   const [tab, setTab] = useState("ภาพรวม");
@@ -29,7 +28,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const [adjustNote, setAdjustNote] = useState("");
   const [adjustSaving, setAdjustSaving] = useState(false);
   const [history, setHistory] = useState([]);
-  const [sendCoupon, setSendCoupon] = useState(null); // { mode: "all"|"filter", filter?: "gone"|"never" }
   const [historyLoading, setHistoryLoading] = useState(false);
 
   React.useEffect(() => { setMembers(initMembers); }, [initMembers]);
@@ -145,21 +143,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
       .sort((a, b) => a.minSpend - b.minSpend);
     setTiers(cleaned); saveTiers(cleaned); setEditTiers(false);
     showToast("บันทึก Bonus Tiers แล้ว");
-  };
-
-  const handleSendCoupon = async (targetPhones, coupon) => {
-    const ok = await showConfirm(
-      "ส่งคูปอง?",
-      `ยืนยันส่งคูปอง "${coupon.name}" ให้สมาชิก ${targetPhones.length} คน?`
-    );
-    if (!ok) return;
-    try {
-      const count = await db.sendCouponToMembers(targetPhones, coupon);
-      showToast(`ส่งคูปองให้ ${count} คนเรียบร้อย 🎁`);
-      setSendCoupon(null);
-    } catch (e) {
-      showToast("ส่งไม่สำเร็จ: " + e.message, "error");
-    }
   };
 
   const addTier = () => setTiersInput(prev => [...prev, { id: Date.now(), minSpend: 0, multiplier: 2 }]);
@@ -381,23 +364,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
             </div>
           )}
 
-          {tab === "Rewards" && <RewardManager showToast={showToast} showConfirm={showConfirm} />}
-
-          {tab === "📢 ส่งคูปอง" && (
-            <SendCouponPanel
-              members={members}
-              goneMems={goneMems}
-              neverCome={neverCome}
-              onSend={handleSendCoupon}
-              showToast={showToast}
-            />
-          )}
-        </div>
-      </div>
-
-      {adjusting && (
-        <div style={S.overlay} onClick={() => setAdjusting(null)}>
-          <div style={{ ...S.modal, width: 320, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+          {tab === "Rewards" && <RewardManager showToast={showToast} showConfirm={showConfirm} members={members} />} onClick={e => e.stopPropagation()}>
             <div style={{ fontWeight: "bold", fontSize: 16, marginBottom: 4 }}>✏️ แก้ไขแต้ม</div>
             <div style={{ color: "#888", fontSize: 13, marginBottom: 16 }}>{adjusting.nickname} · ⭐ {adjusting.points || 0} แต้ม</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
@@ -489,126 +456,6 @@ function StatCard({ icon, label, value, unit, color = "#fff" }) {
 }
 function Empty({ text }) { return <div style={{ padding: 24, textAlign: "center", color: "#444", fontSize: 13 }}>{text}</div>; }
 
-
-// ── Send Coupon Panel ─────────────────────────────────────────
-function SendCouponPanel({ members, goneMems, neverCome, onSend }) {
-  const [target, setTarget] = React.useState("all"); // all | gone | never | custom
-  const [couponName, setCouponName] = React.useState("");
-  const [couponType, setCouponType] = React.useState("discount"); // discount | free_item
-  const [couponValue, setCouponValue] = React.useState("");
-  const [sending, setSending] = React.useState(false);
-  const [couponDays, setCouponDays] = React.useState("30");
-
-  const targetMap = {
-    all: members,
-    gone: goneMems,
-    never: neverCome,
-  };
-  const targetMembers = targetMap[target] || [];
-
-  const handleSend = async () => {
-    if (!couponName.trim()) return;
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + (Number(couponDays) || 30));
-    const coupon = {
-      id: `bulk-${Date.now()}`,
-      name: couponName.trim(),
-      type: couponType,
-      value: Number(couponValue) || 0,
-      expires_at: expiryDate.toISOString(),
-    };
-    setSending(true);
-    await onSend(targetMembers.map(m => m.phone), coupon);
-    setSending(false);
-    setCouponName(""); setCouponValue("");
-  };
-
-  return (
-    <div>
-      {/* Target selector */}
-      <div style={{ background: "#111", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: "#555", fontWeight: "bold", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 12 }}>เลือกกลุ่มเป้าหมาย</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
-          {[
-            { key: "all", label: "👥 ทั้งหมด", count: members.length },
-            { key: "gone", label: "🚨 ไม่มา 30 วัน", count: goneMems.length },
-            { key: "never", label: "👻 ยังไม่เคยมา", count: neverCome.length },
-          ].map(opt => (
-            <button key={opt.key} onClick={() => setTarget(opt.key)}
-              style={{ padding: "12px 8px", borderRadius: 12, border: target === opt.key ? "2px solid #FF9F0A" : "1px solid #2a2a2a", background: target === opt.key ? "#FF9F0A22" : "#1a1a1a", color: target === opt.key ? "#FF9F0A" : "#666", cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{opt.label}</div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: target === opt.key ? "#FF9F0A" : "#fff", marginTop: 4 }}>{opt.count} คน</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Coupon builder */}
-      <div style={{ background: "#111", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: "#555", fontWeight: "bold", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 12 }}>สร้างคูปอง</div>
-
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ color: "#666", fontSize: 12, marginBottom: 6 }}>ชื่อคูปอง</div>
-          <input
-            value={couponName} onChange={e => setCouponName(e.target.value)}
-            placeholder="เช่น ลด 50 บาท, ฟรีข้าว..."
-            style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#fff", borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" }}
-          />
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-          {[["discount", "💸 ส่วนลด"], ["free_item", "🎁 ของฟรี"]].map(([val, label]) => (
-            <button key={val} onClick={() => setCouponType(val)}
-              style={{ padding: 10, borderRadius: 10, border: couponType === val ? "2px solid #4caf50" : "1px solid #2a2a2a", background: couponType === val ? "#4caf5022" : "#1a1a1a", color: couponType === val ? "#4caf50" : "#666", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {couponType === "discount" && (
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ color: "#666", fontSize: 12, marginBottom: 6 }}>มูลค่าส่วนลด (บาท)</div>
-            <input type="number" value={couponValue} onChange={e => setCouponValue(e.target.value)}
-              placeholder="50"
-              style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#fff", borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" }} />
-          </div>
-        )}
-        <div>
-          <div style={{ color: "#666", fontSize: 12, marginBottom: 6 }}>หมดอายุภายใน (วัน)</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-            {["7", "14", "30", "60", "90"].map(d => (
-              <button key={d} onClick={() => setCouponDays(d)}
-                style={{ padding: "6px 12px", borderRadius: 8, border: couponDays === d ? "2px solid #4D96FF" : "1px solid #2a2a2a", background: couponDays === d ? "#4D96FF22" : "#1a1a1a", color: couponDays === d ? "#4D96FF" : "#666", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700 }}>
-                {d} วัน
-              </button>
-            ))}
-          </div>
-          <input type="number" value={couponDays} onChange={e => setCouponDays(e.target.value)}
-            placeholder="30"
-            style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#fff", borderRadius: 8, padding: "10px 12px", fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" }} />
-        </div>
-      </div>
-
-      {/* Preview + Send */}
-      <div style={{ background: "#111", borderRadius: 14, padding: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div>
-            <div style={{ color: "#fff", fontWeight: 700 }}>📋 สรุป</div>
-            <div style={{ color: "#666", fontSize: 13, marginTop: 2 }}>
-              ส่ง <span style={{ color: "#FF9F0A", fontWeight: 700 }}>"{couponName || "..."}"</span> ให้ <span style={{ color: "#fff", fontWeight: 700 }}>{targetMembers.length} คน</span>
-            </div>
-          </div>
-        </div>
-        <button
-          onClick={handleSend}
-          disabled={!couponName.trim() || targetMembers.length === 0 || sending}
-          style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: !couponName.trim() || targetMembers.length === 0 ? "#222" : "#FF9F0A", color: !couponName.trim() || targetMembers.length === 0 ? "#444" : "#000", fontWeight: 800, fontSize: 15, cursor: !couponName.trim() || targetMembers.length === 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-          {sending ? "⏳ กำลังส่ง..." : `📢 ส่งคูปองให้ ${targetMembers.length} คน`}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 const S = {
   wrap: { height: "100%", display: "flex", flexDirection: "column", backgroundColor: "#0a0a0a", color: "#fff" },
