@@ -51,8 +51,10 @@ function App() {
   const [confirm, setConfirm] = useState(null);
   const [historyTrigger, setHistoryTrigger] = useState(0);
 
-  // ── Pending orders (พักออเดอร์) ──
+  // ── Pending orders staff (localStorage) ──
   const [pendingOrders, setPendingOrders] = useState(() => getPendingOrders());
+  // ── Customer pending orders (Supabase) ──
+  const [customerPendingOrders, setCustomerPendingOrders] = useState([]);
 
   // memberInfo derived จาก members array + memberPhone → realtime อัปเดตอัตโนมัติ
   const memberInfo = useMemo(
@@ -108,6 +110,11 @@ function App() {
         showToast("❌ โหลดข้อมูลไม่ได้ กรุณา refresh", "error");
       } finally {
         setLoading(false);
+        // fetch customer pending orders
+        try {
+          const cp = await db.fetchPendingOrders();
+          setCustomerPendingOrders(cp);
+        } catch {}
       }
     }
     loadAll();
@@ -459,6 +466,8 @@ function App() {
             {view === "orders" && (
               <Orders
                 orders={orders}
+                pendingOrders={customerPendingOrders}
+                onAcceptPending={handleAcceptPending}
                 onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
                 onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
               />
@@ -543,6 +552,8 @@ function App() {
               <div style={{ flex: 1, overflowY: "auto" }}>
                 <Orders
                   orders={orders}
+                  pendingOrders={customerPendingOrders}
+                  onAcceptPending={handleAcceptPending}
                   onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
                   onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
                 />
