@@ -35,6 +35,64 @@ function PaymentBadge({ payment }) {
   return <span style={{ padding: "3px 9px", borderRadius: 6, fontSize: 11, fontWeight: "bold", color: cfg.color, backgroundColor: cfg.bg }}>{cfg.label}</span>;
 }
 
+
+// ── Payment Modal ──────────────────────────────────────────
+function PaymentModal({ order, onConfirm, onClose }) {
+  const [method, setMethod] = React.useState("cash");
+  const [actual, setActual] = React.useState(order.total.toString());
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+      onClick={onClose}>
+      <div style={{ background: "#141414", border: "1px solid #2a2a2a", borderRadius: "24px 24px 0 0", padding: "24px 20px 40px", width: "100%", maxWidth: 480 }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 4 }}>💳 รับชำระเงิน</div>
+        {order.tableNumber && <div style={{ color: "#666", fontSize: 13, marginBottom: 16 }}>โต๊ะ {order.tableNumber}</div>}
+
+        {/* Items summary */}
+        <div style={{ background: "#1e1e1e", borderRadius: 12, padding: "10px 14px", marginBottom: 16 }}>
+          {order.items.map((item, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", color: "#aaa", fontSize: 13, marginBottom: i < order.items.length - 1 ? 4 : 0 }}>
+              <span>{item.name} ×{item.qty}</span>
+              <span>฿{(item.price * item.qty).toLocaleString()}</span>
+            </div>
+          ))}
+          <div style={{ borderTop: "1px solid #2a2a2a", marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", color: "#FF9F0A", fontWeight: 800, fontSize: 16 }}>
+            <span>รวม</span><span>฿{order.total.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Payment method */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+          {[["cash", "💵 เงินสด"], ["transfer", "📱 โอนเงิน"]].map(([val, label]) => (
+            <button key={val} onClick={() => setMethod(val)}
+              style={{ padding: "12px", borderRadius: 12, border: method === val ? "2px solid #FF9F0A" : "1px solid #333", background: method === val ? "#FF9F0A22" : "#1e1e1e", color: method === val ? "#FF9F0A" : "#888", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Actual amount */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ color: "#666", fontSize: 12, marginBottom: 6 }}>ยอดรับจริง</div>
+          <input
+            type="number" inputMode="numeric"
+            value={actual}
+            onChange={e => setActual(e.target.value)}
+            style={{ width: "100%", background: "#1e1e1e", border: "1px solid #333", borderRadius: 12, padding: "12px 16px", color: "#fff", fontSize: 20, fontWeight: 700, textAlign: "center", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
+          />
+        </div>
+
+        <button
+          onClick={() => onConfirm(method, Number(actual) || order.total)}
+          style={{ width: "100%", background: "#FF9F0A", color: "#000", border: "none", borderRadius: 14, padding: 16, fontSize: 16, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+          ✅ ยืนยันรับเงิน
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Queue Card (pending_customer orders) ───────────────────
 function QueueCard({ order, onAccept, accepting, onCancel, cancelling }) {
   return (
@@ -117,13 +175,62 @@ function QueueCard({ order, onAccept, accepting, onCancel, cancelling }) {
   );
 }
 
+
+// ── Accepted Card (กำลังทำอาหาร/รอจ่าย) ──────────────────
+function AcceptedCard({ order, onSettle, settling }) {
+  return (
+    <div style={{
+      background: "#1a1a1a",
+      border: "1px solid #30d15844",
+      borderLeft: "4px solid #30d158",
+      borderRadius: 14, padding: 16,
+      display: "flex", flexDirection: "column", gap: 10,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ background: "#30d15822", color: "#30d158", border: "1px solid #30d15844", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700 }}>
+              🍳 กำลังทำ
+            </span>
+            {order.tableNumber && (
+              <span style={{ background: "#333", color: "#fff", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700 }}>
+                🪑 โต๊ะ {order.tableNumber}
+              </span>
+            )}
+          </div>
+          <span style={{ fontSize: 12, color: "#666" }}>🕐 {new Date(order.time).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.</span>
+        </div>
+        <span style={{ fontSize: 11, color: "#444" }}>#{order.id.toString().slice(-6)}</span>
+      </div>
+
+      <div style={{ background: "#111", borderRadius: 10, padding: "8px 12px" }}>
+        {order.items.map((item, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", color: "#aaa", fontSize: 13, marginBottom: i < order.items.length - 1 ? 4 : 0 }}>
+            <span>{item.name}</span><span>×{item.qty}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ color: "#30d158", fontWeight: 800, fontSize: 18 }}>฿{order.total.toLocaleString()}</span>
+        <button onClick={() => onSettle(order)} disabled={settling}
+          style={{ background: settling ? "#333" : "#30d158", color: settling ? "#666" : "#000", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 14, fontWeight: 800, cursor: settling ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+          {settling ? "⏳..." : "💳 รับเงิน"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Orders Component ──────────────────────────────────
-export default function Orders({ orders = [], pendingOrders = [], onDeleteOrder, onClearAll, onAcceptPending, onCancelPending }) {
+export default function Orders({ orders = [], pendingOrders = [], acceptedOrders = [], onDeleteOrder, onClearAll, onAcceptPending, onCancelPending, onSettleOrder }) {
   const canDelete = typeof onDeleteOrder === "function";
   const [deletingId, setDeletingId] = useState(null);
   const [clearing, setClearing] = useState(false);
   const [acceptingId, setAcceptingId] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
+  const [settlingId, setSettlingId] = useState(null);
+  const [paymentOrder, setPaymentOrder] = useState(null);
   const [tab, setTab] = useState(pendingOrders.length > 0 ? "queue" : "history");
 
   // auto-switch ไป queue ถ้ามี pending order เข้ามาใหม่
@@ -138,6 +245,20 @@ export default function Orders({ orders = [], pendingOrders = [], onDeleteOrder,
       await onCancelPending(order);
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handleSettle = async (order) => {
+    setPaymentOrder(order);
+  };
+
+  const handleConfirmPayment = async (method, actual) => {
+    setSettlingId(paymentOrder.id);
+    try {
+      await onSettleOrder(paymentOrder, method, actual);
+      setPaymentOrder(null);
+    } finally {
+      setSettlingId(null);
     }
   };
 
@@ -210,7 +331,29 @@ export default function Orders({ orders = [], pendingOrders = [], onDeleteOrder,
               ))}
             </div>
           )}
-        </div>
+        {acceptedOrders.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ color: "#30d158", fontSize: 12, fontWeight: 700, marginBottom: 10, paddingLeft: 4 }}>🍳 กำลังทำ / รอจ่าย ({acceptedOrders.length})</div>
+            <div style={styles.list}>
+              {acceptedOrders.map(order => (
+                <AcceptedCard
+                  key={order.id}
+                  order={order}
+                  onSettle={handleSettle}
+                  settling={settlingId === order.id}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+      {/* Payment Modal */}
+      {paymentOrder && (
+        <PaymentModal
+          order={paymentOrder}
+          onConfirm={handleConfirmPayment}
+          onClose={() => setPaymentOrder(null)}
+        />
       )}
 
       {/* History tab */}
