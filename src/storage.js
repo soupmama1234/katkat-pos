@@ -89,6 +89,8 @@ function dbToOrder(row, items = []) {
     member_phone: row.member_phone || null,
     orderType: row.order_type || null,
     tableNumber: row.table_number || null,
+    status: row.status || 'settled',
+    note: row.note || null,
   };
 }
 
@@ -237,6 +239,28 @@ const supabaseDriver = {
 
     return dbToOrder(data, items);
   },
+  async fetchPendingOrders() {
+    const sb = getSupabase();
+    const { data, error } = await sb
+      .from("orders")
+      .select("*, order_items(*)")
+      .eq("status", "pending_customer")
+      .eq("is_history", false)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return (data || []).map(row => {
+      const { order_items: items, ...orderRow } = row;
+      return dbToOrder(orderRow, items || []);
+    });
+  },
+  async acceptPendingOrder(id) {
+    const sb = getSupabase();
+    const { error } = await sb
+      .from("orders")
+      .update({ status: "settled" })
+      .eq("id", id);
+    if (error) throw error;
+  },
   async updateOrder(id, fields) {
     const sb = getSupabase();
     const dbFields = {};
@@ -360,6 +384,8 @@ const localDriver = {
     ls.set("katkat_orders", [saved, ...orders]);
     return saved;
   },
+  async fetchPendingOrders() { return []; },
+  async acceptPendingOrder(id) {},
   async updateOrder(id, fields) {
     const orders = ls.get("katkat_orders", []);
     ls.set("katkat_orders", orders.map(o => o.id === id ? { ...o, ...fields } : o));
