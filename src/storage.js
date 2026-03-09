@@ -237,6 +237,13 @@ const supabaseDriver = {
       if (itemsError) throw itemsError;
     }
 
+    // auto-renew member expires_at ทุกครั้งที่สั่ง
+    if (order.member_phone) {
+      const newExpiry = new Date();
+      newExpiry.setFullYear(newExpiry.getFullYear() + 1);
+      await sb.from("members").update({ expires_at: newExpiry.toISOString() }).eq("phone", order.member_phone);
+    }
+
     return dbToOrder(data, items);
   },
   async fetchPendingOrders() {
@@ -331,6 +338,19 @@ const supabaseDriver = {
     const sb = getSupabase();
     const { error } = await sb.from("members").update(fields).eq("phone", phone);
     if (error) throw error;
+  },
+  async sendCouponToMembers(phones, coupon) {
+    // coupon: { id, name, type, value, expires_at? }
+    const sb = getSupabase();
+    const { data: members, error } = await sb.from("members").select("phone, redeemed_rewards").in("phone", phones);
+    if (error) throw error;
+    const updates = members.map(m => {
+      const existing = m.redeemed_rewards || [];
+      const newCoupon = { ...coupon, id: `${coupon.id}-${Date.now()}-${m.phone}`, granted_at: new Date().toISOString() };
+      return sb.from("members").update({ redeemed_rewards: [...existing, newCoupon] }).eq("phone", m.phone);
+    });
+    await Promise.all(updates);
+    return members.length;
   },
 };
 
