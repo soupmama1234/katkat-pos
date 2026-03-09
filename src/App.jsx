@@ -16,8 +16,6 @@ import { supabase as sb } from "./supabase";
 import db, { isUsingSupabase } from "./storage";
 import { savePendingOrder, getPendingOrders, deletePendingOrder } from "./utils/pending";
 import { getSession, logout, can } from "./utils/auth";
-import CustomerOrder from "./components/CustomerOrder";
-import StaffManager from "./components/StaffManager";
 import LoginScreen from "./components/LoginScreen";
 import StaffManager from "./components/StaffManager";
 
@@ -52,7 +50,6 @@ function App() {
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [historyTrigger, setHistoryTrigger] = useState(0);
-  const [pendingOrders, setPendingOrders] = useState([]);
 
   // ── Pending orders (พักออเดอร์) ──
   const [pendingOrders, setPendingOrders] = useState(() => getPendingOrders());
@@ -124,19 +121,7 @@ function App() {
       })
       .subscribe();
 
-    // realtime pending orders
-    const pendingChannel = sb
-      .channel("pending-orders")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: "status=eq.pending_customer" },
-        async () => {
-          try {
-            const pending = await db.fetchPendingOrders();
-            setPendingOrders(pending);
-          } catch {}
-        }
-      ).subscribe();
-
-    return () => { sb.removeChannel(channel); sb.removeChannel(pendingChannel); };
+    return () => { sb.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
@@ -438,15 +423,6 @@ function App() {
     onDeletePending: handleDeletePending,
   };
 
-  const handleAcceptPending = async (order) => {
-    await db.acceptPendingOrder(order.id);
-    setPendingOrders(prev => prev.filter(o => o.id !== order.id));
-    // reload orders
-    const ords = await db.fetchOrders();
-    setOrders(ords);
-    showToast(`รับออเดอร์โต๊ะ ${order.tableNumber || ""} แล้ว ✅`);
-  };
-
   const handleLogout = () => {
     logout();
     setSession(null);
@@ -483,8 +459,6 @@ function App() {
             {view === "orders" && (
               <Orders
                 orders={orders}
-                pendingOrders={pendingOrders}
-                onAcceptPending={handleAcceptPending}
                 onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
                 onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
               />
@@ -569,8 +543,6 @@ function App() {
               <div style={{ flex: 1, overflowY: "auto" }}>
                 <Orders
                   orders={orders}
-                  pendingOrders={pendingOrders}
-                  onAcceptPending={handleAcceptPending}
                   onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
                   onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
                 />
