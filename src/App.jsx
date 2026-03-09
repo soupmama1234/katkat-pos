@@ -471,6 +471,14 @@ function App() {
     onDeletePending: handleDeletePending,
   };
 
+  const handleAcceptPending = async (order) => {
+    await db.acceptPendingOrder(order.id);
+    setCustomerPendingOrders(prev => prev.filter(o => o.id !== order.id));
+    const ords = await db.fetchOrders();
+    setOrders(ords);
+    showToast(`รับออเดอร์โต๊ะ ${order.tableNumber || ""} แล้ว ✅`);
+  };
+
   const handleLogout = () => {
     logout();
     setSession(null);
