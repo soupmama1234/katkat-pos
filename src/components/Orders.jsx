@@ -36,7 +36,7 @@ function PaymentBadge({ payment }) {
 }
 
 // ── Queue Card (pending_customer orders) ───────────────────
-function QueueCard({ order, onAccept, accepting }) {
+function QueueCard({ order, onAccept, accepting, onCancel, cancelling }) {
   return (
     <div style={{
       background: "linear-gradient(135deg, #1a1a1a, #1e1e1e)",
@@ -63,7 +63,15 @@ function QueueCard({ order, onAccept, accepting }) {
             🕐 {new Date(order.time).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.
           </span>
         </div>
-        <span style={{ fontSize: 11, color: "#444" }}>#{order.id.toString().slice(-6)}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: "#444" }}>#{order.id.toString().slice(-6)}</span>
+          <button
+            onClick={() => onCancel(order)}
+            disabled={cancelling}
+            title="ยกเลิกออเดอร์"
+            style={{ background: "none", border: "1px solid #ff444444", borderRadius: 8, padding: "4px 8px", color: "#ff4444", cursor: cancelling ? "not-allowed" : "pointer", fontSize: 16, lineHeight: 1, opacity: cancelling ? 0.4 : 1 }}
+          >✕</button>
+        </div>
       </div>
 
       {/* Items */}
@@ -110,17 +118,28 @@ function QueueCard({ order, onAccept, accepting }) {
 }
 
 // ── Main Orders Component ──────────────────────────────────
-export default function Orders({ orders = [], pendingOrders = [], onDeleteOrder, onClearAll, onAcceptPending }) {
+export default function Orders({ orders = [], pendingOrders = [], onDeleteOrder, onClearAll, onAcceptPending, onCancelPending }) {
   const canDelete = typeof onDeleteOrder === "function";
   const [deletingId, setDeletingId] = useState(null);
   const [clearing, setClearing] = useState(false);
   const [acceptingId, setAcceptingId] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
   const [tab, setTab] = useState(pendingOrders.length > 0 ? "queue" : "history");
 
   // auto-switch ไป queue ถ้ามี pending order เข้ามาใหม่
   React.useEffect(() => {
     if (pendingOrders.length > 0) setTab("queue");
   }, [pendingOrders.length]);
+
+  const handleCancel = async (order) => {
+    if (!window.confirm(`ยกเลิกออเดอร์โต๊ะ ${order.tableNumber || order.id.toString().slice(-4)}?`)) return;
+    setCancellingId(order.id);
+    try {
+      await onCancelPending(order);
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   const handleAccept = async (order) => {
     setAcceptingId(order.id);
@@ -185,6 +204,8 @@ export default function Orders({ orders = [], pendingOrders = [], onDeleteOrder,
                   order={order}
                   onAccept={handleAccept}
                   accepting={acceptingId === order.id}
+                  onCancel={handleCancel}
+                  cancelling={cancellingId === order.id}
                 />
               ))}
             </div>
