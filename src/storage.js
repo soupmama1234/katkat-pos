@@ -253,6 +253,30 @@ const supabaseDriver = {
       return dbToOrder(orderRow, items || []);
     });
   },
+  async fetchAcceptedOrders() {
+    const sb = getSupabase();
+    const { data, error } = await sb
+      .from("orders")
+      .select("*, order_items(*)")
+      .eq("status", "accepted")
+      .eq("is_history", false)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return (data || []).map(row => {
+      const { order_items: items, ...orderRow } = row;
+      return dbToOrder(orderRow, items || []);
+    });
+  },
+  async settleOrder(id, payment, actualAmount) {
+    const sb = getSupabase();
+    const { error } = await sb.from("orders").update({
+      status: "settled",
+      payment,
+      actual_amount: actualAmount,
+      is_settled: true,
+    }).eq("id", id);
+    if (error) throw error;
+  },
   async cancelPendingOrder(id) {
     const sb = getSupabase();
     const { error } = await sb.from("orders").delete().eq("id", id);
@@ -262,7 +286,7 @@ const supabaseDriver = {
     const sb = getSupabase();
     const { error } = await sb
       .from("orders")
-      .update({ status: "settled" })
+      .update({ status: "accepted" })
       .eq("id", id);
     if (error) throw error;
   },
@@ -390,6 +414,8 @@ const localDriver = {
     return saved;
   },
   async fetchPendingOrders() { return []; },
+  async fetchAcceptedOrders() { return []; },
+  async settleOrder(id, payment, amount) {},
   async cancelPendingOrder(id) {},
   async acceptPendingOrder(id) {},
   async updateOrder(id, fields) {
