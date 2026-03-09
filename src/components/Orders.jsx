@@ -312,40 +312,46 @@ export default function Orders({ orders = [], pendingOrders = [], acceptedOrders
       {/* Queue tab */}
       {tab === "queue" && (
         <div>
-          {pendingOrders.length === 0 ? (
+          {pendingOrders.length === 0 && acceptedOrders.length === 0 ? (
             <div style={styles.empty}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>✨</div>
               <div>ไม่มีออเดอร์รอรับ</div>
             </div>
           ) : (
-            <div style={styles.list}>
-              {pendingOrders.map(order => (
-                <QueueCard
-                  key={order.id}
-                  order={order}
-                  onAccept={handleAccept}
-                  accepting={acceptingId === order.id}
-                  onCancel={handleCancel}
-                  cancelling={cancellingId === order.id}
-                />
-              ))}
-            </div>
+            <>
+              {pendingOrders.length > 0 && (
+                <div style={styles.list}>
+                  {pendingOrders.map(order => (
+                    <QueueCard
+                      key={order.id}
+                      order={order}
+                      onAccept={handleAccept}
+                      accepting={acceptingId === order.id}
+                      onCancel={handleCancel}
+                      cancelling={cancellingId === order.id}
+                    />
+                  ))}
+                </div>
+              )}
+              {acceptedOrders.length > 0 && (
+                <div style={{ marginTop: pendingOrders.length > 0 ? 16 : 0 }}>
+                  <div style={{ color: "#30d158", fontSize: 12, fontWeight: 700, marginBottom: 10, paddingLeft: 4 }}>🍳 กำลังทำ / รอจ่าย ({acceptedOrders.length})</div>
+                  <div style={styles.list}>
+                    {acceptedOrders.map(order => (
+                      <AcceptedCard
+                        key={order.id}
+                        order={order}
+                        onSettle={handleSettle}
+                        settling={settlingId === order.id}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
-        {acceptedOrders.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <div style={{ color: "#30d158", fontSize: 12, fontWeight: 700, marginBottom: 10, paddingLeft: 4 }}>🍳 กำลังทำ / รอจ่าย ({acceptedOrders.length})</div>
-            <div style={styles.list}>
-              {acceptedOrders.map(order => (
-                <AcceptedCard
-                  key={order.id}
-                  order={order}
-                  onSettle={handleSettle}
-                  settling={settlingId === order.id}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
+      )}
 
       {/* Payment Modal */}
       {paymentOrder && (
