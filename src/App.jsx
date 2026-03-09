@@ -19,6 +19,27 @@ import { getSession, logout, can } from "./utils/auth";
 import LoginScreen from "./components/LoginScreen";
 import StaffManager from "./components/StaffManager";
 
+// ── เสียงแจ้งเตือน (Web Audio API) ──────────────────────────
+function playNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const times = [0, 0.15, 0.3];
+    times.forEach(t => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0, ctx.currentTime + t);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + t + 0.02);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + t + 0.12);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.15);
+    });
+  } catch {}
+}
+
 function App() {
   const [view, setView] = useState("pos");
   const [priceChannel, setPriceChannel] = useState("pos");
@@ -55,8 +76,28 @@ function App() {
   const [pendingOrders, setPendingOrders] = useState(() => getPendingOrders());
   // ── Customer pending orders (Supabase) ──
   const [customerPendingOrders, setCustomerPendingOrders] = useState([]);
+  const prevPendingCount = React.useRef(0);
 
   // memberInfo derived จาก members array + memberPhone → realtime อัปเดตอัตโนมัติ
+  // ── แจ้งเตือนเมื่อมี customer order ใหม่ ──
+  React.useEffect(() => {
+    const curr = customerPendingOrders.length;
+    const prev = prevPendingCount.current;
+    if (curr > prev) {
+      playNotificationSound();
+      // Browser notification (ถ้าได้รับอนุญาต)
+      if (Notification.permission === "granted") {
+        new Notification("🔔 มีออเดอร์ใหม่!", {
+          body: `${curr - prev} ออเดอร์รอรับ — คลิกเพื่อดู`,
+          icon: "/favicon.ico",
+        });
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission();
+      }
+    }
+    prevPendingCount.current = curr;
+  }, [customerPendingOrders.length]);
+
   const memberInfo = useMemo(
     () => members.find(m => m.phone === memberPhone) || null,
     [members, memberPhone]
@@ -491,7 +532,19 @@ function App() {
           <nav style={styles.bottomNav}>
             <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
             {can(session.role, "dashboard") && <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>}
-            {can(session.role, "orders") && <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>}
+            {can(session.role, "orders") && (
+              <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}>
+                <span style={{ position: "relative" }}>
+                  📜
+                  {customerPendingOrders.length > 0 && (
+                    <span style={{ position: "absolute", top: -6, right: -8, background: "#FF3B30", color: "#fff", borderRadius: 99, fontSize: 9, fontWeight: 800, padding: "1px 4px", minWidth: 14, textAlign: "center" }}>
+                      {customerPendingOrders.length}
+                    </span>
+                  )}
+                </span>
+                บิล
+              </button>
+            )}
             {can(session.role, "members") && <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>}
             {can(session.role, "menu_manager") && <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>}
             {can(session.role, "staff_manager") && <button onClick={() => setView("staff")} style={styles.navBtn(view === "staff")}><span>👤</span> Staff</button>}
@@ -505,7 +558,16 @@ function App() {
             <nav style={{ display: "flex", gap: 10, alignItems: "center" }}>
               {can(session.role, "pos") && <button onClick={() => setView("pos")} style={styles.desktopNavBtn(view === "pos")}>🛍️ ขาย</button>}
               {can(session.role, "dashboard") && <button onClick={() => setView("dashboard")} style={styles.desktopNavBtn(view === "dashboard")}>📊 สรุป</button>}
-              {can(session.role, "orders") && <button onClick={() => setView("orders")} style={styles.desktopNavBtn(view === "orders")}>📜 บิล</button>}
+              {can(session.role, "orders") && (
+                <button onClick={() => setView("orders")} style={{ ...styles.desktopNavBtn(view === "orders"), position: "relative" }}>
+                  📜 บิล
+                  {customerPendingOrders.length > 0 && (
+                    <span style={{ position: "absolute", top: -6, right: -6, background: "#FF3B30", color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 800, padding: "1px 5px", minWidth: 16, textAlign: "center" }}>
+                      {customerPendingOrders.length}
+                    </span>
+                  )}
+                </button>
+              )}
               {can(session.role, "members") && <button onClick={() => setView("members")} style={styles.desktopNavBtn(view === "members")}>👥 สมาชิก</button>}
               {can(session.role, "menu_manager") && <button onClick={() => setView("menu")} style={styles.desktopNavBtn(view === "menu")}>🍴 เมนู</button>}
               {can(session.role, "staff_manager") && <button onClick={() => setView("staff")} style={styles.desktopNavBtn(view === "staff")}>👤 Staff</button>}
