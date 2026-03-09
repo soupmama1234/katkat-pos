@@ -135,21 +135,25 @@ function App() {
 
     const ordersChannel = sb
       .channel("orders-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, async () => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, async (payload) => {
+        console.log("🔔 realtime INSERT orders:", payload);
         try {
           const [cp, ac] = await Promise.all([db.fetchPendingOrders(), db.fetchAcceptedOrders()]);
           setCustomerPendingOrders(cp);
           setAcceptedOrders(ac);
-        } catch {}
+        } catch (e) { console.error("fetch error:", e); }
       })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async () => {
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async (payload) => {
+        console.log("🔔 realtime UPDATE orders:", payload);
         try {
           const [cp, ac] = await Promise.all([db.fetchPendingOrders(), db.fetchAcceptedOrders()]);
           setCustomerPendingOrders(cp);
           setAcceptedOrders(ac);
-        } catch {}
+        } catch (e) { console.error("fetch error:", e); }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log("📡 orders realtime status:", status);
+      });
 
     return () => { sb.removeChannel(channel); sb.removeChannel(ordersChannel); };
   }, []);
