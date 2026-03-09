@@ -16,9 +16,29 @@ import { supabase as sb } from "./supabase";
 import db, { isUsingSupabase } from "./storage";
 import { savePendingOrder, getPendingOrders, deletePendingOrder } from "./utils/pending";
 import { getSession, logout, can } from "./utils/auth";
-import CustomerOrder from "./components/CustomerOrder";
 import LoginScreen from "./components/LoginScreen";
 import StaffManager from "./components/StaffManager";
+
+// ── เสียงแจ้งเตือน (Web Audio API) ──────────────────────────
+function playNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const times = [0, 0.15, 0.3];
+    times.forEach(t => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0, ctx.currentTime + t);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + t + 0.02);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + t + 0.12);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.15);
+    });
+  } catch {}
+}
 
 function App() {
   const [view, setView] = useState("pos");
@@ -52,10 +72,33 @@ function App() {
   const [confirm, setConfirm] = useState(null);
   const [historyTrigger, setHistoryTrigger] = useState(0);
 
-  // ── Pending orders (พักออเดอร์) ──
+  // ── Pending orders staff (localStorage) ──
   const [pendingOrders, setPendingOrders] = useState(() => getPendingOrders());
+  // ── Customer pending orders (Supabase) ──
+  const [customerPendingOrders, setCustomerPendingOrders] = useState([]);
+  const [acceptedOrders, setAcceptedOrders] = useState([]);
+  const prevPendingCount = React.useRef(0);
 
   // memberInfo derived จาก members array + memberPhone → realtime อัปเดตอัตโนมัติ
+  // ── แจ้งเตือนเมื่อมี customer order ใหม่ ──
+  React.useEffect(() => {
+    const curr = customerPendingOrders.length;
+    const prev = prevPendingCount.current;
+    if (curr > prev) {
+      playNotificationSound();
+      // Browser notification (ถ้าได้รับอนุญาต)
+      if (Notification.permission === "granted") {
+        new Notification("🔔 มีออเดอร์ใหม่!", {
+          body: `${curr - prev} ออเดอร์รอรับ — คลิกเพื่อดู`,
+          icon: "/favicon.ico",
+        });
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission();
+      }
+    }
+    prevPendingCount.current = curr;
+  }, [customerPendingOrders.length]);
+
   const memberInfo = useMemo(
     () => members.find(m => m.phone === memberPhone) || null,
     [members, memberPhone]
@@ -109,6 +152,12 @@ function App() {
         showToast("❌ โหลดข้อมูลไม่ได้ กรุณา refresh", "error");
       } finally {
         setLoading(false);
+        // fetch customer pending orders
+        try {
+          const [cp, ac] = await Promise.all([db.fetchPendingOrders(), db.fetchAcceptedOrders()]);
+          setCustomerPendingOrders(cp);
+          setAcceptedOrders(ac);
+        } catch {}
       }
     }
     loadAll();
@@ -333,7 +382,7 @@ function App() {
     // validate delivery ref
     if (isDelivery) {
       if (!deliveryRef || deliveryRef === "GF-") return showToast("กรุณาระบุเลขอ้างอิง", "error");
-      if (priceChannel === "grab" && deliveryRef.length < 7) return showToast("เลข GrabFood ไม่ครบ", "error");
+      if (priceChannel === "grab" && deliveryRef.replace("GF-", "").length < 3) return showToast("เลข GrabFood ไม่ครบ", "error");
       if (priceChannel === "lineman" && deliveryRef.replace("GF-","").length < 4) return showToast("เลข LINE MAN ไม่ครบ", "error");
     }
     try {
@@ -424,14 +473,31 @@ function App() {
     onDeletePending: handleDeletePending,
   };
 
+  const handleSettleOrder = async (order, payment, actual) => {
+    await db.settleOrder(order.id, payment, actual);
+    setAcceptedOrders(prev => prev.filter(o => o.id !== order.id));
+    const ords = await db.fetchOrders();
+    setOrders(ords);
+    showToast(`รับเงินโต๊ะ ${order.tableNumber || ""} เรียบร้อย 💰`);
+  };
+
+  const handleCancelPending = async (order) => {
+    await db.cancelPendingOrder(order.id);
+    setCustomerPendingOrders(prev => prev.filter(o => o.id !== order.id));
+    showToast("ยกเลิกออเดอร์แล้ว");
+  };
+
+  const handleAcceptPending = async (order) => {
+    await db.acceptPendingOrder(order.id);
+    setCustomerPendingOrders(prev => prev.filter(o => o.id !== order.id));
+    setAcceptedOrders(prev => [...prev, { ...order, status: "accepted" }]);
+    showToast(`รับออเดอร์โต๊ะ ${order.tableNumber || ""} แล้ว ✅`);
+  };
+
   const handleLogout = () => {
     logout();
     setSession(null);
   };
-
-  // ── Guard: ถ้าเป็น customer mode (URL มี ?customer=1) ──
-  const isCustomerMode = new URLSearchParams(window.location.search).get("customer") === "1";
-  if (isCustomerMode) return <CustomerOrder />;
 
   // ── Guard: ถ้าไม่มี session → โชว์ LoginScreen ──
   if (!session) {
@@ -464,6 +530,11 @@ function App() {
             {view === "orders" && (
               <Orders
                 orders={orders}
+                pendingOrders={customerPendingOrders}
+                acceptedOrders={acceptedOrders}
+                onAcceptPending={handleAcceptPending}
+                onCancelPending={handleCancelPending}
+                onSettleOrder={handleSettleOrder}
                 onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
                 onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
               />
@@ -487,7 +558,19 @@ function App() {
           <nav style={styles.bottomNav}>
             <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
             {can(session.role, "dashboard") && <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>}
-            {can(session.role, "orders") && <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}><span>📜</span> บิล</button>}
+            {can(session.role, "orders") && (
+              <button onClick={() => setView("orders")} style={styles.navBtn(view === "orders")}>
+                <span style={{ position: "relative" }}>
+                  📜
+                  {customerPendingOrders.length > 0 && (
+                    <span style={{ position: "absolute", top: -6, right: -8, background: "#FF3B30", color: "#fff", borderRadius: 99, fontSize: 9, fontWeight: 800, padding: "1px 4px", minWidth: 14, textAlign: "center" }}>
+                      {customerPendingOrders.length}
+                    </span>
+                  )}
+                </span>
+                บิล
+              </button>
+            )}
             {can(session.role, "members") && <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>}
             {can(session.role, "menu_manager") && <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>}
             {can(session.role, "staff_manager") && <button onClick={() => setView("staff")} style={styles.navBtn(view === "staff")}><span>👤</span> Staff</button>}
@@ -501,7 +584,16 @@ function App() {
             <nav style={{ display: "flex", gap: 10, alignItems: "center" }}>
               {can(session.role, "pos") && <button onClick={() => setView("pos")} style={styles.desktopNavBtn(view === "pos")}>🛍️ ขาย</button>}
               {can(session.role, "dashboard") && <button onClick={() => setView("dashboard")} style={styles.desktopNavBtn(view === "dashboard")}>📊 สรุป</button>}
-              {can(session.role, "orders") && <button onClick={() => setView("orders")} style={styles.desktopNavBtn(view === "orders")}>📜 บิล</button>}
+              {can(session.role, "orders") && (
+                <button onClick={() => setView("orders")} style={{ ...styles.desktopNavBtn(view === "orders"), position: "relative" }}>
+                  📜 บิล
+                  {customerPendingOrders.length > 0 && (
+                    <span style={{ position: "absolute", top: -6, right: -6, background: "#FF3B30", color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 800, padding: "1px 5px", minWidth: 16, textAlign: "center" }}>
+                      {customerPendingOrders.length}
+                    </span>
+                  )}
+                </button>
+              )}
               {can(session.role, "members") && <button onClick={() => setView("members")} style={styles.desktopNavBtn(view === "members")}>👥 สมาชิก</button>}
               {can(session.role, "menu_manager") && <button onClick={() => setView("menu")} style={styles.desktopNavBtn(view === "menu")}>🍴 เมนู</button>}
               {can(session.role, "staff_manager") && <button onClick={() => setView("staff")} style={styles.desktopNavBtn(view === "staff")}>👤 Staff</button>}
@@ -548,6 +640,11 @@ function App() {
               <div style={{ flex: 1, overflowY: "auto" }}>
                 <Orders
                   orders={orders}
+                  pendingOrders={customerPendingOrders}
+                  acceptedOrders={acceptedOrders}
+                  onAcceptPending={handleAcceptPending}
+                  onCancelPending={handleCancelPending}
+                  onSettleOrder={handleSettleOrder}
                   onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
                   onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
                 />
