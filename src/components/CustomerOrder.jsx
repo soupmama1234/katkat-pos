@@ -202,7 +202,7 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
   const [loading, setLoading] = useState(true);
   const [showCart, setShowCart] = useState(false);
   const [modModal, setModModal] = useState(null); // {product}
-  const [selectedMods, setSelectedMods] = useState({}); // { groupId: option }
+  const [tempSelection, setTempSelection] = useState([]); // [{...opt, key, groupId}]
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -233,7 +233,7 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
   const handleAddProduct = (product) => {
     const groups = modGroups.filter(g => (product.modifier_group_ids || []).includes(g.id));
     if (groups.length > 0) {
-      setSelectedMods({});
+      setTempSelection([]);
       setModModal({ product, groups });
     } else {
       addToCart(product);
@@ -345,8 +345,15 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
                 {g.options.map(opt => (
                   <div
                     key={opt.id}
-                    style={{ ...s.modOption, ...(selectedMods[g.id]?.id === opt.id ? s.modOptionActive : {}) }}
-                    onClick={() => setSelectedMods(prev => ({ ...prev, [g.id]: opt }))}
+                    style={{ ...s.modOption, ...(tempSelection.some(s => s.key === `${g.id}:${opt.id}`) ? s.modOptionActive : {}) }}
+onClick={() => {
+                      const key = `${g.id}:${opt.id}`;
+                      setTempSelection(prev =>
+                        prev.find(s => s.key === key)
+                          ? prev.filter(s => s.key !== key)
+                          : [...prev, { ...opt, key, groupId: g.id }]
+                      );
+                    }}
                   >
                     <span>{opt.name}</span>
                     {opt.price > 0 && <span style={{ color: BRAND }}>+฿{opt.price}</span>}
@@ -357,15 +364,14 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
             <button
               style={{ ...s.primaryBtn, marginTop: 16 }}
 onClick={() => {
-                const mods = Object.values(selectedMods);
-                const combinedMod = mods.length > 0 ? {
-                  id: mods.map(m => m.id).join("-"),
-                  name: mods.map(m => m.name).join(", "),
-                  price: mods.reduce((s, m) => s + (m.price || 0), 0),
+                const combinedMod = tempSelection.length > 0 ? {
+                  id: tempSelection.map(m => m.key).sort().join("|"),
+                  name: tempSelection.map(m => m.name).join(", "),
+                  price: tempSelection.reduce((s, m) => s + Number(m.price || 0), 0),
                 } : null;
                 addToCart(modModal.product, combinedMod);
                 setModModal(null);
-                setSelectedMods({});
+                setTempSelection([]);
               }}
             >
               เพิ่มลงตะกร้า
