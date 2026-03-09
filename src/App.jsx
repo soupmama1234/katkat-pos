@@ -21,6 +21,54 @@ import CustomerOrder from "./components/CustomerOrder";
 import StaffManager from "./components/StaffManager";
 
 
+// ── New Order Alert ───────────────────────────────────────────
+function NewOrderAlert({ tableNumber }) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      pointerEvents: "none",
+    }}>
+      <div style={{
+        background: "#FF9F0A", color: "#000",
+        borderRadius: 24, padding: "28px 40px",
+        textAlign: "center", boxShadow: "0 8px 40px rgba(255,159,10,0.5)",
+        animation: "orderPop 0.3s ease",
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 8 }}>🔔</div>
+        <div style={{ fontSize: 22, fontWeight: 900 }}>ออเดอร์ใหม่!</div>
+        {tableNumber && <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>โต๊ะ {tableNumber}</div>}
+      </div>
+      <style>{`@keyframes orderPop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }`}</style>
+    </div>
+  );
+}
+
+// ── Audio (unlock on first touch) ────────────────────────────
+let _audioCtx = null;
+function unlockAudio() {
+  if (_audioCtx) return;
+  try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+}
+function playBeep() {
+  try {
+    if (!_audioCtx) return;
+    if (_audioCtx.state === "suspended") _audioCtx.resume();
+    const times = [0, 0.2, 0.4];
+    times.forEach(t => {
+      const osc = _audioCtx.createOscillator();
+      const gain = _audioCtx.createGain();
+      osc.connect(gain); gain.connect(_audioCtx.destination);
+      osc.frequency.value = 880; osc.type = "sine";
+      gain.gain.setValueAtTime(0, _audioCtx.currentTime + t);
+      gain.gain.linearRampToValueAtTime(0.5, _audioCtx.currentTime + t + 0.02);
+      gain.gain.linearRampToValueAtTime(0, _audioCtx.currentTime + t + 0.15);
+      osc.start(_audioCtx.currentTime + t);
+      osc.stop(_audioCtx.currentTime + t + 0.2);
+    });
+  } catch {}
+}
+
 function App() {
   const [view, setView] = useState("pos");
   const [priceChannel, setPriceChannel] = useState("pos");
@@ -28,6 +76,7 @@ function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(() => getSession());
+  const [newOrderAlert, setNewOrderAlert] = useState(null); // { count, tableNumber }
 
   const [cart, setCart] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -136,15 +185,17 @@ function App() {
     const ordersChannel = sb
       .channel("orders-realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, async (payload) => {
-        console.log("🔔 realtime INSERT orders:", payload);
         try {
           const [cp, ac] = await Promise.all([db.fetchPendingOrders(), db.fetchAcceptedOrders()]);
           setCustomerPendingOrders(cp);
           setAcceptedOrders(ac);
-        } catch (e) { console.error("fetch error:", e); }
+          const tableNum = payload?.new?.table_number || payload?.new?.table_no || "";
+          setNewOrderAlert({ tableNumber: tableNum });
+          playBeep();
+          setTimeout(() => setNewOrderAlert(null), 4000);
+        } catch (e) { console.error("❌ fetch error:", e); }
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async (payload) => {
-        console.log("🔔 realtime UPDATE orders:", payload);
         try {
           const [cp, ac] = await Promise.all([db.fetchPendingOrders(), db.fetchAcceptedOrders()]);
           setCustomerPendingOrders(cp);
@@ -156,6 +207,14 @@ function App() {
       });
 
     return () => { sb.removeChannel(channel); sb.removeChannel(ordersChannel); };
+  }, []);
+
+  // unlock audio on first interaction
+  useEffect(() => {
+    const unlock = () => { unlockAudio(); window.removeEventListener("touchstart", unlock); window.removeEventListener("mousedown", unlock); };
+    window.addEventListener("touchstart", unlock);
+    window.addEventListener("mousedown", unlock);
+    return () => { window.removeEventListener("touchstart", unlock); window.removeEventListener("mousedown", unlock); };
   }, []);
 
   useEffect(() => {
@@ -662,6 +721,7 @@ function App() {
         </div>
       )}
 
+      {newOrderAlert && <NewOrderAlert tableNumber={newOrderAlert.tableNumber} />}
       {/* Toast */}
       {toast && (
         <div style={{ position: "fixed", top: isMobile ? "20px" : "30px", left: "50%", transform: "translateX(-50%)", backgroundColor: toast.type === "error" ? "#ff4444" : "#222", color: "#fff", padding: "12px 24px", borderRadius: "12px", boxShadow: "0 8px 30px rgba(0,0,0,0.3)", zIndex: 9999, display: "flex", alignItems: "center", gap: 10, fontWeight: "bold", border: toast.type === "error" ? "none" : "1px solid #444" }}>
