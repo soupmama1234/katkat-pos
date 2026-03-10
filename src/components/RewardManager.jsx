@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { supabase as sb } from "../supabase";
 import { Trash2 } from "lucide-react";
+import db from "../storage";
 
-export default function RewardManager({ showToast, showConfirm }) {
+export default function RewardManager({ showToast, showConfirm, members = [], onMembersChange }) {
   const [rewards, setRewards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
@@ -12,8 +13,11 @@ export default function RewardManager({ showToast, showConfirm }) {
     type: "item",
     discount_amount: "",
     discount_type: "amount",
+    expiry_days: "30",
   });
   const [saving, setSaving] = useState(false);
+  const [sendTarget, setSendTarget] = useState("all");
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -43,12 +47,13 @@ export default function RewardManager({ showToast, showConfirm }) {
         discount_amount: form.type === "discount" ? Number(form.discount_amount) : 0,
         discount_type: form.type === "discount" ? form.discount_type : null,
         is_active: true,
+        expiry_days: form.expiry_days ? Number(form.expiry_days) : null,
       };
       const { data, error } = await sb.from("rewards").insert(payload).select().single();
       if (error) throw error;
 
       setRewards(prev => [...prev, data].sort((a, b) => a.points_required - b.points_required));
-      setForm({ name: "", points_required: "", description: "", type: "item", discount_amount: "", discount_type: "amount" });
+      setForm({ name: "", points_required: "", description: "", type: "item", discount_amount: "", discount_type: "amount", expiry_days: "30" });
       showToast?.(`✅ เพิ่ม "${data.name}" เรียบร้อย`);
     } catch (e) {
       showToast?.("เพิ่มไม่สำเร็จ: " + e.message, "error");
@@ -83,6 +88,27 @@ export default function RewardManager({ showToast, showConfirm }) {
     } catch (e) {
       showToast?.("ลบไม่สำเร็จ: " + e.message, "error");
     }
+  };
+
+  const handleSendCoupon = async (reward) => {
+    const targetList = sendTarget === "all" ? members : members.filter(m => {
+      if (sendTarget === "never") return !m.last_visit;
+      return false;
+    });
+    if (targetList.length === 0) return showToast("ไม่มีสมาชิกในกลุ่มนี้", "error");
+    const ok = await showConfirm?.("ส่งคูปอง?", `ส่ง "${reward.name}" ให้ ${targetList.length} คน?`);
+    if (!ok) return;
+    setSending(true);
+    try {
+      const expiryDate = reward.expiry_days ? new Date(Date.now() + reward.expiry_days * 86400000).toISOString() : null;
+      const coupon = { id: `${reward.id}-${Date.now()}`, name: reward.name, type: reward.type, discount_amount: reward.discount_amount, discount_type: reward.discount_type, expires_at: expiryDate, granted_at: new Date().toISOString() };
+      await db.sendCouponToMembers(targetList.map(m => m.phone), coupon);
+      // re-fetch members แล้ว update parent
+      const { data: updated } = await sb.from("members").select("*").order("created_at", { ascending: false });
+      if (updated) onMembersChange?.(updated);
+      showToast?.(`ส่งคูปองให้ ${targetList.length} คนเรียบร้อย 🎁`);
+    } catch (e) { showToast?.("ส่งไม่สำเร็จ: " + e.message, "error"); }
+    setSending(false);
   };
 
   return (
@@ -158,6 +184,23 @@ export default function RewardManager({ showToast, showConfirm }) {
             style={S.input}
           />
 
+          {/* Expiry days */}
+          <div>
+            <div style={{ color: "#666", fontSize: 12, marginBottom: 6 }}>หมดอายุคูปองภายใน (วัน) — ว่างไว้ = ไม่หมดอายุ</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+              {["7", "14", "30", "60", "90"].map(d => (
+                <button key={d} onClick={() => setForm(f => ({ ...f, expiry_days: d }))}
+                  style={{ padding: "5px 12px", borderRadius: 8, border: form.expiry_days === d ? "1px solid #4D96FF" : "1px solid #333", background: form.expiry_days === d ? "rgba(77,150,255,0.15)" : "none", color: form.expiry_days === d ? "#4D96FF" : "#666", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+                  {d} วัน
+                </button>
+              ))}
+              <button onClick={() => setForm(f => ({ ...f, expiry_days: "" }))}
+                style={{ padding: "5px 12px", borderRadius: 8, border: !form.expiry_days ? "1px solid #4D96FF" : "1px solid #333", background: !form.expiry_days ? "rgba(77,150,255,0.15)" : "none", color: !form.expiry_days ? "#4D96FF" : "#666", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+                ไม่หมดอายุ
+              </button>
+            </div>
+          </div>
+
           <button
             onClick={handleAdd}
             disabled={saving || !form.name || !form.points_required}
@@ -187,6 +230,7 @@ export default function RewardManager({ showToast, showConfirm }) {
                   </span>
                 )}
                 {!r.is_active && <span style={S.tagOff}>ปิดใช้งาน</span>}
+                {r.expiry_days && <span style={{ fontSize: 11, background: "rgba(77,150,255,0.15)", color: "#4D96FF", padding: "2px 7px", borderRadius: 6 }}>⏰ {r.expiry_days} วัน</span>}
               </div>
               {r.description && <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>{r.description}</div>}
             </div>
@@ -205,6 +249,40 @@ export default function RewardManager({ showToast, showConfirm }) {
           </div>
         ))}
       </div>
+
+      {/* Send Coupon Section */}
+      {members.length > 0 && rewards.filter(r => r.is_active).length > 0 && (
+        <div style={S.card}>
+          <div style={S.cardTitle}>📢 ส่งคูปองให้สมาชิก</div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ color: "#666", fontSize: 12, marginBottom: 8 }}>กลุ่มเป้าหมาย</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {[["all", `👥 ทั้งหมด (${members.length} คน)`], ["never", `👻 ยังไม่เคยมา`]].map(([val, label]) => (
+                <button key={val} onClick={() => setSendTarget(val)}
+                  style={{ padding: "8px 14px", borderRadius: 10, border: sendTarget === val ? "1px solid #FF9F0A" : "1px solid #333", background: sendTarget === val ? "rgba(255,159,10,0.15)" : "none", color: sendTarget === val ? "#FF9F0A" : "#666", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ color: "#666", fontSize: 12, marginBottom: 8 }}>เลือก Reward ที่จะส่ง</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {rewards.filter(r => r.is_active).map(r => (
+              <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1a1a1a", borderRadius: 10, padding: "10px 14px" }}>
+                <div>
+                  <span style={{ fontSize: 15 }}>{r.type === "discount" ? "🎟️" : "🎁"}</span>
+                  <span style={{ color: "#fff", fontWeight: 700, marginLeft: 8 }}>{r.name}</span>
+                  {r.expiry_days && <span style={{ color: "#4D96FF", fontSize: 12, marginLeft: 8 }}>⏰ {r.expiry_days} วัน</span>}
+                </div>
+                <button onClick={() => handleSendCoupon(r)} disabled={sending}
+                  style={{ background: sending ? "#333" : "#FF9F0A", color: sending ? "#666" : "#000", border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 800, cursor: sending ? "not-allowed" : "pointer" }}>
+                  {sending ? "⏳" : "ส่ง"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
