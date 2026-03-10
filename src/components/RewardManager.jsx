@@ -3,7 +3,7 @@ import { supabase as sb } from "../supabase";
 import { Trash2 } from "lucide-react";
 import db from "../storage";
 
-export default function RewardManager({ showToast, showConfirm, members = [] }) {
+export default function RewardManager({ showToast, showConfirm, members = [], onMembersChange }) {
   const [rewards, setRewards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
@@ -103,6 +103,9 @@ export default function RewardManager({ showToast, showConfirm, members = [] }) 
       const expiryDate = reward.expiry_days ? new Date(Date.now() + reward.expiry_days * 86400000).toISOString() : null;
       const coupon = { id: `${reward.id}-${Date.now()}`, name: reward.name, type: reward.type, discount_amount: reward.discount_amount, discount_type: reward.discount_type, expires_at: expiryDate, granted_at: new Date().toISOString() };
       await db.sendCouponToMembers(targetList.map(m => m.phone), coupon);
+      // re-fetch members แล้ว update parent
+      const { data: updated } = await sb.from("members").select("*").order("created_at", { ascending: false });
+      if (updated) onMembersChange?.(updated);
       showToast?.(`ส่งคูปองให้ ${targetList.length} คนเรียบร้อย 🎁`);
     } catch (e) { showToast?.("ส่งไม่สำเร็จ: " + e.message, "error"); }
     setSending(false);
