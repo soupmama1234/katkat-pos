@@ -74,6 +74,7 @@ function App() {
   const [priceChannel, setPriceChannel] = useState("pos");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(() => getSession());
   const [newOrderAlert, setNewOrderAlert] = useState(null); // { count, tableNumber }
@@ -602,6 +603,34 @@ function App() {
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
             {view === "staff" && <StaffManager session={session} />}
           </main>
+          {/* More Menu Drawer */}
+          {showMoreMenu && (
+            <div style={{ position: "fixed", inset: 0, zIndex: 2000 }} onClick={() => setShowMoreMenu(false)}>
+              <div style={{ position: "absolute", bottom: 70, left: 0, right: 0, background: "#1a1a1a", borderTop: "1px solid #333", borderRadius: "20px 20px 0 0", padding: "12px 16px 8px" }}
+                onClick={e => e.stopPropagation()}>
+                <div style={{ width: 36, height: 4, background: "#333", borderRadius: 99, margin: "0 auto 16px" }} />
+                {can(session.role, "members") && (
+                  <button onClick={() => { setView("members"); setShowMoreMenu(false); }} style={styles.drawerBtn(view === "members")}>
+                    <span style={styles.drawerIcon}>👥</span> สมาชิก
+                  </button>
+                )}
+                {can(session.role, "menu_manager") && (
+                  <button onClick={() => { setView("menu"); setShowMoreMenu(false); }} style={styles.drawerBtn(view === "menu")}>
+                    <span style={styles.drawerIcon}>🍴</span> จัดการเมนู
+                  </button>
+                )}
+                {can(session.role, "staff_manager") && (
+                  <button onClick={() => { setView("staff"); setShowMoreMenu(false); }} style={styles.drawerBtn(view === "staff")}>
+                    <span style={styles.drawerIcon}>👤</span> Staff
+                  </button>
+                )}
+                <button onClick={() => { handleLogout(); setShowMoreMenu(false); }} style={{ ...styles.drawerBtn(false), color: "#FF453A" }}>
+                  <span style={styles.drawerIcon}>🚪</span> ออกจากระบบ
+                </button>
+              </div>
+            </div>
+          )}
+
           <nav style={styles.bottomNav}>
             <button onClick={() => setView("pos")} style={styles.navBtn(view === "pos")}><span>🛍️</span> ขาย</button>
             {can(session.role, "dashboard") && <button onClick={() => setView("dashboard")} style={styles.navBtn(view === "dashboard")}><span>📊</span> สรุป</button>}
@@ -618,10 +647,13 @@ function App() {
                 บิล
               </button>
             )}
-            {can(session.role, "members") && <button onClick={() => setView("members")} style={styles.navBtn(view === "members")}><span>👥</span> สมาชิก</button>}
-            {can(session.role, "menu_manager") && <button onClick={() => setView("menu")} style={styles.navBtn(view === "menu")}><span>🍴</span> เมนู</button>}
-            {can(session.role, "staff_manager") && <button onClick={() => setView("staff")} style={styles.navBtn(view === "staff")}><span>👤</span> Staff</button>}
-            <button onClick={handleLogout} style={styles.navBtn(false)}><span>🚪</span> ออก</button>
+            <button
+              onClick={() => setShowMoreMenu(p => !p)}
+              style={{ ...styles.navBtn(showMoreMenu || ["members","menu","staff"].includes(view)), position: "relative" }}>
+              <span>⋯</span>
+              {["members","menu","staff"].includes(view) && <span style={{ position: "absolute", top: 0, right: 8, width: 6, height: 6, background: "#FF9F0A", borderRadius: 99 }} />}
+              เพิ่มเติม
+            </button>
           </nav>
         </div>
       ) : (
@@ -641,12 +673,32 @@ function App() {
                   )}
                 </button>
               )}
-              {can(session.role, "members") && <button onClick={() => setView("members")} style={styles.desktopNavBtn(view === "members")}>👥 สมาชิก</button>}
-              {can(session.role, "menu_manager") && <button onClick={() => setView("menu")} style={styles.desktopNavBtn(view === "menu")}>🍴 เมนู</button>}
-              {can(session.role, "staff_manager") && <button onClick={() => setView("staff")} style={styles.desktopNavBtn(view === "staff")}>👤 Staff</button>}
               <div style={{ width: "1px", height: "20px", background: "#444", margin: "0 4px" }} />
               <span style={{ color: "#888", fontSize: "12px" }}>👤 {session.name}</span>
-              <button onClick={handleLogout} style={{ ...styles.desktopNavBtn(false), color: "#FF453A", borderColor: "#FF453A44" }}>🚪 ออก</button>
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowMoreMenu(p => !p)}
+                  style={{ ...styles.desktopNavBtn(showMoreMenu || ["members","menu","staff"].includes(view)), display: "flex", alignItems: "center", gap: 6 }}>
+                  ☰ จัดการ
+                  {["members","menu","staff"].includes(view) && <span style={{ width: 6, height: 6, background: "#FF9F0A", borderRadius: 99, display: "inline-block" }} />}
+                </button>
+                {showMoreMenu && (
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: "#1a1a1a", border: "1px solid #333", borderRadius: 14, padding: "8px", minWidth: 180, zIndex: 2000, boxShadow: "0 8px 30px rgba(0,0,0,0.5)" }}
+                    onClick={() => setShowMoreMenu(false)}>
+                    {can(session.role, "members") && (
+                      <button onClick={() => setView("members")} style={styles.dropdownBtn(view === "members")}>👥 สมาชิก</button>
+                    )}
+                    {can(session.role, "menu_manager") && (
+                      <button onClick={() => setView("menu")} style={styles.dropdownBtn(view === "menu")}>🍴 จัดการเมนู</button>
+                    )}
+                    {can(session.role, "staff_manager") && (
+                      <button onClick={() => setView("staff")} style={styles.dropdownBtn(view === "staff")}>👤 Staff</button>
+                    )}
+                    <div style={{ borderTop: "1px solid #2a2a2a", margin: "6px 0" }} />
+                    <button onClick={handleLogout} style={{ ...styles.dropdownBtn(false), color: "#FF453A" }}>🚪 ออกจากระบบ</button>
+                  </div>
+                )}
+              </div>
             </nav>
           </header>
 
@@ -744,6 +796,9 @@ const styles = {
   desktopHeader: { padding: "15px 25px", backgroundColor: "#222", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" },
   desktopNavBtn: (isActive) => ({ padding: "8px 16px", borderRadius: "8px", background: isActive ? "#fff" : "transparent", color: isActive ? "#000" : "#fff", border: "1px solid #444", fontWeight: "bold", cursor: "pointer" }),
   desktopChannelBar: { padding: "10px 25px", backgroundColor: "#111", borderBottom: "1px solid #333", display: "flex", gap: 10, alignItems: "center" },
+  drawerBtn: (isActive) => ({ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: isActive ? "#FF9F0A22" : "none", border: "none", borderRadius: 12, color: isActive ? "#FF9F0A" : "#ccc", fontSize: 15, fontWeight: isActive ? 700 : 400, cursor: "pointer", textAlign: "left", marginBottom: 2 }),
+  drawerIcon: { fontSize: 20, width: 28, textAlign: "center" },
+  dropdownBtn: (isActive) => ({ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: isActive ? "#FF9F0A22" : "none", border: "none", borderRadius: 10, color: isActive ? "#FF9F0A" : "#ccc", fontSize: 14, fontWeight: isActive ? 700 : 400, cursor: "pointer", textAlign: "left", marginBottom: 2 }),
 };
 
 export default App;
