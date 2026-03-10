@@ -364,7 +364,13 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
             </div>
           )}
 
-          {tab === "Rewards" && <RewardManager showToast={showToast} showConfirm={showConfirm} members={members} />} onClick={e => e.stopPropagation()}>
+          {tab === "Rewards" && <RewardManager showToast={showToast} showConfirm={showConfirm} members={members} />}
+        </div>
+      )}
+
+      {adjusting && (
+        <div style={S.overlay} onClick={() => setAdjusting(null)}>
+          <div style={{ ...S.modal, width: 320, textAlign: "left" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontWeight: "bold", fontSize: 16, marginBottom: 4 }}>✏️ แก้ไขแต้ม</div>
             <div style={{ color: "#888", fontSize: 13, marginBottom: 16 }}>{adjusting.nickname} · ⭐ {adjusting.points || 0} แต้ม</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
