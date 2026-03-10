@@ -10,6 +10,7 @@ import {
   calcPoints,
 } from "../utils/points";
 import { groupAvailableCoupons } from "../utils/coupons";
+import db from "../storage";
 
 const TABS = ["ภาพรวม", "สมาชิก", "VIP", "หายไป", "ประวัติ", "Rewards"];
 
@@ -366,7 +367,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 
           {tab === "Rewards" && <RewardManager showToast={showToast} showConfirm={showConfirm} members={members} />}
         </div>
-      )}
+      </div>
 
       {adjusting && (
         <div style={S.overlay} onClick={() => setAdjusting(null)}>
@@ -461,7 +462,6 @@ function StatCard({ icon, label, value, unit, color = "#fff" }) {
   );
 }
 function Empty({ text }) { return <div style={{ padding: 24, textAlign: "center", color: "#444", fontSize: 13 }}>{text}</div>; }
-
 
 const S = {
   wrap: { height: "100%", display: "flex", flexDirection: "column", backgroundColor: "#0a0a0a", color: "#fff" },
