@@ -420,7 +420,7 @@ function App() {
   }, []);
 
   // ── handleCheckout อ่าน state โดยตรงทั้งหมด ──
-  const handleCheckout = useCallback(async (paymentMethod) => {
+  const handleCheckout = useCallback(async (paymentMethod, customerType = null) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
     // validate delivery ref
@@ -443,6 +443,7 @@ function App() {
         member_phone: memberPhone || null,
         orderType: isDelivery ? "delivery" : orderType,
         tableNumber: (!isDelivery && orderType === "dine_in") ? (tableNumber.trim() || null) : null,
+        customerType: memberPhone ? null : (customerType || null),
       });
       setOrders(prev => [saved, ...prev]);
 
