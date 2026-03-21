@@ -216,6 +216,7 @@ const supabaseDriver = {
       member_phone: order.member_phone || null,
       order_type: order.orderType || null,
       table_number: order.tableNumber || null,
+      customer_type: order.customerType || null,
     }).select().single();
     if (error) throw error;
 
