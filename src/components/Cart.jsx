@@ -33,6 +33,7 @@ export default function Cart({
 }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [customerType, setCustomerType] = useState(null); // null | "new" | "repeat"
   const [cashReceived, setCashReceived] = useState("");
   const [showRedeem, setShowRedeem] = useState(false);
   const [discountMode, setDiscountMode] = useState("amount");
@@ -54,9 +55,10 @@ export default function Cart({
   }, [showPayment]);
 
   const handleFinalConfirm = () => {
-    onCheckout(paymentMethod);
+    onCheckout(paymentMethod, customerType);
     setShowPayment(false);
     setCashReceived("");
+    setCustomerType(null);
   };
 
   const isConfirmDisabled =
@@ -225,6 +227,19 @@ export default function Cart({
               )}
             </div>
 
+            {!isDelivery && !memberPhone && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: "#888", marginBottom: 8 }}>ประเภทลูกค้า</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[["new", "🆕 ลูกค้าใหม่", "#4caf50"], ["repeat", "🔄 ลูกค้าประจำ", "#4D96FF"]].map(([val, label, color]) => (
+                    <button key={val} onClick={() => setCustomerType(v => v === val ? null : val)}
+                      style={{ flex: 1, padding: "10px", borderRadius: 10, border: customerType === val ? `2px solid ${color}` : "1px solid #ddd", background: customerType === val ? `${color}22` : "#f5f5f5", color: customerType === val ? color : "#555", fontWeight: customerType === val ? 700 : 400, cursor: "pointer", fontSize: 13 }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {!isDelivery ? (
               <>
                 <div style={{ display: "flex", gap: 10, marginBottom: 15 }}>

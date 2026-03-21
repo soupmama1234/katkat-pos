@@ -38,6 +38,7 @@ export default function MobilePOS({
 }) {
   const [showCart, setShowCart]           = useState(false);
   const [showRedeem, setShowRedeem]       = useState(false);
+  const [customerType, setCustomerType]   = useState(null); // null | "new" | "repeat"
   const [discountMode, setDiscountMode]   = useState("amount");
   const [discountInput, setDiscountInput] = useState("");
   const [modProduct, setModProduct]       = useState(null);
@@ -63,8 +64,9 @@ export default function MobilePOS({
   };
 
   const handleConfirmCheckout = (paymentMethod) => {
-    onCheckout(paymentMethod);
+    onCheckout(paymentMethod, customerType);
     setShowCart(false);
+    setCustomerType(null);
   };
 
   const handleApplyDiscount = () => {
@@ -274,6 +276,20 @@ export default function MobilePOS({
               <span>รวม</span><span>฿{total.toLocaleString()}</span>
             </div>
 
+            {/* customer type — เฉพาะ non-member */}
+            {!isDelivery && !memberPhone && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>ประเภทลูกค้า (optional)</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[["new", "🆕 ใหม่", "#4caf50"], ["repeat", "🔄 ประจำ", "#4D96FF"]].map(([val, label, color]) => (
+                    <button key={val} onClick={() => setCustomerType(v => v === val ? null : val)}
+                      style={{ flex: 1, padding: "10px", borderRadius: 10, border: customerType === val ? `2px solid ${color}` : "1px solid #444", background: customerType === val ? `${color}22` : "#222", color: customerType === val ? color : "#888", fontWeight: customerType === val ? 700 : 400, cursor: "pointer", fontSize: 13 }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* checkout buttons */}
             <div style={{ display: "grid", gridTemplateColumns: !isDelivery ? "1fr 1fr" : "1fr", gap: 12 }}>
               {!isDelivery ? (
