@@ -546,7 +546,27 @@ function App() {
     setAcceptedOrders(prev => [...prev, { ...order, status: "accepted" }]);
     showToast(`รับออเดอร์โต๊ะ ${order.tableNumber || ""} แล้ว ✅`);
   };
+const handleDeleteOrder = useMemo(() => {
+  if (!can(session?.role, "delete_order")) return null;
+  return async (id) => {
+    const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?");
+    if (!ok) return;
+    await db.deleteOrder(id);
+    setOrders(prev => prev.filter(o => o.id !== id));
+    showToast("ลบออเดอร์แล้ว");
+  };
+}, [session?.role, showConfirm, showToast]);
 
+const handleClearAllOrders = useMemo(() => {
+  if (!can(session?.role, "delete_order")) return null;
+  return async () => {
+    const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?");
+    if (!ok) return;
+    await db.clearOrders();
+    setOrders([]);
+    showToast("ล้างข้อมูลแล้ว");
+  };
+}, [session?.role, showConfirm, showToast]);
   const handleLogout = () => {
     logout();
     setSession(null);
@@ -592,8 +612,8 @@ function App() {
                 onAcceptPending={handleAcceptPending}
                 onCancelPending={handleCancelPending}
                 onSettleOrder={handleSettleOrder}
-                onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
-                onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ลบทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
+                onDeleteOrder={handleDeleteOrder}
+                onClearAll={handleClearAllOrders}
               />
             )}
             {view === "menu" && (
@@ -753,8 +773,8 @@ function App() {
                   onAcceptPending={handleAcceptPending}
                   onCancelPending={handleCancelPending}
                   onSettleOrder={handleSettleOrder}
-                  onDeleteOrder={can(session.role,"delete_order") ? async id => { const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้?"); if (ok) { await db.deleteOrder(id); setOrders(prev => prev.filter(o => o.id !== id)); showToast("ลบออเดอร์แล้ว"); } } : null}
-                  onClearAll={can(session.role,"delete_order") ? async () => { const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบทั้งหมด?"); if (ok) { await db.clearOrders(); setOrders([]); showToast("ล้างข้อมูลแล้ว"); } } : null}
+                  onDeleteOrder={handleDeleteOrder}
+                  onClearAll={handleClearAllOrders}
                 />
               </div>
             )}
