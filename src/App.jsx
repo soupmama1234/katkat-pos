@@ -430,6 +430,28 @@ function App() {
       if (priceChannel === "lineman" && deliveryRef.replace("GF-","").length < 4) return showToast("เลข LINE MAN ไม่ครบ", "error");
     }
     try {
+      // ตรวจ coupon ที่แนบมากับ discounts ว่ายังใช้ได้จริงไหม
+const couponDiscounts = discounts.filter(d => d.couponId);
+if (couponDiscounts.length > 0 && memberInfo) {
+  const freshMember = await sb
+    .from("members")
+    .select("redeemed_rewards")
+    .eq("phone", memberPhone)
+    .single();
+  
+  if (freshMember.data) {
+    for (const d of couponDiscounts) {
+      const coupon = freshMember.data.redeemed_rewards?.find(
+        r => r.id === d.couponId
+      );
+      // ถ้า coupon ถูกใช้ไปแล้ว (used_at มีค่า) → block
+      if (!coupon || coupon.used_at) {
+        showToast("⚠️ คูปองถูกใช้ไปแล้ว กรุณาตรวจสอบอีกครั้ง", "error");
+        return;
+      }
+    }
+  }
+}
       const saved = await db.addOrder({
         time: new Date().toISOString(),
         items: [...cart],
