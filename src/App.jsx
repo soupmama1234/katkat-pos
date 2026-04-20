@@ -448,13 +448,21 @@ function App() {
       setOrders(prev => [saved, ...prev]);
 
       if (memberPhone) {
-        try {
-          const { rate, tiers } = getPointSettings();
-          const pts = calcPoints(total, rate, tiers);
-          await sb.rpc("increment_member_points", { p_phone: memberPhone, p_points: pts, p_spent: total });
-          setHistoryTrigger(prev => prev + 1);
-        } catch (e) { console.warn("Points update error:", e); }
-      }
+  try {
+    const { rate, tiers } = getPointSettings();
+    const pts = calcPoints(total, rate, tiers);
+    const { error: rpcError } = await sb.rpc("increment_member_points", { 
+      p_phone: memberPhone, 
+      p_points: pts, 
+      p_spent: total 
+    });
+    if (rpcError) throw rpcError;
+    setHistoryTrigger(prev => prev + 1);
+  } catch (e) { 
+    console.warn("Points update error:", e);
+    showToast("⚠️ บันทึกแต้มไม่สำเร็จ กรุณาแจ้งแอดมิน", "error");
+  }
+}
 
       // ── reset ทุกอย่างหลัง checkout ──
       setCart([]);
