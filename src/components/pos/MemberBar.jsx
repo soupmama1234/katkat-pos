@@ -57,6 +57,22 @@ export default function MemberBar({
 
   const markCouponUsed = async (couponId) => {
     if (!memberInfo || !memberPhone) return;
+      // เรียก atomic RPC แทน update ตรงๆ
+  const { data, error } = await sb.rpc("use_coupon_atomic", {
+    p_phone: memberPhone,
+    p_coupon_id: couponId,
+  });
+
+  if (error || !data?.ok) {
+    const reason = data?.error;
+    if (reason === "already_used") {
+      showToast?.("⚠️ คูปองนี้ถูกใช้ไปแล้ว", "error");
+    } else {
+      showToast?.("⚠️ ใช้คูปองไม่สำเร็จ", "error");
+    }
+    return; // ไม่ apply discount
+  }
+    // อัพ local state
     const updatedRewards = (memberInfo.redeemed_rewards || []).map(r =>
       r.id === couponId ? { ...r, used_at: new Date().toISOString() } : r
     );
