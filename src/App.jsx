@@ -413,11 +413,20 @@ function App() {
     showToast("ลบออเดอร์ที่พักไว้แล้ว");
   }, [showToast]);
 
-  // ── เปลี่ยน channel → reset deliveryRef ──
-  const handleSetPriceChannel = useCallback((ch) => {
-    setPriceChannel(ch);
-    setDeliveryRef("");
-  }, []);
+const [deliveryRefMap, setDeliveryRefMap] = useState({
+  grab: "", lineman: "", shopee: ""
+});
+
+const deliveryRef = deliveryRefMap[priceChannel] || "";
+
+const setDeliveryRef = useCallback((val) => {
+  setDeliveryRefMap(prev => ({ ...prev, [priceChannel]: val }));
+}, [priceChannel]);
+
+const handleSetPriceChannel = useCallback((ch) => {
+  setPriceChannel(ch);
+  // ไม่ reset แล้ว — ค่าเก็บใน map อยู่แล้ว
+}, []);
 
   // ── handleCheckout อ่าน state โดยตรงทั้งหมด ──
   const handleCheckout = useCallback(async (paymentMethod, customerType = null) => {
