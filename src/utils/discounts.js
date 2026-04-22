@@ -1,3 +1,14 @@
+/**
+ * คำนวณส่วนลดรวม
+ * 
+ * ลำดับการคำนวณ:
+ * 1. หัก amount discounts ก่อน (฿ ตายตัว)
+ * 2. แล้วค่อยหัก percent discounts จาก "ยอดที่เหลือ" 
+ *    ⚠️ NOTE: percent คำนวณจาก remain ไม่ใช่ subtotal ตั้งต้น
+ *    เช่น subtotal=100, ลด฿20 แล้ว ลด10% → 10% ของ 80 = 8 (ไม่ใช่ 10% ของ 100)
+ * 
+ * ถ้าอยากเปลี่ยนให้ percent คำนวณจาก subtotal → ต้องแก้ loop percent ด้านล่าง
+ */
 export function computeDiscountTotal(subtotal = 0, discounts = []) {
   let remain = Number(subtotal) || 0;
   let totalDiscount = 0;

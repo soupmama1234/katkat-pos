@@ -149,7 +149,12 @@ const supabaseDriver = {
     const { error } = await sb.from("products").delete().neq("id", 0);
     if (error) throw error;
   },
-
+  async clearAllProductsSilent() {
+    const sb = getSupabase();
+    const { error } = await sb.from("products").delete().neq("id", 0);
+    if (error) throw error;
+  },
+  
   // MODIFIERS
   async fetchModifierGroups() {
     const sb = getSupabase();
@@ -389,6 +394,9 @@ const localDriver = {
     ls.set("katkat_products", prods.filter(p => p.id !== id));
   },
   async clearAllProducts() {
+    ls.set("katkat_products", []);
+  },
+  async clearAllProductsSilent() {
     ls.set("katkat_products", []);
   },
 
