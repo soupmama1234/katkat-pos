@@ -77,7 +77,7 @@ function App() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(() => getSession());
-  const [newOrderAlert, setNewOrderAlert] = useState(null); // { count, tableNumber }
+  const [newOrderAlert, setNewOrderAlert] = useState(null);
 
   const [cart, setCart] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -89,12 +89,18 @@ function App() {
   const [memberStatus, setMemberStatus] = useState("idle");
   const [discounts, setDiscounts] = useState([]);
 
-  // ── POS order meta (lifted — single source of truth) ──
-  const [orderType, setOrderType] = useState("dine_in"); // "dine_in" | "takeaway"
+  // ── POS order meta ──
+  const [orderType, setOrderType] = useState("dine_in");
   const [tableNumber, setTableNumber] = useState("");
-  const [deliveryRef, setDeliveryRef] = useState("");   // เลข ref grab/lineman/shopee
 
-  // ── Member input state (lifted — ใช้ร่วมกัน Cart + MobilePOS) ──
+  // C1 FIX: เก็บ deliveryRef แยกตาม channel ไม่ reset ตอนสลับกลับมา
+  const [deliveryRefMap, setDeliveryRefMap] = useState({ grab: "", lineman: "", shopee: "" });
+  const deliveryRef = deliveryRefMap[priceChannel] || "";
+  const setDeliveryRef = useCallback((val) => {
+    setDeliveryRefMap(prev => ({ ...prev, [priceChannel]: val }));
+  }, [priceChannel]);
+
+  // ── Member input state ──
   const [memberInput, setMemberInput] = useState("");
   const [showRegister, setShowRegister] = useState(false);
   const [regNickname, setRegNickname] = useState("");
@@ -103,13 +109,9 @@ function App() {
   const [confirm, setConfirm] = useState(null);
   const [historyTrigger, setHistoryTrigger] = useState(0);
 
-  // ── Pending orders staff (localStorage) ──
   const [pendingOrders, setPendingOrders] = useState(() => getPendingOrders());
-  // ── Customer pending orders (Supabase) ──
   const [customerPendingOrders, setCustomerPendingOrders] = useState([]);
   const [acceptedOrders, setAcceptedOrders] = useState([]);
-
-  // memberInfo derived จาก members array + memberPhone → realtime อัปเดตอัตโนมัติ
 
   const memberInfo = useMemo(
     () => members.find(m => m.phone === memberPhone) || null,
@@ -164,7 +166,6 @@ function App() {
         showToast("❌ โหลดข้อมูลไม่ได้ กรุณา refresh", "error");
       } finally {
         setLoading(false);
-        // fetch customer pending orders
         try {
           const [cp, ac] = await Promise.all([db.fetchPendingOrders(), db.fetchAcceptedOrders()]);
           setCustomerPendingOrders(cp);
@@ -210,7 +211,6 @@ function App() {
     return () => { sb.removeChannel(channel); sb.removeChannel(ordersChannel); };
   }, []);
 
-  // unlock audio on first interaction
   useEffect(() => {
     const unlock = () => { unlockAudio(); window.removeEventListener("touchstart", unlock); window.removeEventListener("mousedown", unlock); };
     window.addEventListener("touchstart", unlock);
@@ -266,7 +266,6 @@ function App() {
   const handleApplyRewardDiscount = useCallback((disc) => setDiscounts(prev => [...prev, { ...disc, id: Date.now() + Math.random() }]), []);
   const handleClearDiscounts = useCallback(() => setDiscounts([]), []);
 
-  // ── คืนคูปองให้สมาชิกเมื่อลบออกจากตะกร้า ──
   const unmarkCouponUsed = useCallback(async (couponId) => {
     setMembers(prev => prev.map(m => {
       if (m.phone !== memberPhone) return m;
@@ -280,7 +279,6 @@ function App() {
     } catch (e) { console.warn("unmarkCouponUsed error:", e); }
   }, [memberPhone, members]);
 
-  // ── ลบ discount — ถ้ามี couponId ให้คืนคูปองด้วย ──
   const handleRemoveDiscount = useCallback((id) => {
     setDiscounts(prev => {
       const disc = prev.find(d => d.id === id);
@@ -326,7 +324,6 @@ function App() {
     setCart(prev => prev.map(i => (i.id === id && i.channel === channel && (i.selectedModifier?.id || null) === (modId || null)) ? { ...i, qty: i.qty + 1 } : i));
   }, []);
 
-  // ── Member actions (lifted — single source of truth) ──
   const lookupMember = useCallback(async (phone) => {
     if (!phone || phone.length < 9) return;
     setMemberStatus("loading");
@@ -369,7 +366,6 @@ function App() {
     setRegNickname("");
   }, []);
 
-  // ── Pending order handlers ──
   const handleSavePending = useCallback((label = "") => {
     if (cart.length === 0) return showToast("ตะกร้าว่างอยู่ครับ", "error");
     const entry = savePendingOrder({
@@ -377,12 +373,11 @@ function App() {
       priceChannel, deliveryRef, memberPhone, label,
     });
     setPendingOrders(getPendingOrders());
-    // reset cart หลัง save
     setCart([]);
     setDiscounts([]);
     setOrderType("dine_in");
     setTableNumber("");
-    setDeliveryRef("");
+    setDeliveryRefMap({ grab: "", lineman: "", shopee: "" });
     clearMember();
     showToast(`พักออเดอร์ "${entry.label || "ออเดอร์ใหม่"}" แล้ว ✅`);
   }, [cart, discounts, orderType, tableNumber, priceChannel, deliveryRef, memberPhone, clearMember, showToast]);
@@ -396,10 +391,12 @@ function App() {
     setDiscounts(pending.discounts);
     setOrderType(pending.orderType);
     setTableNumber(pending.tableNumber);
-    setDeliveryRef(pending.deliveryRef);
+    // C1: restore เข้า map ตรง channel ที่ pending บันทึกไว้
+    if (pending.deliveryRef && pending.priceChannel) {
+      setDeliveryRefMap(prev => ({ ...prev, [pending.priceChannel]: pending.deliveryRef }));
+    }
     if (pending.memberPhone) {
       setMemberInput(pending.memberPhone);
-      // trigger lookup
       setTimeout(() => lookupMember(pending.memberPhone), 100);
     }
     deletePendingOrder(pending.id);
@@ -412,49 +409,41 @@ function App() {
     setPendingOrders(getPendingOrders());
     showToast("ลบออเดอร์ที่พักไว้แล้ว");
   }, [showToast]);
-const [deliveryRefMap, setDeliveryRefMap] = useState({ grab: "", lineman: "", shopee: "" });
-const deliveryRef = deliveryRefMap[priceChannel] || "";
-const setDeliveryRef = useCallback((val) => {
-  setDeliveryRefMap(prev => ({ ...prev, [priceChannel]: val }));
-}, [priceChannel]);
-const handleSetPriceChannel = useCallback((ch) => {
-  setPriceChannel(ch);
-  // ลบ setDeliveryRef("") ออก
-}, []);
 
-  // ── handleCheckout อ่าน state โดยตรงทั้งหมด ──
+  // C1 FIX: ไม่ reset deliveryRef ตอนสลับ channel แล้ว — เก็บใน map แทน
+  const handleSetPriceChannel = useCallback((ch) => {
+    setPriceChannel(ch);
+  }, []);
+
   const handleCheckout = useCallback(async (paymentMethod, customerType = null) => {
     if (cart.length === 0) return;
     const isDelivery = ["grab", "lineman", "shopee"].includes(priceChannel);
-    // validate delivery ref
     if (isDelivery) {
       if (!deliveryRef || deliveryRef === "GF-") return showToast("กรุณาระบุเลขอ้างอิง", "error");
       if (priceChannel === "grab" && deliveryRef.replace("GF-", "").length < 3) return showToast("เลข GrabFood ไม่ครบ", "error");
-      if (priceChannel === "lineman" && deliveryRef.replace("GF-","").length < 4) return showToast("เลข LINE MAN ไม่ครบ", "error");
+      if (priceChannel === "lineman" && deliveryRef.replace("GF-", "").length < 4) return showToast("เลข LINE MAN ไม่ครบ", "error");
     }
-    try {
-      // ตรวจ coupon ที่แนบมากับ discounts ว่ายังใช้ได้จริงไหม
-const couponDiscounts = discounts.filter(d => d.couponId);
-if (couponDiscounts.length > 0 && memberInfo) {
-  const freshMember = await sb
-    .from("members")
-    .select("redeemed_rewards")
-    .eq("phone", memberPhone)
-    .single();
-  
-  if (freshMember.data) {
-    for (const d of couponDiscounts) {
-      const coupon = freshMember.data.redeemed_rewards?.find(
-        r => r.id === d.couponId
-      );
-      // ถ้า coupon ถูกใช้ไปแล้ว (used_at มีค่า) → block
-      if (!coupon || coupon.used_at) {
-        showToast("⚠️ คูปองถูกใช้ไปแล้ว กรุณาตรวจสอบอีกครั้ง", "error");
-        return;
+
+    // B2: ตรวจ coupon ที่แนบมากับ discounts ว่ายังใช้ได้จริงไหม (pre-checkout check)
+    const couponDiscounts = discounts.filter(d => d.couponId);
+    if (couponDiscounts.length > 0 && memberInfo) {
+      const { data: freshMember } = await sb
+        .from("members")
+        .select("redeemed_rewards")
+        .eq("phone", memberPhone)
+        .single();
+      if (freshMember) {
+        for (const d of couponDiscounts) {
+          const coupon = freshMember.redeemed_rewards?.find(r => r.id === d.couponId);
+          if (!coupon || coupon.used_at) {
+            showToast("⚠️ คูปองถูกใช้ไปแล้ว กรุณาตรวจสอบอีกครั้ง", "error");
+            return;
+          }
+        }
       }
     }
-  }
-}
+
+    try {
       const saved = await db.addOrder({
         time: new Date().toISOString(),
         items: [...cart],
@@ -472,35 +461,35 @@ if (couponDiscounts.length > 0 && memberInfo) {
       });
       setOrders(prev => [saved, ...prev]);
 
+      // A1 FIX: แสดง toast เมื่อ RPC fail แทนที่จะ silent
       if (memberPhone) {
-  try {
-    const { rate, tiers } = getPointSettings();
-    const pts = calcPoints(total, rate, tiers);
-    const { error: rpcError } = await sb.rpc("increment_member_points", { 
-      p_phone: memberPhone, 
-      p_points: pts, 
-      p_spent: total 
-    });
-    if (rpcError) throw rpcError;
-    setHistoryTrigger(prev => prev + 1);
-  } catch (e) { 
-    console.warn("Points update error:", e);
-    showToast("⚠️ บันทึกแต้มไม่สำเร็จ กรุณาแจ้งแอดมิน", "error");
-  }
-}
+        try {
+          const { rate, tiers } = getPointSettings();
+          const pts = calcPoints(total, rate, tiers);
+          const { error: rpcError } = await sb.rpc("increment_member_points", {
+            p_phone: memberPhone,
+            p_points: pts,
+            p_spent: total,
+          });
+          if (rpcError) throw rpcError;
+          setHistoryTrigger(prev => prev + 1);
+        } catch (e) {
+          console.warn("Points update error:", e);
+          showToast("⚠️ บันทึกแต้มไม่สำเร็จ กรุณาแจ้งแอดมิน", "error");
+        }
+      }
 
-      // ── reset ทุกอย่างหลัง checkout ──
       setCart([]);
       setDiscounts([]);
       setOrderType("dine_in");
       setTableNumber("");
-      setDeliveryRef("");
+      setDeliveryRefMap({ grab: "", lineman: "", shopee: "" });
       clearMember();
       showToast(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "✨ ชำระเงินเรียบร้อยครับ");
     } catch (err) {
       showToast("❌ บันทึกออเดอร์ไม่ได้ กรุณาลองใหม่", "error");
     }
-  }, [cart, total, discountTotal, priceChannel, deliveryRef, memberPhone, orderType, tableNumber, clearMember, showToast]);
+  }, [cart, total, discountTotal, discounts, memberInfo, priceChannel, deliveryRef, memberPhone, orderType, tableNumber, clearMember, showToast]);
 
   const handleUpdateActual = async (orderId, value) => {
     const amount = parseFloat(value) || 0;
@@ -524,6 +513,29 @@ if (couponDiscounts.length > 0 && memberInfo) {
     }
   };
 
+  // B1 FIX: named handlers แทน inline ใน JSX — ไม่ซ้ำ logic, stable reference
+  const handleDeleteOrder = useMemo(() => {
+    if (!can(session?.role, "delete_order")) return null;
+    return async (id) => {
+      const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?");
+      if (!ok) return;
+      await db.deleteOrder(id);
+      setOrders(prev => prev.filter(o => o.id !== id));
+      showToast("ลบออเดอร์แล้ว");
+    };
+  }, [session?.role, showConfirm, showToast]);
+
+  const handleClearAllOrders = useMemo(() => {
+    if (!can(session?.role, "delete_order")) return null;
+    return async () => {
+      const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?");
+      if (!ok) return;
+      await db.clearOrders();
+      setOrders([]);
+      showToast("ล้างข้อมูลแล้ว");
+    };
+  }, [session?.role, showConfirm, showToast]);
+
   const commonProps = {
     cart, addToCart, increaseQty, decreaseQty,
     total, subtotal, discountTotal, discounts,
@@ -544,7 +556,6 @@ if (couponDiscounts.length > 0 && memberInfo) {
     regNickname, setRegNickname,
     lookupMember, registerMember, clearMember,
     showToast, showConfirm, historyTrigger,
-    // ── pending ──
     pendingOrders,
     onSavePending: handleSavePending,
     onRestorePending: handleRestorePending,
@@ -571,37 +582,15 @@ if (couponDiscounts.length > 0 && memberInfo) {
     setAcceptedOrders(prev => [...prev, { ...order, status: "accepted" }]);
     showToast(`รับออเดอร์โต๊ะ ${order.tableNumber || ""} แล้ว ✅`);
   };
-const handleDeleteOrder = useMemo(() => {
-  if (!can(session?.role, "delete_order")) return null;
-  return async (id) => {
-    const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?");
-    if (!ok) return;
-    await db.deleteOrder(id);
-    setOrders(prev => prev.filter(o => o.id !== id));
-    showToast("ลบออเดอร์แล้ว");
-  };
-}, [session?.role, showConfirm, showToast]);
 
-const handleClearAllOrders = useMemo(() => {
-  if (!can(session?.role, "delete_order")) return null;
-  return async () => {
-    const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?");
-    if (!ok) return;
-    await db.clearOrders();
-    setOrders([]);
-    showToast("ล้างข้อมูลแล้ว");
-  };
-}, [session?.role, showConfirm, showToast]);
   const handleLogout = () => {
     logout();
     setSession(null);
   };
 
-  // ── Guard: customer mode ──
   const isCustomerMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("customer") === "1";
   if (isCustomerMode) return <CustomerOrder />;
 
-  // ── Guard: ถ้าไม่มี session → โชว์ LoginScreen ──
   if (!session) {
     return <LoginScreen onLogin={(s) => setSession(s)} />;
   }
@@ -657,7 +646,7 @@ const handleClearAllOrders = useMemo(() => {
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
             {view === "staff" && <StaffManager session={session} />}
           </main>
-          {/* More Menu Drawer */}
+
           {showMoreMenu && (
             <div style={{ position: "fixed", inset: 0, zIndex: 2000 }} onClick={() => setShowMoreMenu(false)}>
               <div style={{ position: "absolute", bottom: 70, left: 0, right: 0, background: "#1a1a1a", borderTop: "1px solid #333", borderRadius: "20px 20px 0 0", padding: "12px 16px 8px" }}
@@ -812,7 +801,6 @@ const handleClearAllOrders = useMemo(() => {
         </div>
       )}
 
-      {/* Confirm Dialog */}
       {confirm && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: 20 }}>
           <div style={{ backgroundColor: "#1a1a1a", borderRadius: "20px", padding: "28px", width: "100%", maxWidth: "340px", border: "1px solid #333", textAlign: "center" }}>
@@ -828,7 +816,7 @@ const handleClearAllOrders = useMemo(() => {
       )}
 
       {newOrderAlert && <NewOrderAlert tableNumber={newOrderAlert.tableNumber} />}
-      {/* Toast */}
+
       {toast && (
         <div style={{ position: "fixed", top: isMobile ? "20px" : "30px", left: "50%", transform: "translateX(-50%)", backgroundColor: toast.type === "error" ? "#ff4444" : "#222", color: "#fff", padding: "12px 24px", borderRadius: "12px", boxShadow: "0 8px 30px rgba(0,0,0,0.3)", zIndex: 9999, display: "flex", alignItems: "center", gap: 10, fontWeight: "bold", border: toast.type === "error" ? "none" : "1px solid #444" }}>
           <span>{toast.type === "error" ? "❌" : "✅"}</span>
