@@ -48,7 +48,16 @@ function PaymentModal({ order, onConfirm, onClose }) {
         onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 4 }}>💳 รับชำระเงิน</div>
         {order.tableNumber && <div style={{ color: "#666", fontSize: 13, marginBottom: 16 }}>โต๊ะ {order.tableNumber}</div>}
-
+        {order.refId && (
+  <span style={{ background: "#333", color: "#aaa", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700 }}>
+    🧾 {order.channel?.toUpperCase()} {order.refId}
+  </span>
+)}
+        {order.refId && (
+  <span style={{ background: "#333", color: "#aaa", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700 }}>
+    🧾 {order.channel?.toUpperCase()} {order.refId}
+  </span>
+)}
         {/* Items summary */}
         <div style={{ background: "#1e1e1e", borderRadius: 12, padding: "10px 14px", marginBottom: 16 }}>
           {order.items.map((item, i) => (
@@ -391,6 +400,11 @@ export default function Orders({ orders = [], pendingOrders = [], acceptedOrders
                           {order.tableNumber && (
                             <span style={{ background: "#333", color: "#aaa", borderRadius: 6, padding: "3px 8px", fontSize: 11 }}>🪑 {order.tableNumber}</span>
                           )}
+                          {order.refId && (
+  <span style={{ background: "#333", color: "#aaa", borderRadius: 6, padding: "3px 8px", fontSize: 11 }}>
+    🧾 {order.channel?.toUpperCase()} {order.refId}
+  </span>
+)}
                         </div>
                         <span style={styles.time}>🕐 {new Date(order.time).toLocaleString("th-TH", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} น.</span>
                       </div>
