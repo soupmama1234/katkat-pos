@@ -30,6 +30,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const [adjustSaving, setAdjustSaving] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [memberLimit, setMemberLimit] = useState(50);
 
   React.useEffect(() => { setMembers(initMembers); }, [initMembers]);
 
@@ -298,21 +299,41 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
           )}
 
           {tab === "สมาชิก" && (
-            <div>
-              <input placeholder="🔍 ค้นหาชื่อหรือเบอร์..." value={search}
-                onChange={e => setSearch(e.target.value)}
-                style={{ ...S.input, width: "100%", marginBottom: 10, fontSize: 15 }} />
-              <div style={S.section}>{filtered.slice(0, 50).map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}</div>
-            </div>
-          )}
+  <div>
+    <input placeholder="🔍 ค้นหาชื่อหรือเบอร์..." value={search}
+      onChange={e => { setSearch(e.target.value); setMemberLimit(50); }} // reset limit ตอน search
+      style={{ ...S.input, width: "100%", marginBottom: 10, fontSize: 15 }} />
+    <div style={S.section}>
+      {filtered.slice(0, memberLimit).map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
+    </div>
 
-          {tab === "VIP" && (
-            <div style={S.section}>
-              <div style={S.sectionTitle}>เรียงตามยอดใช้จ่าย</div>
-              {[...members].sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
-                .map((m, i) => <MemberRow key={m.phone} {...rowProps(m)} rank={i + 1} showDelete />)}
-            </div>
-          )}
+    {/* Load more button */}
+    {filtered.length > memberLimit && (
+      <button
+        onClick={() => setMemberLimit(prev => prev + 50)}
+        style={{ width: "100%", padding: "12px", marginTop: 8, background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 12, color: "#888", cursor: "pointer", fontSize: 13 }}>
+        โหลดเพิ่ม ({filtered.length - memberLimit} คนที่เหลือ)
+      </button>
+    )}
+  </div>
+)}
+
+{tab === "VIP" && (
+  <div style={S.section}>
+    <div style={S.sectionTitle}>เรียงตามยอดใช้จ่าย</div>
+    {[...members]
+      .sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
+      .slice(0, memberLimit) // ← เพิ่ม limit
+      .map((m, i) => <MemberRow key={m.phone} {...rowProps(m)} rank={i + 1} showDelete />)}
+    {members.length > memberLimit && (
+      <button
+        onClick={() => setMemberLimit(prev => prev + 50)}
+        style={{ width: "100%", padding: "12px", marginTop: 8, background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 12, color: "#888", cursor: "pointer", fontSize: 13 }}>
+        โหลดเพิ่ม ({members.length - memberLimit} คนที่เหลือ)
+      </button>
+    )}
+  </div>
+)}
 
           {tab === "หายไป" && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "16px" }}>
