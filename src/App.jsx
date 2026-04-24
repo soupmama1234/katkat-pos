@@ -536,6 +536,28 @@ function App() {
     };
   }, [session?.role, showConfirm, showToast]);
 
+  const handleCleanupUnusedModifierGroups = useCallback(async () => {
+  const usedGroupIds = new Set(
+    products.flatMap(p => p.modifierGroups || [])
+  );
+  const unusedGroups = modifierGroups.filter(g => !usedGroupIds.has(g.id));
+
+  if (unusedGroups.length === 0) {
+    showToast("ไม่มีกลุ่มตัวเลือกที่ไม่ได้ใช้");
+    return;
+  }
+
+  const ok = await showConfirm(
+    "ลบกลุ่มที่ไม่ได้ใช้?",
+    `พบ ${unusedGroups.length} กลุ่มที่ไม่ได้เชื่อมกับเมนูใดเลย ต้องการลบทั้งหมดไหม?`
+  );
+  if (!ok) return;
+
+  await Promise.all(unusedGroups.map(g => db.deleteModifierGroup(g.id)));
+  setModifierGroups(prev => prev.filter(g => usedGroupIds.has(g.id)));
+  showToast(`🧹 ลบ ${unusedGroups.length} กลุ่มเรียบร้อย`);
+}, [products, modifierGroups, showConfirm, showToast]);
+  
   const commonProps = {
     cart, addToCart, increaseQty, decreaseQty,
     total, subtotal, discountTotal, discounts,
@@ -563,12 +585,26 @@ function App() {
   };
 
   const handleSettleOrder = async (order, payment, actual) => {
+  // Optimistic update ก่อน — UI ตอบสนองทันที ไม่ต้องรอ DB
+  setAcceptedOrders(prev => prev.filter(o => o.id !== order.id));
+  setOrders(prev => prev.map(o =>
+    o.id === order.id
+      ? { ...o, status: "settled", payment, actualAmount: actual, isSettled: true }
+      : o
+  ));
+
+  try {
     await db.settleOrder(order.id, payment, actual);
-    setAcceptedOrders(prev => prev.filter(o => o.id !== order.id));
-    const ords = await db.fetchOrders();
-    setOrders(ords);
     showToast(`รับเงินโต๊ะ ${order.tableNumber || ""} เรียบร้อย 💰`);
-  };
+  } catch (err) {
+    // Rollback ถ้า DB fail
+    setAcceptedOrders(prev => [...prev, order]);
+    setOrders(prev => prev.map(o =>
+      o.id === order.id ? order : o
+    ));
+    showToast("❌ รับเงินไม่สำเร็จ กรุณาลองใหม่", "error");
+  }
+};
 
   const handleCancelPending = async (order) => {
     await db.cancelPendingOrder(order.id);
@@ -640,6 +676,7 @@ function App() {
                   deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }}
                   addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
                   deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+                  cleanupUnusedModifierGroups={handleCleanupUnusedModifierGroups}
                 />
               </div>
             )}
@@ -775,6 +812,7 @@ function App() {
                   deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }}
                   addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
                   deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+                  cleanupUnusedModifierGroups={handleCleanupUnusedModifierGroups}
                 />
               </div>
             )}
