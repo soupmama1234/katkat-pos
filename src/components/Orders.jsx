@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
 // ── Badge helpers ──────────────────────────────────────────
 const CHANNEL_CONFIG = {
@@ -294,7 +294,10 @@ export default function Orders({ orders = [], pendingOrders = [], acceptedOrders
   };
 
   const isDelivery = (ch) => ["grab", "lineman", "shopee"].includes(ch);
-  const settledOrders = orders.filter(o => o.status !== "pending_customer");
+  const settledOrders = useMemo(
+  () => orders.filter(o => o.status !== "pending_customer"),
+  [orders]
+);
 
   return (
     <div style={styles.container}>
