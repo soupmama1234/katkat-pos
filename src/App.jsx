@@ -839,37 +839,42 @@ function App() {
         </div>
       )}
 
-      {confirm && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: 20 }}>
-          <div style={{ backgroundColor: "#1a1a1a", borderRadius: "20px", padding: "28px", width: "100%", maxWidth: "340px", border: "1px solid #333", textAlign: "center" }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>{confirm.type === "danger" ? "⚠️" : "💡"}</div>
-            <h3 style={{ margin: "0 0 10px", color: "#fff" }}>{confirm.title}</h3>
-            <p style={{ margin: "0 0 24px", color: "#888", fontSize: "14px", lineHeight: "1.5" }}>{confirm.message}</p>
-            <div style={{ display: "flex", gap: 12 }}>
-              <button onClick={confirm.onCancel} style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1px solid #333", backgroundColor: "transparent", color: "#888", fontWeight: "bold", cursor: "pointer" }}>ยกเลิก</button>
-              <button onClick={confirm.onConfirm} style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "none", backgroundColor: confirm.type === "danger" ? "#ff4444" : "#4D96FF", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>ตกลง</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {newOrderAlert && <NewOrderAlert tableNumber={newOrderAlert.tableNumber} />}
-
-      {toast && (
-        <div style={{ position: "fixed", top: isMobile ? "20px" : "30px", left: "50%", transform: "translateX(-50%)", backgroundColor: toast.type === "error" ? "#ff4444" : "#222", color: "#fff", padding: "12px 24px", borderRadius: "12px", boxShadow: "0 8px 30px rgba(0,0,0,0.3)", zIndex: 9999, display: "flex", alignItems: "center", gap: 10, fontWeight: "bold", border: toast.type === "error" ? "none" : "1px solid #444" }}>
-          <span>{toast.type === "error" ? "❌" : "✅"}</span>
-          {toast.message}
-        </div>
-      )}
-
-      <style>{`
-        @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
-        @keyframes modalIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-      `}</style>
+{/* Confirm Dialog */}
+{confirm && (
+  <div style={styles.confirmOverlay}>
+    <div style={styles.confirmBox}>
+      <div style={{ fontSize: 40, marginBottom: 16 }}>
+        {confirm.type === "danger" ? "⚠️" : "💡"}
+      </div>
+      <h3 style={{ margin: "0 0 10px", color: "#fff" }}>{confirm.title}</h3>
+      <p style={{ margin: "0 0 24px", color: "#888", fontSize: "14px", lineHeight: "1.5" }}>
+        {confirm.message}
+      </p>
+      <div style={styles.confirmBtnRow}>
+        <button onClick={confirm.onCancel} style={styles.confirmBtnCancel}>ยกเลิก</button>
+        <button onClick={confirm.onConfirm} style={{
+          flex: 1, padding: "12px", borderRadius: "12px", border: "none",
+          backgroundColor: confirm.type === "danger" ? "#ff4444" : "#4D96FF",
+          color: "#fff", fontWeight: "bold", cursor: "pointer"
+        }}>ตกลง</button>
+      </div>
     </div>
-  );
-}
+  </div>
+)}
 
+{/* Toast */}
+{toast && (
+  <div style={{
+    ...styles.toastWrap(isMobile),
+    ...(toast.type === "error" ? styles.toastError : styles.toastSuccess)
+  }}>
+    <span>{toast.type === "error" ? "❌" : "✅"}</span>
+    {toast.message}
+  </div>
+)}
+    </div>   
+  );        
+}         
 const styles = {
   bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, height: "70px", backgroundColor: "#1a1a1a", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 1000 },
   navBtn: (isActive) => ({ background: "none", border: "none", color: isActive ? "#fff" : "#666", fontSize: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", fontWeight: isActive ? "bold" : "normal", cursor: "pointer", padding: "0 4px" }),
@@ -879,6 +884,14 @@ const styles = {
   drawerBtn: (isActive) => ({ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: isActive ? "#FF9F0A22" : "none", border: "none", borderRadius: 12, color: isActive ? "#FF9F0A" : "#ccc", fontSize: 15, fontWeight: isActive ? 700 : 400, cursor: "pointer", textAlign: "left", marginBottom: 2 }),
   drawerIcon: { fontSize: 20, width: 28, textAlign: "center" },
   dropdownBtn: (isActive) => ({ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: isActive ? "#FF9F0A22" : "none", border: "none", borderRadius: 10, color: isActive ? "#FF9F0A" : "#ccc", fontSize: 14, fontWeight: isActive ? 700 : 400, cursor: "pointer", textAlign: "left", marginBottom: 2 }),
+  confirmOverlay: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: 20 },
+  confirmBox: { backgroundColor: "#1a1a1a", borderRadius: "20px", padding: "28px", width: "100%", maxWidth: "340px", border: "1px solid #333", textAlign: "center" },
+  confirmBtnCancel: { flex: 1, padding: "12px", borderRadius: "12px", border: "1px solid #333", backgroundColor: "transparent", color: "#888", fontWeight: "bold", cursor: "pointer" },
+  confirmBtnRow: { display: "flex", gap: 12 },
+
+  toastWrap: (isMobile) => ({ position: "fixed", top: isMobile ? "20px" : "30px", left: "50%", transform: "translateX(-50%)", color: "#fff", padding: "12px 24px", borderRadius: "12px", boxShadow: "0 8px 30px rgba(0,0,0,0.3)", zIndex: 9999, display: "flex", alignItems: "center", gap: 10, fontWeight: "bold" }),
+  toastSuccess: { backgroundColor: "#222", border: "1px solid #444" },
+  toastError: { backgroundColor: "#ff4444", border: "none" },
 };
 
 export default App;
