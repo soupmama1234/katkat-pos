@@ -211,7 +211,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
       .from("point_history")
       .select("member_phone")
       .eq("type", "earn");
-
+console.log("Visits Data:", data);
     if (error) throw error;
 
     // นับจำนวน earn ต่อ phone
