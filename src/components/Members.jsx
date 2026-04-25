@@ -323,7 +323,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 
                 <div style={S.section}>
                   <div style={S.sectionTitle}>สมาชิกล่าสุด</div>
-                  {members.slice(0, 5).map(m => < key={m.phone} {...rowProps(m)} />)}
+                  {members.slice(0, 5).map(m => <MemberRow key={m.phone} {...rowProps(m)} />)}
                   {members.length === 0 && <Empty text="ยังไม่มีสมาชิก" />}
                 </div>
               </div>
@@ -394,7 +394,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
                   <div style={S.sectionTitle}>100 รายการล่าสุด</div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "0 20px" }}>
                     {history.map(h => (
-                      <div key={h.id} style={S.}>
+                      <div key={h.id} style={S.memberRow}>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 16 }}>{h.type === "earn" ? "⭐" : h.type === "redeem" ? "🎁" : "✏️"}</span>
