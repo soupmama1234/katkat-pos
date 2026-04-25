@@ -204,20 +204,18 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     }
   };
 
-  const fetchVisits = async () => {
+ const fetchVisits = async () => {
   setVisitsLoading(true);
   try {
     const { data, error } = await sb
-      .from("point_history")
+      .from("orders")
       .select("member_phone")
-      .eq("type", "earn");
-console.log("Visits Data:", data);
+      .not("member_phone", "is", null);
+
     if (error) throw error;
 
-    // นับจำนวน earn ต่อ phone
     const map = {};
     (data || []).forEach(row => {
-      if (!row.member_phone) return;
       map[row.member_phone] = (map[row.member_phone] || 0) + 1;
     });
     setVisitsMap(map);
