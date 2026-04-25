@@ -323,7 +323,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 
                 <div style={S.section}>
                   <div style={S.sectionTitle}>สมาชิกล่าสุด</div>
-                  {members.slice(0, 5).map(m => <MemberRow key={m.phone} {...rowProps(m)} />)}
+                  {members.slice(0, 5).map(m => < key={m.phone} {...rowProps(m)} />)}
                   {members.length === 0 && <Empty text="ยังไม่มีสมาชิก" />}
                 </div>
               </div>
@@ -336,7 +336,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
       onChange={e => { setSearch(e.target.value); setMemberLimit(50); }} // reset limit ตอน search
       style={{ ...S.input, width: "100%", marginBottom: 10, fontSize: 15 }} />
     <div style={S.section}>
-      {filtered.slice(0, memberLimit).map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
+      {filtered.slice(0, memberLimit).map(m => < key={m.phone} {...rowProps(m)} showDelete />)}
     </div>
 
     {/* Load more button */}
@@ -356,7 +356,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     {[...members]
       .sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
       .slice(0, memberLimit) // ← เพิ่ม limit
-      .map((m, i) => <MemberRow key={m.phone} {...rowProps(m)} rank={i + 1} showDelete />)}
+      .map((m, i) => < key={m.phone} {...rowProps(m)} rank={i + 1} showDelete />)}
     {members.length > memberLimit && (
       <button
         onClick={() => setMemberLimit(prev => prev + 50)}
@@ -372,13 +372,13 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
               {goneMems.length > 0 && (
                 <div style={S.section}>
                   <div style={S.sectionTitle}>🚨 ไม่มาเกิน 30 วัน ({goneMems.length} คน)</div>
-                  {goneMems.map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
+                  {goneMems.map(m => < key={m.phone} {...rowProps(m)} showDelete />)}
                 </div>
               )}
               {neverCome.length > 0 && (
                 <div style={S.section}>
                   <div style={S.sectionTitle}>👻 สมัครแล้วยังไม่มา ({neverCome.length} คน)</div>
-                  {neverCome.map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
+                  {neverCome.map(m => < key={m.phone} {...rowProps(m)} showDelete />)}
                 </div>
               )}
             </div>
@@ -394,7 +394,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
                   <div style={S.sectionTitle}>100 รายการล่าสุด</div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "0 20px" }}>
                     {history.map(h => (
-                      <div key={h.id} style={S.memberRow}>
+                      <div key={h.id} style={S.}>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 16 }}>{h.type === "earn" ? "⭐" : h.type === "redeem" ? "🎁" : "✏️"}</span>
@@ -444,7 +444,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   );
 }
 
-function MemberRow({ m, stats, fav = [], tierColor, daysSince, daysUntil, rank, onDelete, onAdjust, showDelete, onDeleteCoupon }) {
+function MemberRow({ m, stats, visits = 0, fav = [], tierColor, daysSince, daysUntil, rank, onDelete, onAdjust, showDelete, onDeleteCoupon }) {
   const couponGroups = groupAvailableCoupons(m.redeemed_rewards);
   const totalCoupons = couponGroups.reduce((s, g) => s + g.count, 0);
 
