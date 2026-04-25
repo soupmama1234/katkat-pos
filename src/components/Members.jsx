@@ -29,6 +29,8 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   const [adjustNote, setAdjustNote] = useState("");
   const [adjustSaving, setAdjustSaving] = useState(false);
   const [history, setHistory] = useState([]);
+  const [visitsMap, setVisitsMap] = useState({});
+  const [visitsLoading, setVisitsLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [memberLimit, setMemberLimit] = useState(50);
 
@@ -38,18 +40,22 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     if (tab === "ประวัติ") fetchHistory();
   }, [historyTrigger, tab]);
 
+  // เพิ่มใหม่ — fetch visits ตอน component mount ครั้งเดียว
+  React.useEffect(() => {
+    fetchVisits();
+  }, []);
+
   const memberOrders = useMemo(() => orders.filter(o => o.member_phone), [orders]);
   const statsMap = useMemo(() => {
-    const map = {};
-    memberOrders.forEach(o => {
-      const p = o.member_phone;
-      if (!map[p]) map[p] = { count: 0, lastVisit: null, items: [] };
-      map[p].count++;
-      const t = o.time || o.created_at;
-      if (!map[p].lastVisit || t > map[p].lastVisit) map[p].lastVisit = t;
-      (o.items || []).forEach(item => map[p].items.push(item.name));
-    });
-    return map;
+  const map = {};
+  memberOrders.forEach(o => {
+    const p = o.member_phone;
+    if (!map[p]) map[p] = { lastVisit: null, items: [] };
+    const t = o.time || o.created_at;
+    if (!map[p].lastVisit || t > map[p].lastVisit) map[p].lastVisit = t;
+    (o.items || []).forEach(item => map[p].items.push(item.name));
+  });
+  return map;
   }, [memberOrders]);
 
   const favMenu = useMemo(() => {
@@ -158,12 +164,15 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
   }, [members, search]);
 
   const rowProps = (m) => ({
-    m, stats: statsMap[m.phone], fav: favMenu[m.phone] || [],
-    tierColor, daysSince, daysUntil, isExpired, expiringSoon,
-    onDelete: () => handleDelete(m.phone),
-    onAdjust: () => { setAdjusting(m); setAdjustVal(""); setAdjustNote(""); },
-    onDeleteCoupon: (couponId) => handleDeleteCoupon(m, couponId),
-  });
+  m,
+  stats: statsMap[m.phone],
+  visits: visitsMap[m.phone] || 0,  // ← เพิ่ม
+  fav: favMenu[m.phone] || [],
+  tierColor, daysSince, daysUntil, isExpired, expiringSoon,
+  onDelete: () => handleDelete(m.phone),
+  onAdjust: () => { setAdjusting(m); setAdjustVal(""); setAdjustNote(""); },
+  onDeleteCoupon: (couponId) => handleDeleteCoupon(m, couponId),
+});
 
   const handleDeleteCoupon = async (member, couponId) => {
     const coupon = member.redeemed_rewards.find(r => r.id === couponId);
@@ -195,6 +204,29 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     }
   };
 
+  const fetchVisits = async () => {
+  setVisitsLoading(true);
+  try {
+    const { data, error } = await sb
+      .from("point_history")
+      .select("member_phone")
+      .eq("type", "earn");
+
+    if (error) throw error;
+
+    // นับจำนวน earn ต่อ phone
+    const map = {};
+    (data || []).forEach(row => {
+      if (!row.member_phone) return;
+      map[row.member_phone] = (map[row.member_phone] || 0) + 1;
+    });
+    setVisitsMap(map);
+  } catch (e) {
+    showToast("โหลด visits ไม่สำเร็จ: " + e.message, "error");
+  }
+  setVisitsLoading(false);
+};
+  
   return (
     <div style={{ ...S.wrap, width: "100%", flex: 1 }}>
       <div style={S.tabs}>
@@ -413,7 +445,6 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
 }
 
 function MemberRow({ m, stats, fav = [], tierColor, daysSince, daysUntil, rank, onDelete, onAdjust, showDelete, onDeleteCoupon }) {
-  const visits = stats?.count || 0;
   const couponGroups = groupAvailableCoupons(m.redeemed_rewards);
   const totalCoupons = couponGroups.reduce((s, g) => s + g.count, 0);
 
