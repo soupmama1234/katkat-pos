@@ -336,7 +336,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
       onChange={e => { setSearch(e.target.value); setMemberLimit(50); }} // reset limit ตอน search
       style={{ ...S.input, width: "100%", marginBottom: 10, fontSize: 15 }} />
     <div style={S.section}>
-      {filtered.slice(0, memberLimit).map(m => < key={m.phone} {...rowProps(m)} showDelete />)}
+      {filtered.slice(0, memberLimit).map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
     </div>
 
     {/* Load more button */}
@@ -372,13 +372,13 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
               {goneMems.length > 0 && (
                 <div style={S.section}>
                   <div style={S.sectionTitle}>🚨 ไม่มาเกิน 30 วัน ({goneMems.length} คน)</div>
-                  {goneMems.map(m => < key={m.phone} {...rowProps(m)} showDelete />)}
+                  {goneMems.map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
                 </div>
               )}
               {neverCome.length > 0 && (
                 <div style={S.section}>
                   <div style={S.sectionTitle}>👻 สมัครแล้วยังไม่มา ({neverCome.length} คน)</div>
-                  {neverCome.map(m => < key={m.phone} {...rowProps(m)} showDelete />)}
+                  {neverCome.map(m => <MemberRow key={m.phone} {...rowProps(m)} showDelete />)}
                 </div>
               )}
             </div>
