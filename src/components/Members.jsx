@@ -356,7 +356,7 @@ export default function Members({ orders = [], members: initMembers = [], onMemb
     {[...members]
       .sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
       .slice(0, memberLimit) // ← เพิ่ม limit
-      .map((m, i) => < key={m.phone} {...rowProps(m)} rank={i + 1} showDelete />)}
+      .map((m, i) => <MemberRow key="{m.phone}" {...rowProps(m)} rank="{i" + 1} showDelete/>)}
     {members.length > memberLimit && (
       <button
         onClick={() => setMemberLimit(prev => prev + 50)}
