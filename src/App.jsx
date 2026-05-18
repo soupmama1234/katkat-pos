@@ -245,10 +245,25 @@ function App() {
     await addCategory(cat);
   }, [addCategory]);
 
-  const updateProduct = useCallback(async (id, fields) => {
-    await db.updateProduct(id, fields);
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...fields } : p));
-  }, []);
+const updateProduct = useCallback(async (id, fields) => {
+  // ── Cascade rename → recipes ──────────────────────────────
+  if (fields.name !== undefined) {
+    const oldProduct = products.find(p => p.id === id);
+    if (oldProduct && oldProduct.name !== fields.name) {
+      try {
+        await sb.from("recipes")
+          .update({ menu_name: fields.name })
+          .eq("menu_name", oldProduct.name);
+      } catch (e) {
+        console.warn("cascade rename recipes failed:", e);
+      }
+    }
+  }
+  // ── Update product ────────────────────────────────────────
+  await db.updateProduct(id, fields);
+  setProducts(prev => prev.map(p => p.id === id ? { ...p, ...fields } : p));
+}, [products]);
+
 
   const deleteProduct = useCallback(async (id) => {
     const ok = await showConfirm("ลบสินค้า?", "ยืนยันการลบสินค้านี้ออกจากเมนู?");
