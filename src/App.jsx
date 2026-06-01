@@ -105,6 +105,9 @@ function App() {
   const [showRegister, setShowRegister] = useState(false);
   const [regNickname, setRegNickname] = useState("");
 
+  // ── โครงการไทยช่วยไทย ──
+  const [hasSubsidy, setHasSubsidy] = useState(false);
+
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [historyTrigger, setHistoryTrigger] = useState(0);
@@ -473,6 +476,7 @@ const updateProduct = useCallback(async (id, fields) => {
         orderType: isDelivery ? "delivery" : orderType,
         tableNumber: (!isDelivery && orderType === "dine_in") ? (tableNumber.trim() || null) : null,
         customerType: memberPhone ? null : (customerType || null),
+        hasSubsidy: hasSubsidy || false,
       });
       setOrders(prev => [saved, ...prev]);
 
@@ -499,12 +503,13 @@ const updateProduct = useCallback(async (id, fields) => {
       setOrderType("dine_in");
       setTableNumber("");
       setDeliveryRefMap({ grab: "", lineman: "", shopee: "" });
+      setHasSubsidy(false);
       clearMember();
       showToast(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "✨ ชำระเงินเรียบร้อยครับ");
     } catch (err) {
       showToast("❌ บันทึกออเดอร์ไม่ได้ กรุณาลองใหม่", "error");
     }
-  }, [cart, total, discountTotal, discounts, memberInfo, priceChannel, deliveryRef, memberPhone, orderType, tableNumber, clearMember, showToast]);
+  }, [cart, total, discountTotal, discounts, memberInfo, priceChannel, deliveryRef, memberPhone, orderType, tableNumber, clearMember, showToast, hasSubsidy]);
 
   const handleUpdateActual = async (orderId, value) => {
     const amount = parseFloat(value) || 0;
@@ -597,6 +602,7 @@ const updateProduct = useCallback(async (id, fields) => {
     onSavePending: handleSavePending,
     onRestorePending: handleRestorePending,
     onDeletePending: handleDeletePending,
+    hasSubsidy, setHasSubsidy,
   };
 
   const handleSettleOrder = async (order, payment, actual) => {
