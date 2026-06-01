@@ -222,6 +222,7 @@ const supabaseDriver = {
       order_type: order.orderType || null,
       table_number: order.tableNumber || null,
       customer_type: order.customerType || null,
+      has_subsidy: order.hasSubsidy || false,
     }).select().single();
     if (error) throw error;
 
