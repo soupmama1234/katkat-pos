@@ -35,6 +35,8 @@ export default function MobilePOS({
   showToast, showConfirm,
   // pending
   pendingOrders = [], onSavePending, onRestorePending, onDeletePending,
+  // โครงการไทยช่วยไทย
+  hasSubsidy = false, setHasSubsidy,
 }) {
   const [showCart, setShowCart]           = useState(false);
   const [showRedeem, setShowRedeem]       = useState(false);
@@ -291,6 +293,25 @@ export default function MobilePOS({
               </div>
             )}
             {/* checkout buttons */}
+            {!isDelivery && (
+              <div style={{ marginBottom: 12 }}>
+                <button
+                  onClick={() => setHasSubsidy?.(v => !v)}
+                  style={{
+                    width: "100%", padding: "10px 14px", borderRadius: 10,
+                    border: hasSubsidy ? "2px solid #00b14f" : "1px solid #444",
+                    background: hasSubsidy ? "rgba(0,177,79,0.15)" : "#222",
+                    color: hasSubsidy ? "#00b14f" : "#888",
+                    fontWeight: hasSubsidy ? 700 : 400,
+                    cursor: "pointer", fontSize: 13, textAlign: "left",
+                    display: "flex", alignItems: "center", gap: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 18 }}>{hasSubsidy ? "✅" : "⬜"}</span>
+                  ใช้สิทธิ์ไทยช่วยไทย (60/40)
+                </button>
+              </div>
+            )}
             <div style={{ display: "grid", gridTemplateColumns: !isDelivery ? "1fr 1fr" : "1fr", gap: 12 }}>
               {!isDelivery ? (
                 <>
