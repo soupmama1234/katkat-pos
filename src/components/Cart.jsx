@@ -30,8 +30,9 @@ export default function Cart({
   showToast, showConfirm,
   // pending
   pendingOrders = [], onSavePending, onRestorePending, onDeletePending,
-  // โครงการไทยช่วยไทย
+  // โครงการรัฐ
   hasSubsidy = false, setHasSubsidy,
+  subsidyConfig = { enabled: false, label: "ไทยช่วยไทย", channels: [] },
 }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -243,7 +244,7 @@ export default function Cart({
               </div>
             )}
 
-            {!isDelivery && (
+            {subsidyConfig.enabled && subsidyConfig.channels.includes(priceChannel) && (
               <div style={{ marginBottom: 14 }}>
                 <button
                   onClick={() => setHasSubsidy?.(v => !v)}
@@ -258,7 +259,7 @@ export default function Cart({
                   }}
                 >
                   <span style={{ fontSize: 18 }}>{hasSubsidy ? "✅" : "⬜"}</span>
-                  ใช้สิทธิ์โครงการไทยช่วยไทย (60/40)
+                  ใช้สิทธิ์{subsidyConfig.label} (60/40)
                 </button>
               </div>
             )}
