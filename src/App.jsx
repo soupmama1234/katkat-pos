@@ -19,6 +19,7 @@ import { getSession, logout, can } from "./utils/auth";
 import LoginScreen from "./components/LoginScreen";
 import CustomerOrder from "./components/CustomerOrder";
 import StaffManager from "./components/StaffManager";
+import SubsidySettings from "./components/SubsidySettings";
 
 
 // ── New Order Alert ───────────────────────────────────────────
@@ -107,6 +108,11 @@ function App() {
 
   // ── โครงการไทยช่วยไทย ──
   const [hasSubsidy, setHasSubsidy] = useState(false);
+  const [subsidyConfig, setSubsidyConfig] = useState({
+    enabled: false,
+    label: "ไทยช่วยไทย",
+    channels: ["pos", "grab", "lineman", "shopee"],
+  });
 
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -165,6 +171,10 @@ function App() {
         setModifierGroups(mods);
         setOrders(ords);
         setMembers(mems);
+
+        // โหลด subsidy config
+        const subsidyCfg = await db.fetchSettings("subsidy");
+        if (subsidyCfg) setSubsidyConfig(subsidyCfg);
       } catch (err) {
         showToast("❌ โหลดข้อมูลไม่ได้ กรุณา refresh", "error");
       } finally {
@@ -603,6 +613,7 @@ const updateProduct = useCallback(async (id, fields) => {
     onRestorePending: handleRestorePending,
     onDeletePending: handleDeletePending,
     hasSubsidy, setHasSubsidy,
+    subsidyConfig,
   };
 
   const handleSettleOrder = async (order, payment, actual) => {
@@ -703,6 +714,13 @@ const updateProduct = useCallback(async (id, fields) => {
             )}
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
             {view === "staff" && <StaffManager session={session} />}
+            {view === "settings" && (
+              <SubsidySettings
+                subsidyConfig={subsidyConfig}
+                onSave={setSubsidyConfig}
+                showToast={showToast}
+              />
+            )}
           </main>
 
           {showMoreMenu && (
@@ -723,6 +741,11 @@ const updateProduct = useCallback(async (id, fields) => {
                 {can(session.role, "staff_manager") && (
                   <button onClick={() => { setView("staff"); setShowMoreMenu(false); }} style={styles.drawerBtn(view === "staff")}>
                     <span style={styles.drawerIcon}>👤</span> Staff
+                  </button>
+                )}
+                {can(session.role, "staff_manager") && (
+                  <button onClick={() => { setView("settings"); setShowMoreMenu(false); }} style={styles.drawerBtn(view === "settings")}>
+                    <span style={styles.drawerIcon}>⚙️</span> ตั้งค่า
                   </button>
                 )}
                 <button onClick={() => { handleLogout(); setShowMoreMenu(false); }} style={{ ...styles.drawerBtn(false), color: "#FF453A" }}>
@@ -750,9 +773,9 @@ const updateProduct = useCallback(async (id, fields) => {
             )}
             <button
               onClick={() => setShowMoreMenu(p => !p)}
-              style={{ ...styles.navBtn(showMoreMenu || ["members","menu","staff"].includes(view)), position: "relative" }}>
+              style={{ ...styles.navBtn(showMoreMenu || ["members","menu","staff","settings"].includes(view)), position: "relative" }}>
               <span>⋯</span>
-              {["members","menu","staff"].includes(view) && <span style={{ position: "absolute", top: 0, right: 8, width: 6, height: 6, background: "#FF9F0A", borderRadius: 99 }} />}
+              {["members","menu","staff","settings"].includes(view) && <span style={{ position: "absolute", top: 0, right: 8, width: 6, height: 6, background: "#FF9F0A", borderRadius: 99 }} />}
               เพิ่มเติม
             </button>
           </nav>
@@ -779,9 +802,9 @@ const updateProduct = useCallback(async (id, fields) => {
               <div style={{ position: "relative" }}>
                 <button
                   onClick={() => setShowMoreMenu(p => !p)}
-                  style={{ ...styles.desktopNavBtn(showMoreMenu || ["members","menu","staff"].includes(view)), display: "flex", alignItems: "center", gap: 6 }}>
+                  style={{ ...styles.desktopNavBtn(showMoreMenu || ["members","menu","staff","settings"].includes(view)), display: "flex", alignItems: "center", gap: 6 }}>
                   ☰ จัดการ
-                  {["members","menu","staff"].includes(view) && <span style={{ width: 6, height: 6, background: "#FF9F0A", borderRadius: 99, display: "inline-block" }} />}
+                  {["members","menu","staff","settings"].includes(view) && <span style={{ width: 6, height: 6, background: "#FF9F0A", borderRadius: 99, display: "inline-block" }} />}
                 </button>
                 {showMoreMenu && (
                   <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: "#1a1a1a", border: "1px solid #333", borderRadius: 14, padding: "8px", minWidth: 180, zIndex: 2000, boxShadow: "0 8px 30px rgba(0,0,0,0.5)" }}
@@ -794,6 +817,9 @@ const updateProduct = useCallback(async (id, fields) => {
                     )}
                     {can(session.role, "staff_manager") && (
                       <button onClick={() => setView("staff")} style={styles.dropdownBtn(view === "staff")}>👤 Staff</button>
+                    )}
+                    {can(session.role, "staff_manager") && (
+                      <button onClick={() => setView("settings")} style={styles.dropdownBtn(view === "settings")}>⚙️ ตั้งค่า</button>
                     )}
                     <div style={{ borderTop: "1px solid #2a2a2a", margin: "6px 0" }} />
                     <button onClick={handleLogout} style={{ ...styles.dropdownBtn(false), color: "#FF453A" }}>🚪 ออกจากระบบ</button>
@@ -854,6 +880,15 @@ const updateProduct = useCallback(async (id, fields) => {
             {view === "staff" && (
               <div style={{ flex: 1, overflowY: "auto" }}>
                 <StaffManager session={session} />
+              </div>
+            )}
+            {view === "settings" && (
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                <SubsidySettings
+                  subsidyConfig={subsidyConfig}
+                  onSave={setSubsidyConfig}
+                  showToast={showToast}
+                />
               </div>
             )}
           </main>

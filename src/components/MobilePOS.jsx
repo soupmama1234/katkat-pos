@@ -35,8 +35,9 @@ export default function MobilePOS({
   showToast, showConfirm,
   // pending
   pendingOrders = [], onSavePending, onRestorePending, onDeletePending,
-  // โครงการไทยช่วยไทย
+  // โครงการรัฐ
   hasSubsidy = false, setHasSubsidy,
+  subsidyConfig = { enabled: false, label: "ไทยช่วยไทย", channels: [] },
 }) {
   const [showCart, setShowCart]           = useState(false);
   const [showRedeem, setShowRedeem]       = useState(false);
@@ -293,7 +294,7 @@ export default function MobilePOS({
               </div>
             )}
             {/* checkout buttons */}
-            {!isDelivery && (
+            {subsidyConfig.enabled && subsidyConfig.channels.includes(priceChannel) && (
               <div style={{ marginBottom: 12 }}>
                 <button
                   onClick={() => setHasSubsidy?.(v => !v)}
@@ -308,7 +309,7 @@ export default function MobilePOS({
                   }}
                 >
                   <span style={{ fontSize: 18 }}>{hasSubsidy ? "✅" : "⬜"}</span>
-                  ใช้สิทธิ์ไทยช่วยไทย (60/40)
+                  ใช้สิทธิ์{subsidyConfig.label} (60/40)
                 </button>
               </div>
             )}
