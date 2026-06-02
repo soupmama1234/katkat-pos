@@ -359,6 +359,19 @@ const supabaseDriver = {
     await Promise.all(updates);
     return members.length;
   },
+
+  // SETTINGS
+  async fetchSettings(key) {
+    const sb = getSupabase();
+    const { data, error } = await sb.from("settings").select("value").eq("key", key).single();
+    if (error) return null;
+    return data?.value ?? null;
+  },
+  async updateSettings(key, value) {
+    const sb = getSupabase();
+    const { error } = await sb.from("settings").update({ value }).eq("key", key);
+    if (error) throw error;
+  },
 };
 
 // =============================================
@@ -479,6 +492,14 @@ const localDriver = {
   async updateMember(phone, fields) {
     const mems = ls.get("katkat_members", []);
     ls.set("katkat_members", mems.map(m => m.phone === phone ? { ...m, ...fields } : m));
+  },
+
+  // SETTINGS (localStorage fallback)
+  async fetchSettings(key) {
+    return ls.get(`katkat_settings_${key}`, null);
+  },
+  async updateSettings(key, value) {
+    ls.set(`katkat_settings_${key}`, value);
   },
 };
 
