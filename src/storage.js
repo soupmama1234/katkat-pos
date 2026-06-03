@@ -369,7 +369,7 @@ const supabaseDriver = {
   },
   async updateSettings(key, value) {
     const sb = getSupabase();
-    const { error } = await sb.from("settings").update({ value }).eq("key", key);
+    const { error } = await sb.from("settings").upsert({ key, value });
     if (error) throw error;
   },
 };
