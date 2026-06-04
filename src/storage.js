@@ -91,6 +91,7 @@ function dbToOrder(row, items = []) {
     tableNumber: row.table_number || null,
     status: row.status || 'settled',
     note: row.note || null,
+    has_subsidy: row.has_subsidy || false,  
   };
 }
 
