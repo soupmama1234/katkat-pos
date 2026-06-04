@@ -1,3 +1,5 @@
+// Dashboard.jsx
+
 import React, { useMemo } from "react";
 
 export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActual }) {
@@ -49,31 +51,37 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
   };
 
   const stats = useMemo(() => {
-    let totalSales = 0, cashTotal = 0, promptPayTotal = 0, actualIncome = 0;
-    // แยก cash/transfer แต่ละ channel
+    let totalSales = 0, cashTotal = 0, promptPayTotal = 0, actualIncome = 0, subsidyTotal = 0;
     const channelMap = {};
 
     orders.forEach(o => {
       totalSales += o.total;
       actualIncome += (o.actualAmount || 0);
 
+      if (o.has_subsidy || o.hasSubsidy) {
+        subsidyTotal += (o.actualAmount || 0);
+      }
+
       if (!channelMap[o.channel]) {
-        channelMap[o.channel] = { total: 0, actual: 0, cash: 0, transfer: 0 };
+        channelMap[o.channel] = { total: 0, actual: 0, cash: 0, transfer: 0, subsidy: 0 };
       }
       channelMap[o.channel].total += o.total;
       channelMap[o.channel].actual += (o.actualAmount || 0);
+
+      if (o.has_subsidy || o.hasSubsidy) {
+        channelMap[o.channel].subsidy += (o.actualAmount || 0);
+      }
 
       if (o.payment === "cash") {
         cashTotal += (o.actualAmount || 0);
         channelMap[o.channel].cash += (o.actualAmount || 0);
       } else {
-        // promptpay / transfer ทั้งหมด
         promptPayTotal += (o.actualAmount || 0);
         channelMap[o.channel].transfer += (o.actualAmount || 0);
       }
     });
 
-    return { totalSales, cashTotal, promptPayTotal, actualIncome, channelMap, orderCount: orders.length };
+    return { totalSales, cashTotal, promptPayTotal, actualIncome, subsidyTotal, channelMap, orderCount: orders.length };
   }, [orders]);
 
   const formatTime = (timeStr) => {
@@ -93,7 +101,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
     <div style={{ padding: "16px", color: "#fff", backgroundColor: "#121212", minHeight: "100vh", width: "100%", boxSizing: "border-box", flex: 1 }}>
 
       {/* Header */}
-      <div style={{ marginBottom: "16px", maxWidth: "1200px", margin: "0 auto 16px auto" }}>
+      <div style={{ maxWidth: "1200px", margin: "0 auto 16px auto" }}>
         <h2 style={{ margin: "0 0 2px 0", fontSize: "20px" }}>LIVE DASHBOARD</h2>
         <p style={{ color: "#666", margin: "0 0 12px 0", fontSize: "12px" }}>{todayStr}</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", maxWidth: "400px" }}>
@@ -107,26 +115,56 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
       </div>
 
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        {/* Stats Grid */}
-        <div style={s.statsGrid}>
-          <div style={{ ...s.card, borderTop: "3px solid #ff9800" }}>
-            <div style={s.cardLabel}>ออเดอร์วันนี้</div>
-            <div style={{ ...s.cardValue, color: "#ff9800" }}>
+
+        {/* แถวบน — 3 card ใหญ่ */}
+        <div style={s.statsGridTop}>
+          <div style={{ ...s.cardBig, borderTop: "3px solid #ff9800" }}>
+            <div style={s.cardLabel}>💰 ยอดรับจริง</div>
+            <div style={{ ...s.cardValueBig, color: "#ff9800" }}>
+              ฿{stats.actualIncome.toLocaleString()}
+            </div>
+            <div style={s.cardSub}>จาก {stats.orderCount} บิล</div>
+          </div>
+
+          <div style={{ ...s.cardBig, borderTop: "3px solid #fff" }}>
+            <div style={s.cardLabel}>🧾 ออเดอร์วันนี้</div>
+            <div style={{ ...s.cardValueBig, color: "#fff" }}>
               {stats.orderCount}
-              <span style={{ fontSize: "13px", fontWeight: "normal" }}> บิล</span>
+              <span style={{ fontSize: "16px", fontWeight: "normal", marginLeft: "4px" }}>บิล</span>
+            </div>
+            <div style={s.cardSub}>เมนู ฿{stats.totalSales.toLocaleString()}</div>
+          </div>
+
+          <div style={{
+            ...s.cardBig,
+            borderTop: `3px solid ${stats.subsidyTotal > 0 ? "#32D74B" : "#2a2a2a"}`,
+            opacity: stats.subsidyTotal > 0 ? 1 : 0.45,
+          }}>
+            <div style={s.cardLabel}>🏛️ ยอดสิทธิ์รัฐ</div>
+            <div style={{ ...s.cardValueBig, color: "#32D74B" }}>
+              {stats.subsidyTotal > 0 ? `฿${stats.subsidyTotal.toLocaleString()}` : "—"}
+            </div>
+            <div style={s.cardSub}>
+              {stats.subsidyTotal > 0
+                ? `${Math.round(stats.subsidyTotal / stats.actualIncome * 100)}% ของยอดรวม`
+                : "ยังไม่มีการใช้สิทธิ์"}
             </div>
           </div>
-          <div style={s.card}>
-            <div style={s.cardLabel}>ยอดรวม</div>
-            <div style={{ ...s.cardValue, fontSize: "20px" }}>฿{stats.totalSales.toLocaleString()}</div>
+        </div>
+
+        {/* แถวล่าง — 3 card เล็ก */}
+        <div style={s.statsGridBottom}>
+          <div style={{ ...s.cardSmall, borderTop: "2px solid #4caf50" }}>
+            <div style={s.cardLabelSm}>💵 เงินสด</div>
+            <div style={{ ...s.cardValueSm, color: "#4caf50" }}>฿{stats.cashTotal.toLocaleString()}</div>
           </div>
-          <div style={{ ...s.card, borderTop: "3px solid #4caf50" }}>
-            <div style={s.cardLabel}>💵 เงินสด</div>
-            <div style={{ ...s.cardValue, color: "#4caf50", fontSize: "20px" }}>฿{stats.cashTotal.toLocaleString()}</div>
+          <div style={{ ...s.cardSmall, borderTop: "2px solid #2196f3" }}>
+            <div style={s.cardLabelSm}>📱 โอน/App</div>
+            <div style={{ ...s.cardValueSm, color: "#2196f3" }}>฿{stats.promptPayTotal.toLocaleString()}</div>
           </div>
-          <div style={{ ...s.card, borderTop: "3px solid #2196f3" }}>
-            <div style={s.cardLabel}>📱 โอน/App</div>
-            <div style={{ ...s.cardValue, color: "#2196f3", fontSize: "20px" }}>฿{stats.promptPayTotal.toLocaleString()}</div>
+          <div style={{ ...s.cardSmall, borderTop: "2px solid #555" }}>
+            <div style={s.cardLabelSm}>📊 ยอดหน้าเมนู</div>
+            <div style={{ ...s.cardValueSm, color: "#888" }}>฿{stats.totalSales.toLocaleString()}</div>
           </div>
         </div>
 
@@ -143,13 +181,20 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5px" }}>
                       <div>
                         <span style={{ color, fontWeight: "bold", fontSize: "14px" }}>{ch.toUpperCase()}</span>
-                        {ch === "pos" && (
-                          <div style={{ display: "flex", gap: "10px", marginTop: "3px" }}>
-                            {data.cash > 0 && <span style={{ fontSize: "11px", color: "#4caf50" }}>💵 ฿{data.cash.toLocaleString()}</span>}
-                            {data.transfer > 0 && <span style={{ fontSize: "11px", color: "#2196f3" }}>📱 ฿{data.transfer.toLocaleString()}</span>}
-                            {data.cash === 0 && data.transfer === 0 && <span style={{ fontSize: "11px", color: "#444" }}>ยังไม่มียอด</span>}
-                          </div>
-                        )}
+                        <div style={{ display: "flex", gap: "10px", marginTop: "3px", flexWrap: "wrap" }}>
+                          {data.cash > 0 && (
+                            <span style={{ fontSize: "11px", color: "#4caf50" }}>💵 ฿{data.cash.toLocaleString()}</span>
+                          )}
+                          {data.transfer > 0 && (
+                            <span style={{ fontSize: "11px", color: "#2196f3" }}>📱 ฿{data.transfer.toLocaleString()}</span>
+                          )}
+                          {data.subsidy > 0 && (
+                            <span style={{ fontSize: "11px", color: "#32D74B" }}>🏛️ ฿{data.subsidy.toLocaleString()}</span>
+                          )}
+                          {data.cash === 0 && data.transfer === 0 && data.subsidy === 0 && (
+                            <span style={{ fontSize: "11px", color: "#444" }}>ยังไม่มียอด</span>
+                          )}
+                        </div>
                       </div>
                       <span style={{ fontSize: "14px" }}>฿{data.actual.toLocaleString()}</span>
                     </div>
@@ -200,8 +245,41 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
 }
 
 const s = {
-  statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "10px", marginBottom: "16px" },
-  card: { backgroundColor: "#1a1a1a", padding: "14px", borderRadius: "12px", border: "1px solid #2a2a2a", minWidth: 0 },
+  // แถวบน — 3 card ใหญ่
+  statsGridTop: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "10px",
+    marginBottom: "8px",
+  },
+  cardBig: {
+    backgroundColor: "#1a1a1a",
+    padding: "16px 14px",
+    borderRadius: "12px",
+    border: "1px solid #2a2a2a",
+    minWidth: 0,
+  },
+  cardValueBig: { fontSize: "22px", fontWeight: "bold", lineHeight: 1.2, marginBottom: "4px" },
+  cardSub: { fontSize: "11px", color: "#555", marginTop: "2px" },
+
+  // แถวล่าง — 3 card เล็ก
+  statsGridBottom: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "10px",
+    marginBottom: "16px",
+  },
+  cardSmall: {
+    backgroundColor: "#141414",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    border: "1px solid #222",
+    minWidth: 0,
+  },
+  cardLabelSm: { color: "#666", fontSize: "11px", marginBottom: "4px" },
+  cardValueSm: { fontSize: "16px", fontWeight: "bold" },
+
+  // shared
   cardLabel: { color: "#888", fontSize: "12px", marginBottom: "6px" },
   cardValue: { fontSize: "24px", fontWeight: "bold", lineHeight: 1.2 },
   panel: { backgroundColor: "#1a1a1a", padding: "16px", borderRadius: "12px", border: "1px solid #2a2a2a", marginBottom: "16px" },
