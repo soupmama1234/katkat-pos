@@ -1,6 +1,13 @@
-// Dashboard.jsx
-
 import React, { useMemo } from "react";
+
+// fit font size ตามความยาวตัวเลข
+const fitFontSize = (value, baseSize = 22) => {
+  const len = String(value).replace(/[฿,]/g, "").length;
+  if (len <= 5) return baseSize;
+  if (len <= 6) return Math.round(baseSize * 0.85);
+  if (len <= 8) return Math.round(baseSize * 0.72);
+  return Math.round(baseSize * 0.6);
+};
 
 export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActual }) {
 
@@ -120,7 +127,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
         <div style={s.statsGridTop}>
           <div style={{ ...s.cardBig, borderTop: "3px solid #ff9800" }}>
             <div style={s.cardLabel}>💰 ยอดรับจริง</div>
-            <div style={{ ...s.cardValueBig, color: "#ff9800" }}>
+            <div style={{ ...s.cardValueBig, color: "#ff9800", fontSize: fitFontSize(stats.actualIncome) }}>
               ฿{stats.actualIncome.toLocaleString()}
             </div>
             <div style={s.cardSub}>จาก {stats.orderCount} บิล</div>
@@ -128,9 +135,9 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
 
           <div style={{ ...s.cardBig, borderTop: "3px solid #fff" }}>
             <div style={s.cardLabel}>🧾 ออเดอร์วันนี้</div>
-            <div style={{ ...s.cardValueBig, color: "#fff" }}>
+            <div style={{ ...s.cardValueBig, color: "#fff", fontSize: fitFontSize(stats.orderCount) }}>
               {stats.orderCount}
-              <span style={{ fontSize: "16px", fontWeight: "normal", marginLeft: "4px" }}>บิล</span>
+              <span style={{ fontSize: "13px", fontWeight: "normal", marginLeft: "4px" }}>บิล</span>
             </div>
             <div style={s.cardSub}>เมนู ฿{stats.totalSales.toLocaleString()}</div>
           </div>
@@ -141,7 +148,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
             opacity: stats.subsidyTotal > 0 ? 1 : 0.45,
           }}>
             <div style={s.cardLabel}>🏛️ ยอดสิทธิ์รัฐ</div>
-            <div style={{ ...s.cardValueBig, color: "#32D74B" }}>
+            <div style={{ ...s.cardValueBig, color: "#32D74B", fontSize: fitFontSize(stats.subsidyTotal) }}>
               {stats.subsidyTotal > 0 ? `฿${stats.subsidyTotal.toLocaleString()}` : "—"}
             </div>
             <div style={s.cardSub}>
@@ -156,15 +163,21 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
         <div style={s.statsGridBottom}>
           <div style={{ ...s.cardSmall, borderTop: "2px solid #4caf50" }}>
             <div style={s.cardLabelSm}>💵 เงินสด</div>
-            <div style={{ ...s.cardValueSm, color: "#4caf50" }}>฿{stats.cashTotal.toLocaleString()}</div>
+            <div style={{ ...s.cardValueSm, color: "#4caf50", fontSize: fitFontSize(stats.cashTotal, 16) }}>
+              ฿{stats.cashTotal.toLocaleString()}
+            </div>
           </div>
           <div style={{ ...s.cardSmall, borderTop: "2px solid #2196f3" }}>
             <div style={s.cardLabelSm}>📱 โอน/App</div>
-            <div style={{ ...s.cardValueSm, color: "#2196f3" }}>฿{stats.promptPayTotal.toLocaleString()}</div>
+            <div style={{ ...s.cardValueSm, color: "#2196f3", fontSize: fitFontSize(stats.promptPayTotal, 16) }}>
+              ฿{stats.promptPayTotal.toLocaleString()}
+            </div>
           </div>
           <div style={{ ...s.cardSmall, borderTop: "2px solid #555" }}>
             <div style={s.cardLabelSm}>📊 ยอดหน้าเมนู</div>
-            <div style={{ ...s.cardValueSm, color: "#888" }}>฿{stats.totalSales.toLocaleString()}</div>
+            <div style={{ ...s.cardValueSm, color: "#888", fontSize: fitFontSize(stats.totalSales, 16) }}>
+              ฿{stats.totalSales.toLocaleString()}
+            </div>
           </div>
         </div>
 
@@ -245,7 +258,6 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
 }
 
 const s = {
-  // แถวบน — 3 card ใหญ่
   statsGridTop: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
@@ -254,15 +266,22 @@ const s = {
   },
   cardBig: {
     backgroundColor: "#1a1a1a",
-    padding: "16px 14px",
+    padding: "16px 12px",
     borderRadius: "12px",
     border: "1px solid #2a2a2a",
     minWidth: 0,
+    overflow: "hidden",
   },
-  cardValueBig: { fontSize: "22px", fontWeight: "bold", lineHeight: 1.2, marginBottom: "4px" },
+  cardValueBig: {
+    fontWeight: "bold",
+    lineHeight: 1.2,
+    marginBottom: "4px",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
   cardSub: { fontSize: "11px", color: "#555", marginTop: "2px" },
 
-  // แถวล่าง — 3 card เล็ก
   statsGridBottom: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
@@ -275,13 +294,17 @@ const s = {
     borderRadius: "10px",
     border: "1px solid #222",
     minWidth: 0,
+    overflow: "hidden",
   },
   cardLabelSm: { color: "#666", fontSize: "11px", marginBottom: "4px" },
-  cardValueSm: { fontSize: "16px", fontWeight: "bold" },
+  cardValueSm: {
+    fontWeight: "bold",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
 
-  // shared
   cardLabel: { color: "#888", fontSize: "12px", marginBottom: "6px" },
-  cardValue: { fontSize: "24px", fontWeight: "bold", lineHeight: 1.2 },
   panel: { backgroundColor: "#1a1a1a", padding: "16px", borderRadius: "12px", border: "1px solid #2a2a2a", marginBottom: "16px" },
   panelTitle: { fontSize: "13px", color: "#888", marginBottom: "16px" },
   barBg: { width: "100%", height: "8px", backgroundColor: "#000", borderRadius: "4px", overflow: "hidden" },
