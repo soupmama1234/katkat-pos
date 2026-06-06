@@ -53,11 +53,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
     🧾 {order.channel?.toUpperCase()} {order.refId}
   </span>
 )}
-        {order.refId && (
-  <span style={{ background: "#333", color: "#aaa", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700 }}>
-    🧾 {order.channel?.toUpperCase()} {order.refId}
-  </span>
-)}
         {/* Items summary */}
         <div style={{ background: "#1e1e1e", borderRadius: 12, padding: "10px 14px", marginBottom: 16 }}>
           {order.items.map((item, i) => (
@@ -408,6 +403,11 @@ export default function Orders({ orders = [], pendingOrders = [], acceptedOrders
     🧾 {order.channel?.toUpperCase()} {order.refId}
   </span>
 )}
+                          {order.hasSubsidy && (
+                            <span style={{ background: "rgba(0,177,79,0.15)", color: "#00b14f", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: "bold", border: "1px solid rgba(0,177,79,0.3)" }}>
+                              🏛️ ไทยช่วยไทย
+                            </span>
+                          )}
                         </div>
                         <span style={styles.time}>🕐 {new Date(order.time).toLocaleString("th-TH", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} น.</span>
                       </div>
