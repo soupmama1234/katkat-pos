@@ -24,7 +24,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
 
   const exportToCSV = (data, fileName) => {
     if (!data || data.length === 0) return alert("ไม่มีข้อมูลให้ Export ครับ");
-    const headers = ["วันที่/เวลา", "เลขอ้างอิง", "ช่องทาง", "รายการสินค้า", "ยอดรวมเมนู", "ยอดรับจริง", "ประเภทชำระเงิน", "Subsidy"];
+    const headers = ["วันที่/เวลา", "เลขอ้างอิง", "ช่องทาง", "รายการสินค้า", "ยอดรวมเมนู", "ยอดรับจริง", "ประเภทชำระเงิน"];
     const rows = data.map(o => {
       const itemsSummary = o.items.map(i => `${i.name}x${i.qty}`).join(" | ");
       return [
@@ -34,8 +34,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
         `"${itemsSummary}"`,
         o.total,
         o.actualAmount || 0,
-        o.payment === "cash" ? "เงินสด" : "โอน/App",
-        o.has_subsidy ? "ใช้สิทธิ์" : "-",
+        o.payment === "cash" ? "เงินสด" : "โอน/App"
       ];
     });
     const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(",")).join("\n");
@@ -50,7 +49,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
   };
 
   const stats = useMemo(() => {
-    let totalSales = 0, cashTotal = 0, transferTotal = 0, subsidyTotal = 0, actualIncome = 0;
+    let totalSales = 0, cashTotal = 0, promptPayTotal = 0, actualIncome = 0;
     const channelMap = {};
 
     orders.forEach(o => {
@@ -68,26 +67,17 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
         cashTotal += amount;
         channelMap[o.channel].cash += amount;
       } else {
-        // โอน/App — แยก subsidy ออก
+        promptPayTotal += amount;
+        // แยก subsidy vs โอนธรรมดา ใน channel breakdown
         if (o.has_subsidy) {
-          subsidyTotal += amount;
           channelMap[o.channel].subsidy += amount;
         } else {
-          transferTotal += amount;
           channelMap[o.channel].transfer += amount;
         }
       }
     });
 
-    return {
-      totalSales,
-      cashTotal,
-      transferTotal,
-      subsidyTotal,
-      actualIncome,
-      channelMap,
-      orderCount: orders.length,
-    };
+    return { totalSales, cashTotal, promptPayTotal, actualIncome, channelMap, orderCount: orders.length };
   }, [orders]);
 
   const formatTime = (timeStr) => {
@@ -121,7 +111,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
       </div>
 
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        {/* Stats Grid — row บน: 3 การ์ดหลัก, row ล่าง: 3 ย่อย */}
+        {/* Stats Grid — เหมือนเดิม */}
         <div style={s.statsGrid}>
           <div style={{ ...s.card, borderTop: "3px solid #ff9800" }}>
             <div style={s.cardLabel}>ออเดอร์วันนี้</div>
@@ -139,19 +129,8 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
             <div style={{ ...s.cardValue, color: "#4caf50", fontSize: "20px" }}>฿{stats.cashTotal.toLocaleString()}</div>
           </div>
           <div style={{ ...s.card, borderTop: "3px solid #2196f3" }}>
-            <div style={s.cardLabel}>📱 โอนธรรมดา</div>
-            <div style={{ ...s.cardValue, color: "#2196f3", fontSize: "20px" }}>฿{stats.transferTotal.toLocaleString()}</div>
-          </div>
-          <div style={{ ...s.card, borderTop: "3px solid #00b14f" }}>
-            <div style={s.cardLabel}>🇹🇭 Subsidy</div>
-            <div style={{ ...s.cardValue, color: "#00b14f", fontSize: "20px" }}>฿{stats.subsidyTotal.toLocaleString()}</div>
-          </div>
-          {/* การ์ดรวมโอน (โอนธรรมดา + subsidy) เพื่อ reconcile */}
-          <div style={s.card}>
-            <div style={s.cardLabel}>💳 โอนรวม</div>
-            <div style={{ ...s.cardValue, fontSize: "18px", color: "#90caf9" }}>
-              ฿{(stats.transferTotal + stats.subsidyTotal).toLocaleString()}
-            </div>
+            <div style={s.cardLabel}>📱 โอน/App</div>
+            <div style={{ ...s.cardValue, color: "#2196f3", fontSize: "20px" }}>฿{stats.promptPayTotal.toLocaleString()}</div>
           </div>
         </div>
 
@@ -163,6 +142,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
               {Object.entries(stats.channelMap).map(([ch, data]) => {
                 const color = getChannelColor(ch);
                 const pct = stats.actualIncome > 0 ? (data.actual / stats.actualIncome) * 100 : 0;
+                const hasAny = data.cash > 0 || data.transfer > 0 || data.subsidy > 0;
                 return (
                   <div key={ch} style={{ marginBottom: "18px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5px" }}>
@@ -178,7 +158,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
                           {data.subsidy > 0 && (
                             <span style={{ fontSize: "11px", color: "#00b14f" }}>🇹🇭 ฿{data.subsidy.toLocaleString()}</span>
                           )}
-                          {data.cash === 0 && data.transfer === 0 && data.subsidy === 0 && (
+                          {!hasAny && (
                             <span style={{ fontSize: "11px", color: "#444" }}>ยังไม่มียอด</span>
                           )}
                         </div>
@@ -212,11 +192,6 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
                         {o.channel.toUpperCase()}
                       </span>
                       {o.refId && <span style={s.refBadge}>{o.refId}</span>}
-                      {o.has_subsidy && (
-                        <span style={{ fontSize: "10px", background: "rgba(0,177,79,0.15)", color: "#00b14f", padding: "1px 6px", borderRadius: "4px", border: "1px solid rgba(0,177,79,0.3)" }}>
-                          🇹🇭 Subsidy
-                        </span>
-                      )}
                     </div>
                     <div style={{ color: "#666", fontSize: "11px" }}>
                       {formatTime(o.time)} · ฿{o.total.toLocaleString()}
@@ -237,7 +212,7 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
 }
 
 const s = {
-  statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginBottom: "16px" },
+  statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "10px", marginBottom: "16px" },
   card: { backgroundColor: "#1a1a1a", padding: "14px", borderRadius: "12px", border: "1px solid #2a2a2a", minWidth: 0 },
   cardLabel: { color: "#888", fontSize: "12px", marginBottom: "6px" },
   cardValue: { fontSize: "24px", fontWeight: "bold", lineHeight: 1.2 },
