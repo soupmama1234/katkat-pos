@@ -84,7 +84,10 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
         channelMap[o.channel].cash += (o.actualAmount || 0);
       } else {
         promptPayTotal += (o.actualAmount || 0);
-        channelMap[o.channel].transfer += (o.actualAmount || 0);
+        // แยก subsidy ออกจาก transfer ใน channel breakdown
+        if (!(o.has_subsidy || o.hasSubsidy)) {
+          channelMap[o.channel].transfer += (o.actualAmount || 0);
+        }
       }
     });
 
