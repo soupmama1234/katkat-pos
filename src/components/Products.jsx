@@ -80,6 +80,7 @@ export default function Products({
           onConfirm={p => { addToCart(p); setModProduct(null); }}
           onClose={() => setModProduct(null)}
           variant="dark"
+          priceChannel={priceChannel}
         />
       )}
     </div>
