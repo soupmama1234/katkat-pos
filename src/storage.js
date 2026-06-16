@@ -393,8 +393,7 @@ async addOptionToGroup(groupId, name, price, channelPrices = {}) {
     const { error } = await sb.from("settings").upsert({ key, value });
     if (error) throw error;
   },
-};
-async updateOption(optionId, fields) {
+  async updateOption(optionId, fields) {
   const sb = getSupabase();
   const dbFields = {}
   if (fields.name  !== undefined) dbFields.name         = fields.name
@@ -404,7 +403,9 @@ async updateOption(optionId, fields) {
   if ('shopeePrice'  in fields)   dbFields.shopee_price  = fields.shopeePrice  ?? null
   const { error } = await sb.from("modifier_options").update(dbFields).eq("id", optionId)
   if (error) throw error
-},
+ },
+};
+
 
 
 // =============================================
@@ -460,14 +461,29 @@ const localDriver = {
     const groups = ls.get("katkat_modifiers", []);
     ls.set("katkat_modifiers", groups.filter(g => g.id !== groupId));
   },
-  async addOptionToGroup(groupId, name, price) {
-    const opt = { id: Date.now(), name, price: Number(price) || 0 };
-    const groups = ls.get("katkat_modifiers", []);
-    ls.set("katkat_modifiers", groups.map(g =>
-      g.id === groupId ? { ...g, options: [...(g.options || []), opt] } : g
-    ));
-    return opt;
-  },
+async addOptionToGroup(groupId, name, price, channelPrices = {}) {
+  const opt = {
+    id: Date.now(),
+    name,
+    price: Number(price) || 0,
+    grabPrice: channelPrices.grabPrice ?? null,
+    linemanPrice: channelPrices.linemanPrice ?? null,
+    shopeePrice: channelPrices.shopeePrice ?? null,
+  };
+
+  const groups = ls.get("katkat_modifiers", []);
+
+  ls.set(
+    "katkat_modifiers",
+    groups.map(g =>
+      g.id === groupId
+        ? { ...g, options: [...(g.options || []), opt] }
+        : g
+    )
+  );
+
+  return opt;
+},
   async deleteOption(groupId, optionId) {
     const groups = ls.get("katkat_modifiers", []);
     ls.set("katkat_modifiers", groups.map(g =>
@@ -534,14 +550,23 @@ const localDriver = {
   async updateSettings(key, value) {
     ls.set(`katkat_settings_${key}`, value);
   },
-};
+  
 async updateOption(optionId, fields) {
-  const groups = ls.get("katkat_modifiers", [])
-  ls.set("katkat_modifiers", groups.map(g => ({
-    ...g,
-    options: g.options.map(o => o.id === optionId ? { ...o, ...fields } : o)
-  })))
-},
+    const groups = ls.get("katkat_modifiers", []);
+
+    ls.set(
+      "katkat_modifiers",
+      groups.map(g => ({
+        ...g,
+        options: (g.options || []).map(o =>
+          o.id === optionId
+            ? { ...o, ...fields }
+            : o
+        )
+      }))
+    );
+  },
+};
 
 // =============================================
 // EXPORT — ใช้ driver ที่เหมาะสมอัตโนมัติ
