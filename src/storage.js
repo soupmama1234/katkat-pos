@@ -52,6 +52,17 @@ function dbToProduct(row) {
   };
 }
 
+function dbToOption(o) {
+  return {
+    id:           o.id,
+    name:         o.name,
+    price:        o.price,
+    grabPrice:    o.grab_price    ?? null,
+    linemanPrice: o.lineman_price ?? null,
+    shopeePrice:  o.shopee_price  ?? null,
+  }
+}
+
 function productToDb(p) {
   return {
     name: p.name,
@@ -168,7 +179,7 @@ const supabaseDriver = {
     return groups.map(g => ({
       id: g.id,
       name: g.name,
-      options: options.filter(o => o.group_id === g.id).map(o => ({ id: o.id, name: o.name, price: o.price })),
+      options: (options || []).filter(o => o.group_id === g.id).map(dbToOption),
     }));
   },
   async addModifierGroup(name) {
@@ -182,12 +193,21 @@ const supabaseDriver = {
     const { error } = await sb.from("modifier_groups").delete().eq("id", groupId);
     if (error) throw error;
   },
-  async addOptionToGroup(groupId, name, price) {
-    const sb = getSupabase();
-    const { data, error } = await sb.from("modifier_options").insert({ group_id: groupId, name, price: Number(price) || 0 }).select().single();
-    if (error) throw error;
-    return { id: data.id, name: data.name, price: data.price };
-  },
+  
+async addOptionToGroup(groupId, name, price, channelPrices = {}) {
+  const sb = getSupabase();
+  const { data, error } = await sb.from("modifier_options").insert({
+    group_id:      groupId,
+    name,
+    price:         Number(price) || 0,
+    grab_price:    channelPrices.grabPrice    ?? null,
+    lineman_price: channelPrices.linemanPrice ?? null,
+    shopee_price:  channelPrices.shopeePrice  ?? null,
+  }).select().single();
+  if (error) throw error;
+  return dbToOption(data);
+},
+  
   async deleteOption(groupId, optionId) {
     const sb = getSupabase();
     const { error } = await sb.from("modifier_options").delete().eq("id", optionId);
@@ -374,6 +394,18 @@ const supabaseDriver = {
     if (error) throw error;
   },
 };
+async updateOption(optionId, fields) {
+  const sb = getSupabase();
+  const dbFields = {}
+  if (fields.name  !== undefined) dbFields.name         = fields.name
+  if (fields.price !== undefined) dbFields.price        = Number(fields.price) || 0
+  if ('grabPrice'    in fields)   dbFields.grab_price    = fields.grabPrice    ?? null
+  if ('linemanPrice' in fields)   dbFields.lineman_price = fields.linemanPrice ?? null
+  if ('shopeePrice'  in fields)   dbFields.shopee_price  = fields.shopeePrice  ?? null
+  const { error } = await sb.from("modifier_options").update(dbFields).eq("id", optionId)
+  if (error) throw error
+},
+
 
 // =============================================
 // LOCALSTORAGE DRIVER (dev / offline fallback)
@@ -503,6 +535,13 @@ const localDriver = {
     ls.set(`katkat_settings_${key}`, value);
   },
 };
+async updateOption(optionId, fields) {
+  const groups = ls.get("katkat_modifiers", [])
+  ls.set("katkat_modifiers", groups.map(g => ({
+    ...g,
+    options: g.options.map(o => o.id === optionId ? { ...o, ...fields } : o)
+  })))
+},
 
 // =============================================
 // EXPORT — ใช้ driver ที่เหมาะสมอัตโนมัติ
