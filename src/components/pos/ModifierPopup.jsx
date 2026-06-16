@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { getModifierPriceByChannel } from "../../utils/modifierPrice";
 
 /**
  * ModifierPopup — popup เลือก modifier options
@@ -10,8 +11,9 @@ import { useState, useMemo } from "react";
  *   onConfirm      : (productWithModifier) => void
  *   onClose        : () => void
  *   variant        : "dark" (default) | "light"
+ *   priceChannel   : "pos" | "grab" | "lineman" | "shopee" (default "pos")
  */
-export default function ModifierPopup({ product, modifierGroups = [], onConfirm, onClose, variant = "dark" }) {
+export default function ModifierPopup({ product, modifierGroups = [], onConfirm, onClose, variant = "dark", priceChannel = "pos" }) {
   const [tempSelection, setTempSelection] = useState([]);
 
   const activeGroups = useMemo(() =>
@@ -29,7 +31,7 @@ export default function ModifierPopup({ product, modifierGroups = [], onConfirm,
   };
 
   const handleConfirm = () => {
-    const totalModPrice = tempSelection.reduce((s, m) => s + Number(m.price), 0);
+    const totalModPrice = tempSelection.reduce((s, m) => s + getModifierPriceByChannel(m, priceChannel), 0);
     onConfirm({
       ...product,
       selectedModifier: tempSelection.length > 0 ? {
@@ -89,11 +91,12 @@ export default function ModifierPopup({ product, modifierGroups = [], onConfirm,
                 {(group.options || []).map(opt => {
                   const key = `${group.id}:${opt.id}`;
                   const isSelected = tempSelection.some(s => s.key === key);
+                  const displayPrice = getModifierPriceByChannel(opt, priceChannel);
                   return (
                     <button key={opt.id} onClick={() => toggleModifier(group.id, opt)} style={optBtnStyle(isSelected)}>
                       {opt.name}
-                      {opt.price > 0 && (
-                        <span style={{ color: isSelected ? (isDark ? "#4caf50" : "#fff") : "#4caf50" }}> +฿{opt.price}</span>
+                      {displayPrice > 0 && (
+                        <span style={{ color: isSelected ? (isDark ? "#4caf50" : "#fff") : "#4caf50" }}> +฿{displayPrice}</span>
                       )}
                     </button>
                   );
