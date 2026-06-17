@@ -706,9 +706,10 @@ const updateProduct = useCallback(async (id, fields) => {
                   modifierGroups={modifierGroups}
                   addModifierGroup={async n => { await db.addModifierGroup(n); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
                   deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }}
-                  addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
-                  deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
-                  cleanupUnusedModifierGroups={handleCleanupUnusedModifierGroups}
+                  addOptionToGroup={async (id, n, p, ch) => { await db.addOptionToGroup(id, n, p, ch); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+updateOption={async (oid, fields) => { await db.updateOption(oid, fields); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+cleanupUnusedModifierGroups={handleCleanupUnusedModifierGroups}
                 />
               </div>
             )}
@@ -857,9 +858,10 @@ const updateProduct = useCallback(async (id, fields) => {
                   modifierGroups={modifierGroups}
                   addModifierGroup={async n => { await db.addModifierGroup(n); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
                   deleteModifierGroup={async id => { const ok = await showConfirm("ลบกลุ่มตัวเลือก?", "ต้องการลบใช่หรือไม่?"); if (ok) { await db.deleteModifierGroup(id); setModifierGroups(prev => prev.filter(g => g.id !== id)); showToast("ลบกลุ่มตัวเลือกแล้ว"); } }}
-                  addOptionToGroup={async (id, n, p) => { await db.addOptionToGroup(id, n, p); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
-                  deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
-                  cleanupUnusedModifierGroups={handleCleanupUnusedModifierGroups}
+                  addOptionToGroup={async (id, n, p, ch) => { await db.addOptionToGroup(id, n, p, ch); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+deleteOption={async (gid, oid) => { await db.deleteOption(gid, oid); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+updateOption={async (oid, fields) => { await db.updateOption(oid, fields); const mods = await db.fetchModifierGroups(); setModifierGroups(mods); }}
+cleanupUnusedModifierGroups={handleCleanupUnusedModifierGroups}
                 />
               </div>
             )}
