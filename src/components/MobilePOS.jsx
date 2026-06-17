@@ -339,6 +339,7 @@ export default function MobilePOS({
           onConfirm={(productWithMod) => { addToCart(productWithMod); setModProduct(null); }}
           onClose={() => setModProduct(null)}
           variant="dark"
+          priceChannel={priceChannel}
         />
       )}
 

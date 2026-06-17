@@ -1,16 +1,54 @@
 import React, { useState } from "react";
 
+const CHANNEL_FIELDS = [
+  { key: "grabPrice",    label: "Grab",    color: "#00B14F" },
+  { key: "linemanPrice", label: "Lineman", color: "#00A84F" },
+  { key: "shopeePrice",  label: "Shopee",  color: "#EE4D2D" },
+];
+
 // ย้ายออกมานอก component เพื่อป้องกัน re-render/focus bug
-const ModifierGroupItem = ({ group, addOptionToGroup, deleteModifierGroup, deleteOption }) => {
+const ModifierGroupItem = ({ group, addOptionToGroup, deleteModifierGroup, deleteOption, updateOption }) => {
   const [optName, setOptName] = useState("");
   const [optPrice, setOptPrice] = useState("");
+  const [channelPrices, setChannelPrices] = useState({});
+  const [showChannelInputs, setShowChannelInputs] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  // expandedOptionId — option ที่กำลัง edit channel prices
+  const [expandedOptionId, setExpandedOptionId] = useState(null);
+  // local edit state สำหรับ channel prices ของ option ที่ expand
+  const [editChannelPrices, setEditChannelPrices] = useState({});
 
   const handleAddOption = () => {
     if (!optName.trim()) return;
-    addOptionToGroup(group.id, optName.trim(), Number(optPrice) || 0);
+    addOptionToGroup(group.id, optName.trim(), Number(optPrice) || 0, channelPrices);
     setOptName("");
     setOptPrice("");
+    setChannelPrices({});
+    setShowChannelInputs(false);
+  };
+
+  const handleExpandOption = (option) => {
+    if (expandedOptionId === option.id) {
+      setExpandedOptionId(null);
+      return;
+    }
+    setExpandedOptionId(option.id);
+    setEditChannelPrices({
+      grabPrice:    option.grabPrice    ?? "",
+      linemanPrice: option.linemanPrice ?? "",
+      shopeePrice:  option.shopeePrice  ?? "",
+    });
+  };
+
+  const handleSaveChannelPrice = (optionId) => {
+    const fields = {};
+    CHANNEL_FIELDS.forEach(({ key }) => {
+      const val = editChannelPrices[key];
+      // ว่าง = null (ลบออก), มีค่า = Number
+      fields[key] = val === "" || val === undefined ? null : Number(val);
+    });
+    updateOption(optionId, fields);
+    setExpandedOptionId(null);
   };
 
   return (
@@ -31,7 +69,7 @@ const ModifierGroupItem = ({ group, addOptionToGroup, deleteModifierGroup, delet
       {!collapsed && (
         <>
           {/* Add option inputs */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "8px", marginBottom: "10px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "8px", marginBottom: "8px" }}>
             <input
               placeholder="ชื่อตัวเลือก เช่น หวานน้อย"
               value={optName}
@@ -48,27 +86,108 @@ const ModifierGroupItem = ({ group, addOptionToGroup, deleteModifierGroup, delet
               style={{ ...s.input, width: "70px", textAlign: "center" }}
             />
           </div>
+
+          {/* Toggle channel price inputs for new option */}
+          <button
+            onClick={() => setShowChannelInputs(p => !p)}
+            style={{ ...s.btnChannelToggle, marginBottom: showChannelInputs ? "8px" : "10px" }}
+          >
+            {showChannelInputs ? "▲ ซ่อนราคา Delivery" : "▼ ตั้งราคา Delivery (optional)"}
+          </button>
+
+          {showChannelInputs && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginBottom: "10px" }}>
+              {CHANNEL_FIELDS.map(({ key, label, color }) => (
+                <div key={key}>
+                  <div style={{ fontSize: "10px", color, fontWeight: "bold", marginBottom: "3px" }}>{label}</div>
+                  <input
+                    placeholder="+฿"
+                    type="number"
+                    inputMode="numeric"
+                    value={channelPrices[key] ?? ""}
+                    onChange={(e) => setChannelPrices(prev => ({
+                      ...prev,
+                      [key]: e.target.value === "" ? undefined : e.target.value,
+                    }))}
+                    style={{ ...s.input, textAlign: "center" }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
           <button onClick={handleAddOption} style={s.btnAdd}>+ เพิ่มตัวเลือก</button>
 
           {/* Options list */}
           {group.options?.length > 0 && (
             <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-              {group.options.map((option) => (
-                <div key={option.id} style={s.optionRow}>
-                  <span style={{ color: "#eee", fontSize: "14px" }}>{option.name}</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginLeft: "auto" }}>
-                    <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: "13px" }}>
-                      +{option.price}฿
-                    </span>
-                    <button
-                      onClick={() => deleteOption(group.id, option.id)}
-                      style={s.btnX}
-                    >
-                      ✕
-                    </button>
+              {group.options.map((option) => {
+                const isExpanded = expandedOptionId === option.id;
+                const hasChannelPrices = CHANNEL_FIELDS.some(({ key }) => option[key] != null);
+                return (
+                  <div key={option.id}>
+                    <div style={s.optionRow}>
+                      <span style={{ color: "#eee", fontSize: "14px" }}>{option.name}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: "auto" }}>
+                        {/* channel price summary badges */}
+                        {hasChannelPrices && CHANNEL_FIELDS.map(({ key, label, color }) =>
+                          option[key] != null ? (
+                            <span key={key} style={{ fontSize: "10px", color, fontWeight: "bold" }}>
+                              {label}+{option[key]}฿
+                            </span>
+                          ) : null
+                        )}
+                        <span style={{ color: "#4caf50", fontWeight: "bold", fontSize: "13px" }}>
+                          +{option.price}฿
+                        </span>
+                        {/* expand button */}
+                        <button
+                          onClick={() => handleExpandOption(option)}
+                          style={{ background: "none", border: "none", color: isExpanded ? "#fff" : "#555", cursor: "pointer", fontSize: "12px", padding: "0 2px" }}
+                          title="ตั้งราคา Delivery"
+                        >
+                          ⚙️
+                        </button>
+                        <button
+                          onClick={() => deleteOption(group.id, option.id)}
+                          style={s.btnX}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Channel price editor */}
+                    {isExpanded && (
+                      <div style={s.channelEditor}>
+                        <div style={{ fontSize: "11px", color: "#888", marginBottom: "8px" }}>ราคาแยกช่องทาง (ว่างไว้ = ใช้ราคาปกติ)</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginBottom: "8px" }}>
+                          {CHANNEL_FIELDS.map(({ key, label, color }) => (
+                            <div key={key}>
+                              <div style={{ fontSize: "10px", color, fontWeight: "bold", marginBottom: "3px" }}>{label}</div>
+                              <input
+                                placeholder="ว่าง=ปกติ"
+                                type="number"
+                                inputMode="numeric"
+                                value={editChannelPrices[key] ?? ""}
+                                onChange={(e) => setEditChannelPrices(prev => ({
+                                  ...prev,
+                                  [key]: e.target.value,
+                                }))}
+                                style={{ ...s.input, textAlign: "center", fontSize: "12px" }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <button onClick={() => setExpandedOptionId(null)} style={s.btnCancelSmall}>ยกเลิก</button>
+                          <button onClick={() => handleSaveChannelPrice(option.id)} style={s.btnSaveSmall}>💾 บันทึก</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -89,6 +208,7 @@ export default function ModifierManager({
   deleteModifierGroup,
   addOptionToGroup,
   deleteOption,
+  updateOption,
   cleanupUnusedModifierGroups,
 }) {
   const [newGroupName, setNewGroupName] = useState("");
@@ -137,6 +257,7 @@ export default function ModifierManager({
               addOptionToGroup={addOptionToGroup}
               deleteModifierGroup={deleteModifierGroup}
               deleteOption={deleteOption}
+              updateOption={updateOption}
             />
           ))}
         </div>
@@ -169,6 +290,11 @@ const s = {
     border: "1px dashed #555", padding: "10px", borderRadius: "8px",
     cursor: "pointer", fontSize: "13px",
   },
+  btnChannelToggle: {
+    width: "100%", backgroundColor: "transparent", color: "#555",
+    border: "1px solid #333", padding: "6px", borderRadius: "6px",
+    cursor: "pointer", fontSize: "11px",
+  },
   btnCleanup: {
     marginTop: "10px", width: "100%", backgroundColor: "#1f2937", color: "#cbd5e1",
     border: "1px solid #334155", padding: "10px", borderRadius: "8px", cursor: "pointer", fontSize: "13px",
@@ -185,5 +311,17 @@ const s = {
   btnX: {
     background: "none", border: "none", color: "#ff5252",
     cursor: "pointer", fontSize: "16px", padding: "0 4px", lineHeight: 1,
+  },
+  channelEditor: {
+    backgroundColor: "#111", border: "1px solid #333",
+    borderRadius: "8px", padding: "10px 12px", marginTop: "4px",
+  },
+  btnCancelSmall: {
+    flex: 1, background: "none", border: "1px solid #333", color: "#666",
+    borderRadius: "6px", padding: "6px", cursor: "pointer", fontSize: "12px",
+  },
+  btnSaveSmall: {
+    flex: 2, backgroundColor: "#4caf50", border: "none", color: "#000",
+    borderRadius: "6px", padding: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "bold",
   },
 };
