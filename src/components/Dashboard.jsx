@@ -9,26 +9,11 @@ const fitFontSize = (value, baseSize = 22) => {
   return Math.round(baseSize * 0.6);
 };
 
-export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActual }) {
+export default function Dashboard({ orders, onCloseDay }) {
 
   const getChannelColor = (ch) => {
     const colors = { pos: "#ffffff", grab: "#00B14F", lineman: "#00A84F", shopee: "#EE4D2D" };
     return colors[ch] || "#888";
-  };
-
-  const pendingOrders = orders.filter(o =>
-    !o.isSettled && ["grab", "lineman", "shopee"].includes(o.channel)
-  );
-
-  const handleUpdateActual = (orderId, value) => {
-    const amount = parseFloat(value) || 0;
-    if (onUpdateActual) {
-      onUpdateActual(orderId, amount);
-    } else if (setOrders) {
-      setOrders(orders.map(o =>
-        o.id === orderId ? { ...o, actualAmount: amount, isSettled: true } : o
-      ));
-    }
   };
 
   const exportToCSV = (data, fileName) => {
@@ -93,15 +78,6 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
 
     return { totalSales, cashTotal, promptPayTotal, actualIncome, subsidyTotal, channelMap, orderCount: orders.length };
   }, [orders]);
-
-  const formatTime = (timeStr) => {
-    if (!timeStr) return "N/A";
-    try {
-      const d = new Date(timeStr);
-      if (isNaN(d.getTime())) return "N/A";
-      return d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
-    } catch { return "N/A"; }
-  };
 
   const todayStr = new Date().toLocaleDateString("th-TH", {
     day: "numeric", month: "short", year: "numeric"
@@ -223,37 +199,6 @@ export default function Dashboard({ orders, setOrders, onCloseDay, onUpdateActua
             </div>
           )}
 
-          {/* งานค้าง */}
-          <div style={s.panel}>
-            <div style={{ ...s.panelTitle, color: "#ffa500", marginBottom: "12px" }}>
-              ⚠️ งานค้าง: รอระบุยอดรับจริง ({pendingOrders.length})
-            </div>
-            {pendingOrders.length === 0 ? (
-              <div style={{ color: "#444", textAlign: "center", padding: "20px 0", fontSize: "13px" }}>
-                🎉 เคลียร์ยอดครบแล้ว
-              </div>
-            ) : (
-              pendingOrders.map(o => (
-                <div key={o.id} style={s.pendingRow}>
-                  <div style={{ flex: 1, minWidth: 0, marginRight: "8px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginBottom: "3px" }}>
-                      <span style={{ color: getChannelColor(o.channel), fontWeight: "bold", fontSize: "13px" }}>
-                        {o.channel.toUpperCase()}
-                      </span>
-                      {o.refId && <span style={s.refBadge}>{o.refId}</span>}
-                    </div>
-                    <div style={{ color: "#666", fontSize: "11px" }}>
-                      {formatTime(o.time)} · ฿{o.total.toLocaleString()}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: "6px", alignItems: "center", flexShrink: 0 }}>
-                    <input type="number" inputMode="numeric" placeholder="ยอด" id={`inp-${o.id}`} style={s.miniInput} />
-                    <button onClick={() => { const val = document.getElementById(`inp-${o.id}`)?.value; if (val) handleUpdateActual(o.id, val); }} style={s.miniBtn}> ✓ </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
         </div>
       </div>
     </div>
@@ -313,9 +258,6 @@ const s = {
   barBg: { width: "100%", height: "8px", backgroundColor: "#000", borderRadius: "4px", overflow: "hidden" },
   barFill: { height: "100%", transition: "width 0.5s ease", borderRadius: "4px" },
   pendingRow: { display: "flex", alignItems: "center", padding: "10px", backgroundColor: "#0a0a0a", borderRadius: "8px", marginBottom: "8px", border: "1px solid #222" },
-  miniInput: { width: "70px", background: "#1a1a1a", color: "#fff", border: "1px solid #444", padding: "8px 6px", borderRadius: "6px", fontSize: "14px", textAlign: "center" },
-  miniBtn: { background: "#4caf50", color: "#000", border: "none", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "16px" },
   btnExport: { backgroundColor: "#2a2a2a", color: "#fff", border: "1px solid #444", padding: "12px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" },
   btnCloseDay: { backgroundColor: "#f57c00", color: "#fff", border: "none", padding: "12px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" },
-  refBadge: { backgroundColor: "#222", color: "#aaa", padding: "2px 6px", borderRadius: "4px", fontSize: "11px", border: "1px solid #333" },
 };

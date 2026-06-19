@@ -480,8 +480,8 @@ const updateProduct = useCallback(async (id, fields) => {
         payment: isDelivery ? "transfer" : paymentMethod,
         channel: priceChannel,
         refId: isDelivery ? deliveryRef : "",
-        isSettled: !isDelivery,
-        actualAmount: isDelivery ? 0 : total,
+        isSettled: true,
+        actualAmount: total,
         member_phone: memberPhone || null,
         orderType: isDelivery ? "delivery" : orderType,
         tableNumber: (!isDelivery && orderType === "dine_in") ? (tableNumber.trim() || null) : null,
@@ -520,13 +520,6 @@ const updateProduct = useCallback(async (id, fields) => {
       showToast("❌ บันทึกออเดอร์ไม่ได้ กรุณาลองใหม่", "error");
     }
   }, [cart, total, discountTotal, discounts, memberInfo, priceChannel, deliveryRef, memberPhone, orderType, tableNumber, clearMember, showToast, hasSubsidy]);
-
-  const handleUpdateActual = async (orderId, value) => {
-    const amount = parseFloat(value) || 0;
-    await db.updateOrder(orderId, { actualAmount: amount, isSettled: true });
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, actualAmount: amount, isSettled: true } : o));
-    showToast("อัปเดตยอดรับจริงแล้ว");
-  };
 
   const handleCloseDay = async () => {
     if (orders.length === 0) return showToast("ไม่มีข้อมูลการขายสำหรับวันนี้", "error");
@@ -685,7 +678,7 @@ const updateProduct = useCallback(async (id, fields) => {
                 modifierGroups={modifierGroups}
               />
             )}
-            {view === "dashboard" && <Dashboard orders={orders} setOrders={setOrders} onCloseDay={handleCloseDay} onUpdateActual={handleUpdateActual} />}
+            {view === "dashboard" && <Dashboard orders={orders} onCloseDay={handleCloseDay} />}
             {view === "orders" && (
               <Orders
                 orders={orders}
@@ -848,7 +841,7 @@ cleanupUnusedModifierGroups={handleCleanupUnusedModifierGroups}
                 </aside>
               </>
             )}
-            {view === "dashboard" && <Dashboard orders={orders} setOrders={setOrders} onCloseDay={handleCloseDay} onUpdateActual={handleUpdateActual} />}
+            {view === "dashboard" && <Dashboard orders={orders} onCloseDay={handleCloseDay} />}
             {view === "members" && <Members orders={orders} members={members} onMembersChange={setMembers} showToast={showToast} showConfirm={showConfirm} historyTrigger={historyTrigger} />}
             {view === "menu" && (
               <div style={{ flex: 1, overflowY: "auto", padding: 30 }}>
