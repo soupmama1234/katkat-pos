@@ -439,7 +439,7 @@ onClick={() => {
 
 // ── Main Component ────────────────────────────────────────────
 export default function CustomerOrder() {
-  const [step, setStep] = useState("table"); // 'table' | 'member' | 'menu'
+  const [step, setStep] = useState("member"); // 'table' | 'member' | 'menu'
   const [tableNumber, setTableNumber] = useState("");
   const [memberPhone, setMemberPhone] = useState("");
   
@@ -448,43 +448,41 @@ export default function CustomerOrder() {
   const [isGameFinished, setIsGameFinished] = useState(false); // เอาไว้เช็กว่าเล่นเกมคั่นเวลาหรือยัง
 
   
-    // หน้ากรอกโต๊ะ (เหมือนเดิม)
-  if (step === "table") {
-    return <StepTable onNext={val => { setTableNumber(val); setStep("member"); }} />;
-  }
+  
 
-  // หน้าสมาชิก (ปรับให้ดึงชื่อเล่นออกมารอด้วย)
+  // 2. หน้าสมาชิก (ดึงเบอร์ และชื่อเล่นส่งกลับมา)
   if (step === "member") {
     return (
       <StepMember 
         onNext={(phone, nickname) => { 
           setMemberPhone(phone); 
-          setMemberNickname(nickname); // บันทึกชื่อเล่นไว้ไปใช้ในเกม
+          setMemberNickname(nickname); // เก็บชื่อเล่นลง State หลัก
           setStep("menu"); 
         }} 
         onSkip={() => { 
           setMemberPhone(""); 
           setMemberNickname(""); 
-          setIsGameFinished(true); // ถ้าลูกค้ากดข้าม ไม่ต้องเล่นเกม ให้ข้ามไปเลย
+          setIsGameFinished(true); 
           setStep("menu"); 
         }} 
       />
     );
   }
 
-  // 🎯 ดักตรงนี้: ถ้าเข้าสู่ step "menu" แล้ว แต่ "ยังมีเบอร์สมาชิก" และ "ยังเล่นเกมไม่เสร็จ" -> ให้เล่นเกมก่อน!
+  // 🎯 3. ดักหน้าเกมตรงนี้: ถ้าอยู่สเต็ป menu + มีเบอร์สมาชิก + ยังเล่นเกมไม่เสร็จ ให้เข้าหน้าเกมทันที
   if (step === "menu" && memberPhone && !isGameFinished) {
     return (
       <GameMatch 
         member={{ phone: memberPhone, nickname: memberNickname }} 
-        onFinish={() => setIsGameFinished(true)} // เมื่อพนักงานกดรับสิทธิ์เกมเสร็จ จะปรับเป็น true แล้วเด้งเข้าหน้าสั่งอาหารทันที
+        onFinish={() => setIsGameFinished(true)} 
       />
     );
   }
 
-  // หน้าจอสั่งอาหารหลัก (เหมือนเดิม)
+  // 4. หน้าจอสั่งอาหารปกติ (จะแสดงผลเมื่อเล่นเกมเสร็จ หรือกด Skip สมาชิก)
   return <MenuScreen tableNumber={tableNumber} memberPhone={memberPhone} onDone={() => setStep("table")} />;
 }
+
 
 
 // ── Styles ────────────────────────────────────────────────────
