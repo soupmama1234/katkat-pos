@@ -447,78 +447,96 @@ export default function CustomerOrder() {
   const [memberNickname, setMemberNickname] = useState(""); // เอาไว้ส่งให้หน้าเกมโชว์ชื่อ
   const [isGameFinished, setIsGameFinished] = useState(false); // เอาไว้เช็กว่าเล่นเกมคั่นเวลาหรือยัง
 
-  
-  
-
-    // สเต็ปที่ 1: หน้าสมาชิก (หน้าแรกสุด)
+ // 1️⃣ สเต็ปที่ 1: สแกน QR มาเจอหน้าสมัครสมาชิก / เข้าสู่ระบบ ทันที
   if (step === "member") {
     return (
       <StepMember 
         onNext={(phone, nickname) => { 
           setMemberPhone(phone); 
           setMemberNickname(nickname); 
-          setStep("menu"); // วิ่งไปสเต็ปถัดไป
+          setStep("hub"); // เสร็จแล้วไปหน้า Hub ทันที
         }} 
         onSkip={() => { 
           setMemberPhone(""); 
           setMemberNickname(""); 
-          setIsGameFinished(true); 
-          setStep("menu"); 
+          setIsGameFinished(true); // ข้ามสมาชิก ไม่ต้องเล่นเกม
+          setStep("hub"); 
         }} 
       />
     );
   }
 
-  // สเต็ปที่ 2: ดักหน้าเกมจับเวลา 5 วินาที
-  if (step === "menu" && memberPhone && !isGameFinished) {
+  // 3️⃣ สเต็ปที่ 3: หน้าจอตัวเกมจับเวลา (เปิดเฉพาะตอนกดปุ่มมาจากหน้า Hub)
+  if (step === "game") {
     return (
       <GameMatch 
         member={{ phone: memberPhone, nickname: memberNickname }} 
-        onFinish={() => setIsGameFinished(true)} 
+        onFinish={() => {
+          setIsGameFinished(true); // เล่นจบแล้วล็อกสิทธิ์
+          setStep("hub"); // วนกลับมาหน้า Hub
+        }} 
       />
     );
   }
 
-  // 🎯 สเต็ปที่ 3: หน้า Hub สมาชิก (สร้างขึ้นมาใหม่แทน MenuScreen เดิม)
-    // 🎯 สเต็ปที่ 3: หน้า Hub สมาชิก (แก้ไขเพื่อป้องกันหน้าจอขาว)
-  if (step === "menu" && isGameFinished) {
-    return (
-      <div style={styles.hubContainer}>
-        <div style={styles.hubCard}>
-          <span style={styles.badge}>MEMBER CARD</span>
-          {/* ใช้ตัวแปร memberNickname และ memberPhone จาก State หลักโดยตรง */}
-          <h2 style={styles.welcomeText}>คุณ {memberNickname || "ลูกค้าประจำ"}</h2>
-          <p style={styles.phoneText}>{memberPhone ? `📱 ${memberPhone}` : "ไม่ได้ผูกเบอร์โทรศัพท์"}</p>
-          
-          {memberPhone && (
-            <div style={styles.statGrid}>
-              <div style={styles.statBox}>
-                <small style={{ color: '#888', fontSize: 11 }}>แต้มสะสม</small>
-                {/* ใส่ค่าเริ่มต้น 0 ไว้เลยเพื่อความปลอดภัยหน้าร้านปัจจุบัน */}
-                <p style={{ margin: "5px 0 0 0", fontSize: 18, fontWeight: "bold", color: "#FF9F0A" }}>0 แต้ม</p> 
-              </div>
-              <div style={styles.statBox}>
-                <small style={{ color: '#888', fontSize: 11 }}>จำนวนมื้อที่มาทาน</small>
-                <p style={{ margin: "5px 0 0 0", fontSize: 18, fontWeight: "bold" }}>1 ครั้ง</p>
-              </div>
+  // 2️⃣ สเต็ปที่ 2: หน้า Hub สมาชิก (ใช้สไตล์ตัวแปร s ของเดิมทั้งหมด)
+  return (
+    <div style={{ ...s.container, padding: 20, justifyContent: "center" }}>
+      
+      {/* การ์ดแสดงข้อมูลสมาชิก */}
+      <div style={{ background: "#141414", border: "1px solid #222", borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, boxSizing: "border-box" }}>
+        <h2 style={{ margin: "0 0 4px 0", fontSize: 20, fontWeight: "bold", color: "#fff" }}>
+          คุณ {memberNickname || "ลูกค้าประจำ"}
+        </h2>
+        <p style={{ margin: 0, color: "#666", fontSize: 14 }}>
+          {memberPhone ? `📱 ${memberPhone}` : "ไม่ได้ผูกเบอร์โทรศัพท์"}
+        </p>
+        
+        {memberPhone && (
+          <div style={{ display: "flex", gap: 12, marginTop: 20, borderTop: "1px solid #222", paddingTop: 16 }}>
+            <div style={{ flex: 1, background: "#1a1a1a", padding: 12, borderRadius: 10, textAlign: "center" }}>
+              <small style={{ color: '#888', fontSize: 11 }}>แต้มสะสม</small>
+              <p style={{ margin: "5px 0 0 0", fontSize: 18, fontWeight: "bold", color: BRAND }}>0 แต้ม</p> 
             </div>
-          )}
-        </div>
-
-        <div style={{ width: "100%", maxWidth: 340, marginTop: 24, padding: "0 10px" }}>
-          {/* ปุ่มที่ 1: ปุ่มเล่นเกม (เปลี่ยนสถานะเป็นใช้สิทธิ์แล้ว) */}
-          <button disabled style={{ ...styles.hubBtn, background: "#1a1a1a", color: "#555", cursor: "not-allowed", border: "1px solid #222" }}>
-            🎯 คุณได้ใช้สิทธิ์สแกนลุ้นโชควันนี้แล้ว
-          </button>
-
-          {/* ปุ่มที่ 2: ปุ่มสั่งอาหารออนไลน์ (ทำเป็นปุ่มสีเทา บล็อกไว้ก่อน) */}
-          <button disabled style={{ ...styles.hubBtn, background: "#111", color: "#444", border: "1px dashed #222", marginTop: 12, cursor: "not-allowed" }}>
-            🍽️ สั่งอาหารออนไลน์ที่โต๊ะ (เร็วๆ นี้)
-          </button>
-        </div>
+            <div style={{ flex: 1, background: "#1a1a1a", padding: 12, borderRadius: 10, textAlign: "center" }}>
+              <small style={{ color: '#888', fontSize: 11 }}>จำนวนมื้อที่มาทาน</small>
+              <p style={{ margin: "5px 0 0 0", fontSize: 18, fontWeight: "bold", color: "#fff" }}>1 ครั้ง</p>
+            </div>
+          </div>
+        )}
       </div>
-    );
-  }
+
+      {/* โซนปุ่มกดด้านล่าง */}
+      <div style={{ width: "100%", maxWidth: 340, marginTop: 24 }}>
+        
+        {/* ปุ่มเล่นเกมลุ้นรางวัล */}
+        {!isGameFinished ? (
+          <button 
+            style={{ ...s.primaryBtn, width: "100%", margin: 0 }}
+            onClick={() => setStep("game")}
+          >
+            🎯 เริ่มเล่นเกมลุ้นรางวัลวันนี้
+          </button>
+        ) : (
+          <button 
+            disabled 
+            style={{ ...s.primaryBtn, width: "100%", margin: 0, background: "#1a1a1a", color: "#555", cursor: "not-allowed", border: "1px solid #222" }}
+          >
+            🔒 คุณได้ใช้สิทธิ์เล่นเกมวันนี้แล้ว
+          </button>
+        )}
+
+        {/* ปุ่มสั่งอาหารออนไลน์ (บอดไว้ก่อน) */}
+        <button 
+          disabled 
+          style={{ ...s.primaryBtn, width: "100%", marginTop: 12, background: "#111", color: "#444", border: "1px dashed #222", cursor: "not-allowed" }}
+        >
+          🍽️ สั่งอาหารออนไลน์ที่โต๊ะ (เร็วๆ นี้)
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ── Styles ────────────────────────────────────────────────────
 const s = {
