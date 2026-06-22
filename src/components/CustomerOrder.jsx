@@ -97,28 +97,30 @@ function StepTable({ onNext }) {
   );
 }
 
-function StepMember({ onNext, onSkip }) {
+// 🎯 1. รับ Props เพิ่มเติมจากหน้าหลัก: onPlayGame, isGameFinished
+function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
   const [phone, setPhone] = useState("");
-  const [state, setState] = useState("idle"); // idle | loading | found | notfound | registering | regdone
+  const [state, setState] = useState("idle"); [span_7](start_span)// idle | loading | found | notfound | registering | regdone[span_7](end_span)
   const [member, setMember] = useState(null);
   const [nickname, setNickname] = useState("");
-  const [error, setError] = useState("");
+  [span_8](start_span)const [error, setError] = useState("");[span_8](end_span)
 
   const handleCheck = async () => {
-    if (!/^0\d{8,9}$/.test(phone)) { setError("กรอกเบอร์มือถือให้ถูกต้อง"); return; }
-    setError(""); setState("loading");
-    const m = await fetchMemberByPhone(phone);
-    if (m) { setMember(m); setState("found"); }
-    else setState("notfound");
+    if (!/^0\d{8,9}$/.test(phone)) { setError("กรอกเบอร์มือถือให้ถูกต้อง"); return; [span_9](start_span)}
+    setError(""); setState("loading");[span_9](end_span)
+    [span_10](start_span)const m = await fetchMemberByPhone(phone);[span_10](end_span)
+    if (m) { setMember(m); setState("found"); [span_11](start_span)}
+    else setState("notfound");[span_11](end_span)
   };
 
   const handleRegister = async () => {
-    if (!nickname.trim()) { setError("กรุณากรอกชื่อ"); return; }
-    setState("registering");
-    const m = await registerMember(phone, nickname.trim());
-    setMember(m); setState("regdone");
+    if (!nickname.trim()) { setError("กรุณากรอกชื่อ"); return; [span_12](start_span)}
+    setState("registering");[span_12](end_span)
+    [span_13](start_span)const m = await registerMember(phone, nickname.trim());[span_13](end_span)
+    [span_14](start_span)setMember(m); setState("regdone");[span_14](end_span)
   };
 
+  // 🎯 2. ใช้หน้านี้เป็น Hub ตามดีไซน์สีดำเดิมของคุณ (ไม่มีการสร้างการ์ดแปลกปลอมเพิ่ม)
   if (state === "found" || state === "regdone") return (
     <div style={s.stepWrap}>
       <div style={s.brandMark}>
@@ -135,11 +137,11 @@ function StepMember({ onNext, onSkip }) {
           <div style={s.memberPts}>⭐ {member?.points || 0} แต้ม</div>
         </div>
 
-        {/* ปุ่มที่ 1: ปุ่มเล่นเกมลุ้นรางวัล (ดักสถานะเช็กการเล่นเกม) */}
+        {/* ปุ่มที่ 1: เริ่มเล่นเกมลุ้นรางวัล (ดักสิทธิ์การเล่นเกม) */}
         {!isGameFinished ? (
           <button 
-            style={{ ...s.primaryBtn, background: "#FF9F0A", color: "#000" }} 
-            onClick={() => onPlayGame(phone, member?.nickname || "ลูกค้า")}
+            style={{ ...s.primaryBtn, background: BRAND, color: "#000" }} 
+            onClick={() => onPlayGame && onPlayGame(phone, member?.nickname || "ลูกค้า")}
           >
             🎯 เริ่มเล่นเกมลุ้นรางวัลวันนี้
           </button>
@@ -152,10 +154,10 @@ function StepMember({ onNext, onSkip }) {
           </button>
         )}
 
-        {/* ปุ่มที่ 2: ปุ่มสั่งอาหารออนไลน์ (สามารถกดใช้งานลิ้งก์ไปหน้า MenuScreen ได้จริงทันทีตามต้องการ) */}
+        {/* ปุ่มที่ 2: สั่งอาหารออนไลน์ที่โต๊ะ (เปิดให้ทำงานได้จริงทันที) */}
         <button 
           style={{ ...s.primaryBtn, background: BRAND, marginTop: 4 }} 
-          onClick={() => onNext(phone, member?.nickname || "ลูกค้า")}
+          onClick={() => onNext(phone)}
         >
           🍽️ สั่งอาหารออนไลน์ที่โต๊ะ
         </button>
@@ -163,6 +165,7 @@ function StepMember({ onNext, onSkip }) {
     </div>
   );
 
+  // ด้านล่างนี้คงเดิมไว้ทั้งหมดตามโค้ดดั้งเดิมของคุณ
   return (
     <div style={s.stepWrap}>
       <div style={s.brandMark}>
@@ -215,7 +218,9 @@ function StepMember({ onNext, onSkip }) {
       </div>
     </div>
   );
-}
+  }
+          
+    
 
 function MenuScreen({ tableNumber, memberPhone, onDone }) {
   const [products, setProducts] = useState([]);
@@ -461,56 +466,60 @@ onClick={() => {
 }
 
 // ── Main Component ────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────
 export default function CustomerOrder() {
-  const [step, setStep] = useState("table"); // เริ่มจากหน้าเลือกโต๊ะตามสเปกเดิม
-  const [tableNumber, setTableNumber] = useState("");
+  // 🎯 ย้ายหน้าโต๊ะออก: เริ่มต้นระบบที่หน้าสมาชิก ('member') ทันทีเมื่อเปิดเว็บ
+  const [step, setStep] = useState("member"); // member | game | menu
+  const [tableNumber, setTableNumber] = useState(""); // ค่าวางไว้รอรับจาก URL หรือหน้าเมนู
   const [memberPhone, setMemberPhone] = useState(null);
-  const [memberNickname, setMemberNickname] = useState(""); // บันทึกชื่อเล่นไว้ส่งให้เกม
-  const [isGameFinished, setIsGameFinished] = useState(false); // เช็กสถานะการเล่นเกม
+  const [memberNickname, setMemberNickname] = useState("");
+  const [isGameFinished, setIsGameFinished] = useState(false);
 
-  if (step === "table") return (
-    <StepTable onNext={t => { setTableNumber(t); setStep("member"); }} />
-  );
-
+  // 1️⃣ STEP 1: หน้าจอสมาชิก (found / regdone ทำหน้าที่เป็น Hub ในตัว)
   if (step === "member") return (
     <StepMember
-      tableNumber={tableNumber}
       isGameFinished={isGameFinished}
-      setIsGameFinished={setIsGameFinished}
-      onNext={(phone, nickname) => { 
+      onNext={phone => { 
         setMemberPhone(phone); 
-        setMemberNickname(nickname);
-        setStep("menu"); // กดสั่งอาหารพุ่งไปหน้าเมนู
+        setStep("menu"); // กดปุ่มสั่งอาหาร -> เปลี่ยนไปหน้าเมนูทันที
       }}
       onPlayGame={(phone, nickname) => {
         setMemberPhone(phone);
         setMemberNickname(nickname);
-        setStep("game"); // กดเล่นเกมสลับไปหน้าเกม
+        setStep("game"); // กดปุ่มเล่นเกม -> เปลี่ยนไปหน้าเกม
       }}
       onSkip={() => { 
         setMemberPhone(null); 
-        setMemberNickname("");
-        setIsGameFinished(true);
+        setIsGameFinished(true); 
         setStep("menu"); 
       }}
     />
   );
 
-  // สเต็ปหน้าจอตัวเกมจับเวลา 5 วินาที
+  // 2️⃣ STEP 2: หน้าจอตัวเกมจับเวลา 5 วินาที
   if (step === "game") {
     return (
       <GameMatch 
         member={{ phone: memberPhone, nickname: memberNickname }} 
         onFinish={() => {
-          setIsGameFinished(true); // เล่นจบแล้วให้ล็อกสิทธิ์
-          setStep("member"); // 🎯 ตามสั่ง: เมื่อรับสิทธิ์เสร็จ ดีดกลับมาหน้าเดิม (หน้าสมาชิก found/regdone)
+          setIsGameFinished(true); // ล็อกสิทธิ์การเล่นเกมวันนี้
+          setStep("member"); // 🎯 เล่นเกมจบ พนักงานกดรับสิทธิ์ -> ดีดกลับมาหน้าเดิม (found/regdone) ทันที
         }} 
       />
     );
   }
 
-  return <MenuScreen tableNumber={tableNumber} memberPhone={memberPhone} onDone={() => setStep("table")} />;
+  // 3️⃣ STEP 3: หน้าเลือกรายการสั่งซื้อเมนูอาหารหลัก
+  return (
+    <MenuScreen 
+      tableNumber={tableNumber} 
+      memberPhone={memberPhone} 
+      onDone={() => setStep("member")} // สั่งอาหารเสร็จให้วนกลับมาหน้าสมาชิก
+    />
+  );
 }
+
+
 
 // ── Styles ────────────────────────────────────────────────────
 const s = {
