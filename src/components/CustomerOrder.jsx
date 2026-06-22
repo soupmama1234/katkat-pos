@@ -100,10 +100,10 @@ function StepTable({ onNext }) {
 // 🎯 1. รับ Props เพิ่มเติมจากหน้าหลัก: onPlayGame, isGameFinished
 function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
   const [phone, setPhone] = useState("");
-  const [state, setState] = useState("idle"); [span_7](start_span)// idle | loading | found | notfound | registering | regdone[span_7](end_span)
+  const [state, setState] = useState("idle"); // idle | loading | found | notfound | registering | regdone[span_7](end_span)
   const [member, setMember] = useState(null);
   const [nickname, setNickname] = useState("");
-  [span_8](start_span)const [error, setError] = useState("");[span_8](end_span)
+  const [error, setError] = useState("");
 
   const handleCheck = async () => {
     if (!/^0\d{8,9}$/.test(phone)) { setError("กรอกเบอร์มือถือให้ถูกต้อง"); return; [span_9](start_span)}
