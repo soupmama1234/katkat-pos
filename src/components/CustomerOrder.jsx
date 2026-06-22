@@ -118,6 +118,13 @@ function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
       setState("notfound");
     }
   };
+  // เพิ่มใน StepMember เพื่อให้จำสถานะเดิมได้เมื่อเด้งกลับมาจากหน้าเกม
+useEffect(() => {
+  if (phone && member) {
+    setState("found");
+  }
+}, [phone, member]);
+  
 
   const handleRegister = async () => {
     if (!nickname.trim()) { 
