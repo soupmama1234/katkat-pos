@@ -1,4 +1,4 @@
-// src/components/CustomerOrder.jsx
+styletontontonsrc/components/CustomerOrder.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { supabase as sb } from "../supabase";
 import GameMatch from "./GameMatch";
@@ -133,7 +133,7 @@ function StepMember({ onNext, onSkip }) {
           <div style={s.memberName}>{member?.nickname}</div>
           <div style={s.memberPts}>⭐ {member?.points || 0} แต้ม</div>
         </div>
-        <<button style={s.primaryBtn} onClick={() => onNext(phone, member?.nickname || "ลูกค้า")}>
+        <button style={s.primaryBtn} onClick={() => onNext(phone, member?.nickname || "ลูกค้า")}>
   เริ่มเล่นเกมลุ้นรางวัล 🎯
 </button>
       </div>
