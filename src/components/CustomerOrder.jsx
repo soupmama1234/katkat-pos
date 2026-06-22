@@ -450,14 +450,14 @@ export default function CustomerOrder() {
   
   
 
-  // 2. หน้าสมาชิก (ดึงเบอร์ และชื่อเล่นส่งกลับมา)
+    // สเต็ปที่ 1: หน้าสมาชิก (หน้าแรกสุด)
   if (step === "member") {
     return (
       <StepMember 
         onNext={(phone, nickname) => { 
           setMemberPhone(phone); 
-          setMemberNickname(nickname); // เก็บชื่อเล่นลง State หลัก
-          setStep("menu"); 
+          setMemberNickname(nickname); 
+          setStep("menu"); // วิ่งไปสเต็ปถัดไป
         }} 
         onSkip={() => { 
           setMemberPhone(""); 
@@ -469,7 +469,7 @@ export default function CustomerOrder() {
     );
   }
 
-  // 🎯 3. ดักหน้าเกมตรงนี้: ถ้าอยู่สเต็ป menu + มีเบอร์สมาชิก + ยังเล่นเกมไม่เสร็จ ให้เข้าหน้าเกมทันที
+  // สเต็ปที่ 2: ดักหน้าเกมจับเวลา 5 วินาที
   if (step === "menu" && memberPhone && !isGameFinished) {
     return (
       <GameMatch 
@@ -479,15 +479,48 @@ export default function CustomerOrder() {
     );
   }
 
-  // 4. หน้าจอสั่งอาหารปกติ (จะแสดงผลเมื่อเล่นเกมเสร็จ หรือกด Skip สมาชิก)
-  return <MenuScreen tableNumber={tableNumber} memberPhone={memberPhone} onDone={() => setStep("table")} />;
-}
+  // 🎯 สเต็ปที่ 3: หน้า Hub สมาชิก (สร้างขึ้นมาใหม่แทน MenuScreen เดิม)
+  return (
+    <div style={styles.hubContainer}>
+      <div style={styles.hubCard}>
+        <span style={styles.badge}>MEMBER CARD</span>
+        <h2 style={styles.welcomeText}>คุณ {memberNickname || "ลูกค้าทั่วไป"}</h2>
+        <p style={styles.phoneText}>{memberPhone || "ไม่ได้ผูกเบอร์โทรศัพท์"}</p>
+        
+        {memberPhone && (
+          <div style={styles.statGrid}>
+            <div style={styles.statBox}>
+              <small>แต้มสะสม</small>
+              <p>0 แต้ม</p> {/* หรือดึงจากสเตท member ข้อมูลจริงในอนาคต */}
+            </div>
+            <div style={styles.statBox}>
+              <small>จำนวนมื้อที่มาทาน</small>
+              <p>0 ครั้ง</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ width: "100%", maxWidth: 340, marginTop: 24 }}>
+        {/* ปุ่มที่ 1: ปุ่มเล่นเกม (เปลี่ยนสถานะเป็นเล่นแล้ว) */}
+        <button disabled style={{ ...styles.hubBtn, background: "#1a1a1a", color: "#555", cursor: "not-allowed" }}>
+          🎯 คุณได้ใช้สิทธิ์สแกนลุ้นโชควันนี้แล้ว
+        </button>
+
+        {/* ปุ่มที่ 2: ปุ่มสั่งอาหารออนไลน์ (ทำเป็นปุ่มสีเทา บล็อกไว้ก่อน) */}
+        <button disabled style={{ ...styles.hubBtn, background: "#111", color: "#444", border: "1px dashed #222", marginTop: 12, cursor: "not-allowed" }}>
+          🍽️ สั่งอาหารออนไลน์ที่โต๊ะ (เร็วๆ นี้)
+        </button>
+      </div>
+    </div>
+  );
+                }
 
 
 
 // ── Styles ────────────────────────────────────────────────────
 const s = {
-  stepWrap: {
+    stepWrap: {
     minHeight: "100vh", background: "#0a0a0a",
     display: "flex", flexDirection: "column",
     alignItems: "center", justifyContent: "flex-start",
@@ -666,4 +699,13 @@ const s = {
     display: "flex", flexDirection: "column",
     alignItems: "center", maxWidth: 360, width: "100%",
   },
+  hubContainer: { background: "#0A0A0A", color: "#fff", padding: 20, minHeight: "90vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" },
+  hubCard: { background: "linear-gradient(135deg, #1e1e1e 0%, #111 100%)", border: "1px solid #2a2a2a", borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, boxSizing: "border-box", position: "relative" },
+  badge: { background: "#FF9F0A22", color: "#FF9F0A", fontSize: 10, padding: "4px 8px", borderRadius: 6, fontWeight: "bold", position: "absolute", top: 20, right: 20 },
+  welcomeText: { margin: "20px 0 4px 0", fontSize: 22, fontWeight: "bold" },
+  phoneText: { margin: 0, color: "#666", fontSize: 14 },
+  statGrid: { display: "flex", gap: 12, marginTop: 24, borderTop: "1px solid #222", paddingTop: 16 },
+  statBox: { flex: 1, background: "#161616", padding: 12, borderRadius: 10, textAlign: "center" },
+  hubBtn: { width: "100%", padding: "14px", borderRadius: 12, border: "none", fontSize: 14, fontWeight: "bold" }
+};
 };
