@@ -96,7 +96,7 @@ function StepTable({ onNext }) {
   );
 }
 
-function StepMember({ onNext, onSkip, onPlayGame, isGameFinished, initialPhone = "", initialMember = null }) {
+function StepMember({ onNext, onSkip, onPlayGame, isGameFinished, setIsGameFinished, initialPhone = "", initialMember = null }) {
   const [phone, setPhone] = useState(initialPhone);
   const [state, setState] = useState(initialMember ? "found" : "idle"); 
   const [member, setMember] = useState(initialMember);
@@ -484,11 +484,13 @@ export default function CustomerOrder() {
   const [memberData, setMemberData] = useState(null);
   const [isGameFinished, setIsGameFinished] = useState(false);
 
-      if (step === "member") return (
+     if (step === "member") return (
     <StepMember
       isGameFinished={isGameFinished}
+      setIsGameFinished={setIsGameFinished} // ✨ ส่งตัวนี้ลงมาด้วย ระบบถึงจะจำสถานะ
       initialPhone={memberPhone || ""}
       initialMember={memberData || null}
+
       onNext={phone => { 
         setMemberPhone(phone); 
         setStep("menu");
