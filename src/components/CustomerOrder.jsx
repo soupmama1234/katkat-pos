@@ -1,4 +1,4 @@
-styletontontonsrc/components/CustomerOrder.jsx
+// src/components/CustomerOrder.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { supabase as sb } from "../supabase";
 import GameMatch from "./GameMatch";
