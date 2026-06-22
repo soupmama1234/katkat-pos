@@ -106,18 +106,18 @@ function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
   const [error, setError] = useState("");
 
   const handleCheck = async () => {
-    if (!/^0\d{8,9}$/.test(phone)) { setError("กรอกเบอร์มือถือให้ถูกต้อง"); return; [span_9](start_span)}
-    setError(""); setState("loading");[span_9](end_span)
-    [span_10](start_span)const m = await fetchMemberByPhone(phone);[span_10](end_span)
-    if (m) { setMember(m); setState("found"); [span_11](start_span)}
-    else setState("notfound");[span_11](end_span)
+    if (!/^0\d{8,9}$/.test(phone)) { setError("กรอกเบอร์มือถือให้ถูกต้อง"); return;
+    setError(""); setState("loading");
+  const m = await fetchMemberByPhone(phone);
+    if (m) { setMember(m); setState("found"); 
+    else setState("notfound");
   };
 
   const handleRegister = async () => {
-    if (!nickname.trim()) { setError("กรุณากรอกชื่อ"); return; [span_12](start_span)}
+    if (!nickname.trim()) { setError("กรุณากรอกชื่อ"); return; 
     setState("registering");[span_12](end_span)
-    [span_13](start_span)const m = await registerMember(phone, nickname.trim());[span_13](end_span)
-    [span_14](start_span)setMember(m); setState("regdone");[span_14](end_span)
+    const m = await registerMember(phone, nickname.trim());
+    setMember(m); setState("regdone");
   };
 
   // 🎯 2. ใช้หน้านี้เป็น Hub ตามดีไซน์สีดำเดิมของคุณ (ไม่มีการสร้างการ์ดแปลกปลอมเพิ่ม)
