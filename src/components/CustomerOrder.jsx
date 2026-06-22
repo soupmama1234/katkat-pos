@@ -129,13 +129,36 @@ function StepMember({ onNext, onSkip }) {
         <div style={s.stepTitle}>
           {state === "regdone" ? "สมัครสำเร็จ!" : "ยินดีต้อนรับ!"}
         </div>
+        
         <div style={{ ...s.memberBadge }}>
           <div style={s.memberName}>{member?.nickname}</div>
           <div style={s.memberPts}>⭐ {member?.points || 0} แต้ม</div>
         </div>
-        <button style={s.primaryBtn} onClick={() => onNext(phone, member?.nickname || "ลูกค้า")}>
-  เริ่มเล่นเกมลุ้นรางวัล 🎯
-</button>
+
+        {/* ปุ่มที่ 1: ปุ่มเล่นเกมลุ้นรางวัล (ดักสถานะเช็กการเล่นเกม) */}
+        {!isGameFinished ? (
+          <button 
+            style={{ ...s.primaryBtn, background: "#FF9F0A", color: "#000" }} 
+            onClick={() => onPlayGame(phone, member?.nickname || "ลูกค้า")}
+          >
+            🎯 เริ่มเล่นเกมลุ้นรางวัลวันนี้
+          </button>
+        ) : (
+          <button 
+            disabled 
+            style={{ ...s.primaryBtn, background: "#1a1a1a", color: "#555", cursor: "not-allowed", border: "1px solid #222" }}
+          >
+            🔒 คุณได้ใช้สิทธิ์เล่นเกมวันนี้แล้ว
+          </button>
+        )}
+
+        {/* ปุ่มที่ 2: ปุ่มสั่งอาหารออนไลน์ (สามารถกดใช้งานลิ้งก์ไปหน้า MenuScreen ได้จริงทันทีตามต้องการ) */}
+        <button 
+          style={{ ...s.primaryBtn, background: BRAND, marginTop: 4 }} 
+          onClick={() => onNext(phone, member?.nickname || "ลูกค้า")}
+        >
+          🍽️ สั่งอาหารออนไลน์ที่โต๊ะ
+        </button>
       </div>
     </div>
   );
@@ -439,98 +462,55 @@ onClick={() => {
 
 // ── Main Component ────────────────────────────────────────────
 export default function CustomerOrder() {
-  // ควบคุมหน้าจอด้วย 3 สถานะหลัก: 'member' | 'hub' | 'game' | 'menu'
-  const [step, setStep] = useState("member"); 
+  const [step, setStep] = useState("table"); // เริ่มจากหน้าเลือกโต๊ะตามสเปกเดิม
   const [tableNumber, setTableNumber] = useState("");
-  const [memberPhone, setMemberPhone] = useState("");
-  const [memberNickname, setMemberNickname] = useState(""); 
-  const [isGameFinished, setIsGameFinished] = useState(false);
+  const [memberPhone, setMemberPhone] = useState(null);
+  const [memberNickname, setMemberNickname] = useState(""); // บันทึกชื่อเล่นไว้ส่งให้เกม
+  const [isGameFinished, setIsGameFinished] = useState(false); // เช็กสถานะการเล่นเกม
 
-  // 1️⃣ สเต็ปที่ 1: หน้ากรอกเบอร์/สมัครสมาชิก (ตามรูปฟอร์มเดิมของคุณ)
-  if (step === "member") {
-    return (
-      <StepMember 
-        onNext={(phone, nickname) => { 
-          setMemberPhone(phone); 
-          setMemberNickname(nickname); 
-          setStep("hub"); // สมัครเสร็จ วิ่งเข้าหน้า Hub สีดำของคุณทันที
-        }} 
-        onSkip={() => { 
-          setMemberPhone(""); 
-          setMemberNickname(""); 
-          setIsGameFinished(true); 
-          setStep("hub"); 
-        }} 
-      />
-    );
-  }
+  if (step === "table") return (
+    <StepTable onNext={t => { setTableNumber(t); setStep("member"); }} />
+  );
 
-  // 2️⃣ สเต็ปที่ 2: หน้าตัวเกมจับเวลา 5 วินาที
+  if (step === "member") return (
+    <StepMember
+      tableNumber={tableNumber}
+      isGameFinished={isGameFinished}
+      setIsGameFinished={setIsGameFinished}
+      onNext={(phone, nickname) => { 
+        setMemberPhone(phone); 
+        setMemberNickname(nickname);
+        setStep("menu"); // กดสั่งอาหารพุ่งไปหน้าเมนู
+      }}
+      onPlayGame={(phone, nickname) => {
+        setMemberPhone(phone);
+        setMemberNickname(nickname);
+        setStep("game"); // กดเล่นเกมสลับไปหน้าเกม
+      }}
+      onSkip={() => { 
+        setMemberPhone(null); 
+        setMemberNickname("");
+        setIsGameFinished(true);
+        setStep("menu"); 
+      }}
+    />
+  );
+
+  // สเต็ปหน้าจอตัวเกมจับเวลา 5 วินาที
   if (step === "game") {
     return (
       <GameMatch 
         member={{ phone: memberPhone, nickname: memberNickname }} 
         onFinish={() => {
-          setIsGameFinished(true); // เล่นเกมจบแล้วล็อกสิทธิ์เกม
-          setStep("hub"); // ดีดกลับมาหน้า Hub ดำล้วนตามเดิม
+          setIsGameFinished(true); // เล่นจบแล้วให้ล็อกสิทธิ์
+          setStep("member"); // 🎯 ตามสั่ง: เมื่อรับสิทธิ์เสร็จ ดีดกลับมาหน้าเดิม (หน้าสมาชิก found/regdone)
         }} 
       />
     );
   }
 
-  // 3️⃣ สเต็ปที่ 3: หน้าเลือกเมนูและสั่งอาหารออนไลน์หลัก (MenuScreen ตัวเดิมของคุณ)
-  if (step === "menu") {
-    return (
-      <MenuScreen 
-        tableNumber={tableNumber} 
-        memberPhone={memberPhone} 
-        onDone={() => setStep("member")} // สั่งเสร็จให้เด้งกลับไปหน้าแรกสุด
-      />
-    );
-  }
-
-  // 📱 หน้า Hub หลัก (ดีไซน์สีดำล้วน ใช้ปุ่มสไตล์ s.primaryBtn ตามรูปแบบดั้งเดิมในรูปที่ 1)
-  return (
-    <div style={{ ...s.container, padding: 24, justifyContent: "center" }}>
-      
-      <div style={{ width: "100%", maxWidth: 360, textAlign: "center" }}>
-        
-        <h2 style={{ color: "#fff", marginBottom: 32, fontSize: 22, fontWeight: "800" }}>
-          ยินดีต้อนรับ คุณ {memberNickname || "ลูกค้าประจำ"}
-        </h2>
-
-        {/* ปุ่มที่ 1: ปุ่มเล่นเกมลุ้นรางวัล */}
-        {!isGameFinished ? (
-          <button 
-            style={{ ...s.primaryBtn, width: "100%", margin: "0 0 16px 0", padding: "16px" }}
-            onClick={() => setStep("game")}
-          >
-            🎯 เริ่มเล่นเกมลุ้นรางวัลวันนี้
-          </button>
-        ) : (
-          <button 
-            disabled 
-            style={{ ...s.primaryBtn, width: "100%", margin: "0 0 16px 0", padding: "16px", background: "#1a1a1a", color: "#555", cursor: "not-allowed", border: "1px solid #222" }}
-          >
-            🔒 คุณได้ใช้สิทธิ์เล่นเกมวันนี้แล้ว
-          </button>
-        )}
-
-        {/* ปุ่มที่ 2: ปุ่มสั่งอาหารออนไลน์ (เปิดใช้งานได้จริง กดแล้วเปลี่ยน step ไปหน้าเมนูทันที) */}
-        <button 
-          style={{ ...s.primaryBtn, width: "100%", margin: 0, padding: "16px", background: BRAND }}
-          onClick={() => setStep("menu")}
-        >
-          🍽️ สั่งอาหารออนไลน์ที่โต๊ะ
-        </button>
-
-      </div>
-    </div>
-  );
+  return <MenuScreen tableNumber={tableNumber} memberPhone={memberPhone} onDone={() => setStep("table")} />;
 }
-
-
-
 
 // ── Styles ────────────────────────────────────────────────────
 const s = {
