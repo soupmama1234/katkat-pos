@@ -96,10 +96,10 @@ function StepTable({ onNext }) {
   );
 }
 
-function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
-  const [phone, setPhone] = useState("");
-  const [state, setState] = useState("idle"); // idle | loading | found | notfound | registering | regdone
-  const [member, setMember] = useState(null);
+function StepMember({ onNext, onSkip, onPlayGame, isGameFinished, initialPhone = "", initialMember = null }) {
+  const [phone, setPhone] = useState(initialPhone);
+  const [state, setState] = useState(initialMember ? "found" : "idle"); 
+  const [member, setMember] = useState(initialMember);
   const [nickname, setNickname] = useState("");
   const [error, setError] = useState("");
 
@@ -118,12 +118,6 @@ function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
       setState("notfound");
     }
   };
-  // เพิ่มใน StepMember เพื่อให้จำสถานะเดิมได้เมื่อเด้งกลับมาจากหน้าเกม
-useEffect(() => {
-  if (phone && member) {
-    setState("found");
-  }
-}, [phone, member]);
   
 
   const handleRegister = async () => {
@@ -485,6 +479,8 @@ export default function CustomerOrder() {
   if (step === "member") return (
     <StepMember
       isGameFinished={isGameFinished}
+      initialPhone={memberPhone}   // ส่งเบอร์เดิมที่เคยกรอกไว้เข้าไป
+      initialMember={member}       // ส่ง object member เดิมเข้าไป (ถ้าคุณมี state ชื่อ member ในหน้าหลัก)
       onNext={phone => { 
         setMemberPhone(phone); 
         setStep("menu");
