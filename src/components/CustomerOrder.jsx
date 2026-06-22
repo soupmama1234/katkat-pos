@@ -480,43 +480,45 @@ export default function CustomerOrder() {
   }
 
   // 🎯 สเต็ปที่ 3: หน้า Hub สมาชิก (สร้างขึ้นมาใหม่แทน MenuScreen เดิม)
-  return (
-    <div style={styles.hubContainer}>
-      <div style={styles.hubCard}>
-        <span style={styles.badge}>MEMBER CARD</span>
-        <h2 style={styles.welcomeText}>คุณ {memberNickname || "ลูกค้าทั่วไป"}</h2>
-        <p style={styles.phoneText}>{memberPhone || "ไม่ได้ผูกเบอร์โทรศัพท์"}</p>
-        
-        {memberPhone && (
-          <div style={styles.statGrid}>
-            <div style={styles.statBox}>
-              <small>แต้มสะสม</small>
-              <p>0 แต้ม</p> {/* หรือดึงจากสเตท member ข้อมูลจริงในอนาคต */}
+    // 🎯 สเต็ปที่ 3: หน้า Hub สมาชิก (แก้ไขเพื่อป้องกันหน้าจอขาว)
+  if (step === "menu" && isGameFinished) {
+    return (
+      <div style={styles.hubContainer}>
+        <div style={styles.hubCard}>
+          <span style={styles.badge}>MEMBER CARD</span>
+          {/* ใช้ตัวแปร memberNickname และ memberPhone จาก State หลักโดยตรง */}
+          <h2 style={styles.welcomeText}>คุณ {memberNickname || "ลูกค้าประจำ"}</h2>
+          <p style={styles.phoneText}>{memberPhone ? `📱 ${memberPhone}` : "ไม่ได้ผูกเบอร์โทรศัพท์"}</p>
+          
+          {memberPhone && (
+            <div style={styles.statGrid}>
+              <div style={styles.statBox}>
+                <small style={{ color: '#888', fontSize: 11 }}>แต้มสะสม</small>
+                {/* ใส่ค่าเริ่มต้น 0 ไว้เลยเพื่อความปลอดภัยหน้าร้านปัจจุบัน */}
+                <p style={{ margin: "5px 0 0 0", fontSize: 18, fontWeight: "bold", color: "#FF9F0A" }}>0 แต้ม</p> 
+              </div>
+              <div style={styles.statBox}>
+                <small style={{ color: '#888', fontSize: 11 }}>จำนวนมื้อที่มาทาน</small>
+                <p style={{ margin: "5px 0 0 0", fontSize: 18, fontWeight: "bold" }}>1 ครั้ง</p>
+              </div>
             </div>
-            <div style={styles.statBox}>
-              <small>จำนวนมื้อที่มาทาน</small>
-              <p>0 ครั้ง</p>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        <div style={{ width: "100%", maxWidth: 340, marginTop: 24, padding: "0 10px" }}>
+          {/* ปุ่มที่ 1: ปุ่มเล่นเกม (เปลี่ยนสถานะเป็นใช้สิทธิ์แล้ว) */}
+          <button disabled style={{ ...styles.hubBtn, background: "#1a1a1a", color: "#555", cursor: "not-allowed", border: "1px solid #222" }}>
+            🎯 คุณได้ใช้สิทธิ์สแกนลุ้นโชควันนี้แล้ว
+          </button>
+
+          {/* ปุ่มที่ 2: ปุ่มสั่งอาหารออนไลน์ (ทำเป็นปุ่มสีเทา บล็อกไว้ก่อน) */}
+          <button disabled style={{ ...styles.hubBtn, background: "#111", color: "#444", border: "1px dashed #222", marginTop: 12, cursor: "not-allowed" }}>
+            🍽️ สั่งอาหารออนไลน์ที่โต๊ะ (เร็วๆ นี้)
+          </button>
+        </div>
       </div>
-
-      <div style={{ width: "100%", maxWidth: 340, marginTop: 24 }}>
-        {/* ปุ่มที่ 1: ปุ่มเล่นเกม (เปลี่ยนสถานะเป็นเล่นแล้ว) */}
-        <button disabled style={{ ...styles.hubBtn, background: "#1a1a1a", color: "#555", cursor: "not-allowed" }}>
-          🎯 คุณได้ใช้สิทธิ์สแกนลุ้นโชควันนี้แล้ว
-        </button>
-
-        {/* ปุ่มที่ 2: ปุ่มสั่งอาหารออนไลน์ (ทำเป็นปุ่มสีเทา บล็อกไว้ก่อน) */}
-        <button disabled style={{ ...styles.hubBtn, background: "#111", color: "#444", border: "1px dashed #222", marginTop: 12, cursor: "not-allowed" }}>
-          🍽️ สั่งอาหารออนไลน์ที่โต๊ะ (เร็วๆ นี้)
-        </button>
-      </div>
-    </div>
-  );
-                }
-
-
+    );
+  }
 
 // ── Styles ────────────────────────────────────────────────────
 const s = {
