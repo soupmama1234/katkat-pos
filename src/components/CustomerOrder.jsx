@@ -710,4 +710,4 @@ const s = {
   statBox: { flex: 1, background: "#161616", padding: 12, borderRadius: 10, textAlign: "center" },
   hubBtn: { width: "100%", padding: "14px", borderRadius: 12, border: "none", fontSize: 14, fontWeight: "bold" }
 };
-
+    }
