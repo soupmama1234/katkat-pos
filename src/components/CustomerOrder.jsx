@@ -1,6 +1,7 @@
 // src/components/CustomerOrder.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { supabase as sb } from "../supabase";
+import GameMatch from "./GameMatch";
 
 const BRAND = "#FF9F0A";
 const BRAND_DARK = "#cc7a00";
@@ -132,9 +133,9 @@ function StepMember({ onNext, onSkip }) {
           <div style={s.memberName}>{member?.nickname}</div>
           <div style={s.memberPts}>⭐ {member?.points || 0} แต้ม</div>
         </div>
-        <button style={s.primaryBtn} onClick={() => onNext(phone)}>
-          เริ่มสั่งอาหาร 🍽️
-        </button>
+        <<button style={s.primaryBtn} onClick={() => onNext(phone, member?.nickname || "ลูกค้า")}>
+  เริ่มเล่นเกมลุ้นรางวัล 🎯
+</button>
       </div>
     </div>
   );
@@ -438,21 +439,53 @@ onClick={() => {
 
 // ── Main Component ────────────────────────────────────────────
 export default function CustomerOrder() {
-  const [step, setStep] = useState("table"); // table | member | menu
+  const [step, setStep] = useState("table"); // 'table' | 'member' | 'menu'
   const [tableNumber, setTableNumber] = useState("");
-  const [memberPhone, setMemberPhone] = useState(null);
+  const [memberPhone, setMemberPhone] = useState("");
+  
+  // 🌟 เพิ่ม 2 State นี้เข้าไปข้างใต้ครับ
+  const [memberNickname, setMemberNickname] = useState(""); // เอาไว้ส่งให้หน้าเกมโชว์ชื่อ
+  const [isGameFinished, setIsGameFinished] = useState(false); // เอาไว้เช็กว่าเล่นเกมคั่นเวลาหรือยัง
 
-  if (step === "table") return (
-    <StepTable onNext={t => { setTableNumber(t); setStep("member"); }} />
-  );
-  if (step === "member") return (
-    <StepMember
-      onNext={phone => { setMemberPhone(phone); setStep("menu"); }}
-      onSkip={() => { setMemberPhone(null); setStep("menu"); }}
-    />
-  );
-  return <MenuScreen tableNumber={tableNumber} memberPhone={memberPhone} />;
+  
+    // หน้ากรอกโต๊ะ (เหมือนเดิม)
+  if (step === "table") {
+    return <StepTable onNext={val => { setTableNumber(val); setStep("member"); }} />;
+  }
+
+  // หน้าสมาชิก (ปรับให้ดึงชื่อเล่นออกมารอด้วย)
+  if (step === "member") {
+    return (
+      <StepMember 
+        onNext={(phone, nickname) => { 
+          setMemberPhone(phone); 
+          setMemberNickname(nickname); // บันทึกชื่อเล่นไว้ไปใช้ในเกม
+          setStep("menu"); 
+        }} 
+        onSkip={() => { 
+          setMemberPhone(""); 
+          setMemberNickname(""); 
+          setIsGameFinished(true); // ถ้าลูกค้ากดข้าม ไม่ต้องเล่นเกม ให้ข้ามไปเลย
+          setStep("menu"); 
+        }} 
+      />
+    );
+  }
+
+  // 🎯 ดักตรงนี้: ถ้าเข้าสู่ step "menu" แล้ว แต่ "ยังมีเบอร์สมาชิก" และ "ยังเล่นเกมไม่เสร็จ" -> ให้เล่นเกมก่อน!
+  if (step === "menu" && memberPhone && !isGameFinished) {
+    return (
+      <GameMatch 
+        member={{ phone: memberPhone, nickname: memberNickname }} 
+        onFinish={() => setIsGameFinished(true)} // เมื่อพนักงานกดรับสิทธิ์เกมเสร็จ จะปรับเป็น true แล้วเด้งเข้าหน้าสั่งอาหารทันที
+      />
+    );
+  }
+
+  // หน้าจอสั่งอาหารหลัก (เหมือนเดิม)
+  return <MenuScreen tableNumber={tableNumber} memberPhone={memberPhone} onDone={() => setStep("table")} />;
 }
+
 
 // ── Styles ────────────────────────────────────────────────────
 const s = {
