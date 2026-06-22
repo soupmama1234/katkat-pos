@@ -150,7 +150,7 @@ function StepMember({ onNext, onSkip, onPlayGame, isGameFinished, initialPhone =
         {!isGameFinished ? (
           <button 
             style={{ ...s.primaryBtn, background: BRAND, color: "#000" }} 
-            onClick={() => onPlayGame && onPlayGame(phone, member?.nickname || "ลูกค้า")}
+            onClick={() => onPlayGame && onPlayGame(phone, member?.nickname || "ลูกค้า", member)}
           >
             🎯 เริ่มเล่นเกมลุ้นรางวัลวันนี้
           </button>
@@ -474,29 +474,34 @@ export default function CustomerOrder() {
   const [tableNumber, setTableNumber] = useState("");
   const [memberPhone, setMemberPhone] = useState(null);
   const [memberNickname, setMemberNickname] = useState("");
+  const [memberData, setMemberData] = useState(null);
   const [isGameFinished, setIsGameFinished] = useState(false);
 
-  if (step === "member") return (
+    if (step === "member") return (
     <StepMember
       isGameFinished={isGameFinished}
-      initialPhone={memberPhone}   // ส่งเบอร์เดิมที่เคยกรอกไว้เข้าไป
-      initialMember={member}       // ส่ง object member เดิมเข้าไป (ถ้าคุณมี state ชื่อ member ในหน้าหลัก)
+      initialPhone={memberPhone || ""}     // <-- 2. ส่งเบอร์เดิมกลับเข้าไป (ถ้ามี)
+      initialMember={memberData || null}   // <-- 2. ส่ง Object สมาชิกเดิมกลับเข้าไป (ถ้ามี)
       onNext={phone => { 
         setMemberPhone(phone); 
         setStep("menu");
       }}
-      onPlayGame={(phone, nickname) => {
+      onPlayGame={(phone, nickname, fullMember) => { // <-- เพิ่มรับค่า fullMember เข้ามาด้วย
         setMemberPhone(phone);
         setMemberNickname(nickname);
+        setMemberData(fullMember); // บันทึกข้อมูลสมาชิกลงใน state หลักก่อนไปหน้าเกม
         setStep("game");
       }}
       onSkip={() => { 
         setMemberPhone(null); 
+        setMemberData(null);
         setIsGameFinished(true); 
         setStep("menu"); 
       }}
     />
   );
+ 
+  
 
   if (step === "game") {
     return (
