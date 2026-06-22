@@ -4,7 +4,6 @@ import { supabase as sb } from "../supabase";
 import GameMatch from "./GameMatch";
 
 const BRAND = "#FF9F0A";
-const BRAND_DARK = "#cc7a00";
 
 // ── Supabase helpers ──────────────────────────────────────────
 async function fetchProducts() {
@@ -97,30 +96,40 @@ function StepTable({ onNext }) {
   );
 }
 
-// 🎯 1. รับ Props เพิ่มเติมจากหน้าหลัก: onPlayGame, isGameFinished
 function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
   const [phone, setPhone] = useState("");
-  const [state, setState] = useState("idle"); // idle | loading | found | notfound | registering | regdone[span_7](end_span)
+  const [state, setState] = useState("idle"); // idle | loading | found | notfound | registering | regdone
   const [member, setMember] = useState(null);
   const [nickname, setNickname] = useState("");
   const [error, setError] = useState("");
 
   const handleCheck = async () => {
-    if (!/^0\d{8,9}$/.test(phone)) { setError("กรอกเบอร์มือถือให้ถูกต้อง"); return;
-    setError(""); setState("loading");
-  const m = await fetchMemberByPhone(phone);
-    if (m) { setMember(m); setState("found"); 
-    else setState("notfound");
+    if (!/^0\d{8,9}$/.test(phone)) { 
+      setError("กรอกเบอร์มือถือให้ถูกต้อง"); 
+      return;
+    }
+    setError(""); 
+    setState("loading");
+    const m = await fetchMemberByPhone(phone);
+    if (m) { 
+      setMember(m); 
+      setState("found"); 
+    } else { 
+      setState("notfound");
+    }
   };
 
   const handleRegister = async () => {
-    if (!nickname.trim()) { setError("กรุณากรอกชื่อ"); return; 
-    setState("registering");[span_12](end_span)
+    if (!nickname.trim()) { 
+      setError("กรุณากรอกชื่อ"); 
+      return;
+    }
+    setState("registering");
     const m = await registerMember(phone, nickname.trim());
-    setMember(m); setState("regdone");
+    setMember(m); 
+    setState("regdone");
   };
 
-  // 🎯 2. ใช้หน้านี้เป็น Hub ตามดีไซน์สีดำเดิมของคุณ (ไม่มีการสร้างการ์ดแปลกปลอมเพิ่ม)
   if (state === "found" || state === "regdone") return (
     <div style={s.stepWrap}>
       <div style={s.brandMark}>
@@ -137,7 +146,6 @@ function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
           <div style={s.memberPts}>⭐ {member?.points || 0} แต้ม</div>
         </div>
 
-        {/* ปุ่มที่ 1: เริ่มเล่นเกมลุ้นรางวัล (ดักสิทธิ์การเล่นเกม) */}
         {!isGameFinished ? (
           <button 
             style={{ ...s.primaryBtn, background: BRAND, color: "#000" }} 
@@ -154,7 +162,6 @@ function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
           </button>
         )}
 
-        {/* ปุ่มที่ 2: สั่งอาหารออนไลน์ที่โต๊ะ (เปิดให้ทำงานได้จริงทันที) */}
         <button 
           style={{ ...s.primaryBtn, background: BRAND, marginTop: 4 }} 
           onClick={() => onNext(phone)}
@@ -165,7 +172,6 @@ function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
     </div>
   );
 
-  // ด้านล่างนี้คงเดิมไว้ทั้งหมดตามโค้ดดั้งเดิมของคุณ
   return (
     <div style={s.stepWrap}>
       <div style={s.brandMark}>
@@ -219,9 +225,6 @@ function StepMember({ onNext, onSkip, onPlayGame, isGameFinished }) {
     </div>
   );
   }
-          
-    
-
 function MenuScreen({ tableNumber, memberPhone, onDone }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -230,8 +233,8 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCart, setShowCart] = useState(false);
-  const [modModal, setModModal] = useState(null); // {product}
-  const [tempSelection, setTempSelection] = useState([]); // [{...opt, key, groupId}]
+  const [modModal, setModModal] = useState(null);
+  const [tempSelection, setTempSelection] = useState([]); 
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -375,7 +378,7 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
                   <div
                     key={opt.id}
                     style={{ ...s.modOption, ...(tempSelection.some(s => s.key === `${g.id}:${opt.id}`) ? s.modOptionActive : {}) }}
-onClick={() => {
+                    onClick={() => {
                       const key = `${g.id}:${opt.id}`;
                       setTempSelection(prev =>
                         prev.find(s => s.key === key)
@@ -392,7 +395,7 @@ onClick={() => {
             ))}
             <button
               style={{ ...s.primaryBtn, marginTop: 16 }}
-onClick={() => {
+              onClick={() => {
                 const combinedMod = tempSelection.length > 0 ? {
                   id: tempSelection.map(m => m.key).sort().join("|"),
                   name: tempSelection.map(m => m.name).join(", "),
@@ -417,23 +420,23 @@ onClick={() => {
             {cart.length === 0
               ? <div style={{ color: "#555", textAlign: "center", padding: "24px 0" }}>ยังไม่มีรายการ</div>
               : cart.map(item => (
-                <div key={item.key} style={s.cartRow}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{item.name}</div>
-                    {item.modifier && <div style={{ color: "#888", fontSize: 12 }}>{item.modifier.name}</div>}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={s.qtyRow}>
-                      <button style={s.qtyBtn} onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: Math.max(0, i.qty - 1) } : i).filter(i => i.qty > 0))}>−</button>
-                      <span style={{ color: "#fff", minWidth: 20, textAlign: "center" }}>{item.qty}</span>
-                      <button style={s.qtyBtn} onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: i.qty + 1 } : i))}>+</button>
+                  <div key={item.key} style={s.cartRow}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{item.name}</div>
+                      {item.modifier && <div style={{ color: "#888", fontSize: 12 }}>{item.modifier.name}</div>}
                     </div>
-                    <span style={{ color: BRAND, fontWeight: 700, minWidth: 55, textAlign: "right" }}>
-                      ฿{((item.price + (item.modifier?.price || 0)) * item.qty).toLocaleString()}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={s.qtyRow}>
+                        <button style={s.qtyBtn} onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: Math.max(0, i.qty - 1) } : i).filter(i => i.qty > 0))}>−</button>
+                        <span style={{ color: "#fff", minWidth: 20, textAlign: "center" }}>{item.qty}</span>
+                        <button style={s.qtyBtn} onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: i.qty + 1 } : i))}>+</button>
+                      </div>
+                      <span style={{ color: BRAND, fontWeight: 700, minWidth: 55, textAlign: "right" }}>
+                        ฿{((item.price + (item.modifier?.price || 0)) * item.qty).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))
             }
 
             {cart.length > 0 && (
@@ -465,28 +468,24 @@ onClick={() => {
   );
 }
 
-// ── Main Component ────────────────────────────────────────────
-// ── Main Component ────────────────────────────────────────────
 export default function CustomerOrder() {
-  // 🎯 ย้ายหน้าโต๊ะออก: เริ่มต้นระบบที่หน้าสมาชิก ('member') ทันทีเมื่อเปิดเว็บ
-  const [step, setStep] = useState("member"); // member | game | menu
-  const [tableNumber, setTableNumber] = useState(""); // ค่าวางไว้รอรับจาก URL หรือหน้าเมนู
+  const [step, setStep] = useState("member");
+  const [tableNumber, setTableNumber] = useState("");
   const [memberPhone, setMemberPhone] = useState(null);
   const [memberNickname, setMemberNickname] = useState("");
   const [isGameFinished, setIsGameFinished] = useState(false);
 
-  // 1️⃣ STEP 1: หน้าจอสมาชิก (found / regdone ทำหน้าที่เป็น Hub ในตัว)
   if (step === "member") return (
     <StepMember
       isGameFinished={isGameFinished}
       onNext={phone => { 
         setMemberPhone(phone); 
-        setStep("menu"); // กดปุ่มสั่งอาหาร -> เปลี่ยนไปหน้าเมนูทันที
+        setStep("menu");
       }}
       onPlayGame={(phone, nickname) => {
         setMemberPhone(phone);
         setMemberNickname(nickname);
-        setStep("game"); // กดปุ่มเล่นเกม -> เปลี่ยนไปหน้าเกม
+        setStep("game");
       }}
       onSkip={() => { 
         setMemberPhone(null); 
@@ -496,34 +495,30 @@ export default function CustomerOrder() {
     />
   );
 
-  // 2️⃣ STEP 2: หน้าจอตัวเกมจับเวลา 5 วินาที
   if (step === "game") {
     return (
       <GameMatch 
         member={{ phone: memberPhone, nickname: memberNickname }} 
         onFinish={() => {
-          setIsGameFinished(true); // ล็อกสิทธิ์การเล่นเกมวันนี้
-          setStep("member"); // 🎯 เล่นเกมจบ พนักงานกดรับสิทธิ์ -> ดีดกลับมาหน้าเดิม (found/regdone) ทันที
+          setIsGameFinished(true);
+          setStep("member");
         }} 
       />
     );
   }
 
-  // 3️⃣ STEP 3: หน้าเลือกรายการสั่งซื้อเมนูอาหารหลัก
   return (
     <MenuScreen 
       tableNumber={tableNumber} 
       memberPhone={memberPhone} 
-      onDone={() => setStep("member")} // สั่งอาหารเสร็จให้วนกลับมาหน้าสมาชิก
+      onDone={() => setStep("member")}
     />
   );
 }
 
-
-
 // ── Styles ────────────────────────────────────────────────────
 const s = {
-    stepWrap: {
+  stepWrap: {
     minHeight: "100vh", background: "#0a0a0a",
     display: "flex", flexDirection: "column",
     alignItems: "center", justifyContent: "flex-start",
@@ -573,7 +568,6 @@ const s = {
     color: "#888", fontSize: 13, textAlign: "center",
   },
   errTxt: { color: "#FF453A", fontSize: 12, textAlign: "center" },
-  // menu
   menuHeader: {
     position: "sticky", top: 0, zIndex: 100,
     background: "#0a0a0a", borderBottom: "1px solid #1a1a1a",
@@ -711,4 +705,4 @@ const s = {
   statBox: { flex: 1, background: "#161616", padding: 12, borderRadius: 10, textAlign: "center" },
   hubBtn: { width: "100%", padding: "14px", borderRadius: 12, border: "none", fontSize: 14, fontWeight: "bold" }
 };
-    
+        
