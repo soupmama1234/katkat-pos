@@ -114,6 +114,13 @@ function StepMember({ onNext, onSkip, onPlayGame, isGameFinished, initialPhone =
     if (m) { 
       setMember(m); 
       setState("found"); 
+      // ✨ เพิ่มบรรทัดนี้: เช็คว่าวันที่เล่นล่าสุดตรงกับวันนี้ไหม (YYYY-MM-DD)
+      const todayStr = new Date().toLocaleDateString('sv-SE');
+      if (m.last_game_played_at === todayStr) {
+        setIsGameFinished(true);
+      } else {
+        setIsGameFinished(false);
+      }
     } else { 
       setState("notfound");
     }
@@ -122,7 +129,7 @@ function StepMember({ onNext, onSkip, onPlayGame, isGameFinished, initialPhone =
 
   const handleRegister = async () => {
     if (!nickname.trim()) { 
-      setError("กรุณากรอกชื่อ"); 
+      setErr. or("กรุณากรอกชื่อ"); 
       return;
     }
     setState("registering");
@@ -477,19 +484,20 @@ export default function CustomerOrder() {
   const [memberData, setMemberData] = useState(null);
   const [isGameFinished, setIsGameFinished] = useState(false);
 
-    if (step === "member") return (
+      if (step === "member") return (
     <StepMember
       isGameFinished={isGameFinished}
-      initialPhone={memberPhone || ""}     // <-- 2. ส่งเบอร์เดิมกลับเข้าไป (ถ้ามี)
-      initialMember={memberData || null}   // <-- 2. ส่ง Object สมาชิกเดิมกลับเข้าไป (ถ้ามี)
+      initialPhone={memberPhone || ""}
+      initialMember={memberData || null}
       onNext={phone => { 
         setMemberPhone(phone); 
         setStep("menu");
       }}
-      onPlayGame={(phone, nickname, fullMember) => { // <-- เพิ่มรับค่า fullMember เข้ามาด้วย
+      // ✨ ปรับบรรทัดนี้: ตอนกดเล่นเกม ให้เซ็ตค่า setIsGameFinished และจำ memberData ไว้
+      onPlayGame={(phone, nickname, fullMember) => {
         setMemberPhone(phone);
         setMemberNickname(nickname);
-        setMemberData(fullMember); // บันทึกข้อมูลสมาชิกลงใน state หลักก่อนไปหน้าเกม
+        setMemberData(fullMember); 
         setStep("game");
       }}
       onSkip={() => { 
@@ -500,21 +508,24 @@ export default function CustomerOrder() {
       }}
     />
   );
- 
   
-
-  if (step === "game") {
+    if (step === "game") {
     return (
       <GameMatch 
         member={{ phone: memberPhone, nickname: memberNickname }} 
-        onFinish={() => {
+        onFinish={async () => {
+          // ✨ เพิ่มท่อนนี้: อัปเดตวันที่เล่นล่าสุดลง Supabase ของเบอร์นั้นๆ
+          const todayStr = new Date().toLocaleDateString('sv-SE');
+          await sb.from("members")
+            .update({ last_game_played_at: todayStr })
+            .eq("phone", memberPhone);
+
           setIsGameFinished(true);
           setStep("member");
         }} 
       />
     );
   }
-
   return (
     <MenuScreen 
       tableNumber={tableNumber} 
