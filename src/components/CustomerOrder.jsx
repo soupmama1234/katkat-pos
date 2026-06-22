@@ -439,80 +439,70 @@ onClick={() => {
 
 // ── Main Component ────────────────────────────────────────────
 export default function CustomerOrder() {
-  const [step, setStep] = useState("member"); // 'table' | 'member' | 'menu'
+  // ควบคุมหน้าจอด้วย 3 สถานะหลัก: 'member' | 'hub' | 'game' | 'menu'
+  const [step, setStep] = useState("member"); 
   const [tableNumber, setTableNumber] = useState("");
   const [memberPhone, setMemberPhone] = useState("");
-  
-  // 🌟 เพิ่ม 2 State นี้เข้าไปข้างใต้ครับ
-  const [memberNickname, setMemberNickname] = useState(""); // เอาไว้ส่งให้หน้าเกมโชว์ชื่อ
-  const [isGameFinished, setIsGameFinished] = useState(false); // เอาไว้เช็กว่าเล่นเกมคั่นเวลาหรือยัง
+  const [memberNickname, setMemberNickname] = useState(""); 
+  const [isGameFinished, setIsGameFinished] = useState(false);
 
- // 1️⃣ สเต็ปที่ 1: สแกน QR มาเจอหน้าสมัครสมาชิก / เข้าสู่ระบบ ทันที
+  // 1️⃣ สเต็ปที่ 1: หน้ากรอกเบอร์/สมัครสมาชิก (ตามรูปฟอร์มเดิมของคุณ)
   if (step === "member") {
     return (
       <StepMember 
         onNext={(phone, nickname) => { 
           setMemberPhone(phone); 
           setMemberNickname(nickname); 
-          setStep("hub"); // เสร็จแล้วไปหน้า Hub ทันที
+          setStep("hub"); // สมัครเสร็จ วิ่งเข้าหน้า Hub สีดำของคุณทันที
         }} 
         onSkip={() => { 
           setMemberPhone(""); 
           setMemberNickname(""); 
-          setIsGameFinished(true); // ข้ามสมาชิก ไม่ต้องเล่นเกม
+          setIsGameFinished(true); 
           setStep("hub"); 
         }} 
       />
     );
   }
 
-  // 3️⃣ สเต็ปที่ 3: หน้าจอตัวเกมจับเวลา (เปิดเฉพาะตอนกดปุ่มมาจากหน้า Hub)
+  // 2️⃣ สเต็ปที่ 2: หน้าตัวเกมจับเวลา 5 วินาที
   if (step === "game") {
     return (
       <GameMatch 
         member={{ phone: memberPhone, nickname: memberNickname }} 
         onFinish={() => {
-          setIsGameFinished(true); // เล่นจบแล้วล็อกสิทธิ์
-          setStep("hub"); // วนกลับมาหน้า Hub
+          setIsGameFinished(true); // เล่นเกมจบแล้วล็อกสิทธิ์เกม
+          setStep("hub"); // ดีดกลับมาหน้า Hub ดำล้วนตามเดิม
         }} 
       />
     );
   }
 
-  // 2️⃣ สเต็ปที่ 2: หน้า Hub สมาชิก (ใช้สไตล์ตัวแปร s ของเดิมทั้งหมด)
-  return (
-    <div style={{ ...s.container, padding: 20, justifyContent: "center" }}>
-      
-      {/* การ์ดแสดงข้อมูลสมาชิก */}
-      <div style={{ background: "#141414", border: "1px solid #222", borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, boxSizing: "border-box" }}>
-        <h2 style={{ margin: "0 0 4px 0", fontSize: 20, fontWeight: "bold", color: "#fff" }}>
-          คุณ {memberNickname || "ลูกค้าประจำ"}
-        </h2>
-        <p style={{ margin: 0, color: "#666", fontSize: 14 }}>
-          {memberPhone ? `📱 ${memberPhone}` : "ไม่ได้ผูกเบอร์โทรศัพท์"}
-        </p>
-        
-        {memberPhone && (
-          <div style={{ display: "flex", gap: 12, marginTop: 20, borderTop: "1px solid #222", paddingTop: 16 }}>
-            <div style={{ flex: 1, background: "#1a1a1a", padding: 12, borderRadius: 10, textAlign: "center" }}>
-              <small style={{ color: '#888', fontSize: 11 }}>แต้มสะสม</small>
-              <p style={{ margin: "5px 0 0 0", fontSize: 18, fontWeight: "bold", color: BRAND }}>0 แต้ม</p> 
-            </div>
-            <div style={{ flex: 1, background: "#1a1a1a", padding: 12, borderRadius: 10, textAlign: "center" }}>
-              <small style={{ color: '#888', fontSize: 11 }}>จำนวนมื้อที่มาทาน</small>
-              <p style={{ margin: "5px 0 0 0", fontSize: 18, fontWeight: "bold", color: "#fff" }}>1 ครั้ง</p>
-            </div>
-          </div>
-        )}
-      </div>
+  // 3️⃣ สเต็ปที่ 3: หน้าเลือกเมนูและสั่งอาหารออนไลน์หลัก (MenuScreen ตัวเดิมของคุณ)
+  if (step === "menu") {
+    return (
+      <MenuScreen 
+        tableNumber={tableNumber} 
+        memberPhone={memberPhone} 
+        onDone={() => setStep("member")} // สั่งเสร็จให้เด้งกลับไปหน้าแรกสุด
+      />
+    );
+  }
 
-      {/* โซนปุ่มกดด้านล่าง */}
-      <div style={{ width: "100%", maxWidth: 340, marginTop: 24 }}>
+  // 📱 หน้า Hub หลัก (ดีไซน์สีดำล้วน ใช้ปุ่มสไตล์ s.primaryBtn ตามรูปแบบดั้งเดิมในรูปที่ 1)
+  return (
+    <div style={{ ...s.container, padding: 24, justifyContent: "center" }}>
+      
+      <div style={{ width: "100%", maxWidth: 360, textAlign: "center" }}>
         
-        {/* ปุ่มเล่นเกมลุ้นรางวัล */}
+        <h2 style={{ color: "#fff", marginBottom: 32, fontSize: 22, fontWeight: "800" }}>
+          ยินดีต้อนรับ คุณ {memberNickname || "ลูกค้าประจำ"}
+        </h2>
+
+        {/* ปุ่มที่ 1: ปุ่มเล่นเกมลุ้นรางวัล */}
         {!isGameFinished ? (
           <button 
-            style={{ ...s.primaryBtn, width: "100%", margin: 0 }}
+            style={{ ...s.primaryBtn, width: "100%", margin: "0 0 16px 0", padding: "16px" }}
             onClick={() => setStep("game")}
           >
             🎯 เริ่มเล่นเกมลุ้นรางวัลวันนี้
@@ -520,23 +510,27 @@ export default function CustomerOrder() {
         ) : (
           <button 
             disabled 
-            style={{ ...s.primaryBtn, width: "100%", margin: 0, background: "#1a1a1a", color: "#555", cursor: "not-allowed", border: "1px solid #222" }}
+            style={{ ...s.primaryBtn, width: "100%", margin: "0 0 16px 0", padding: "16px", background: "#1a1a1a", color: "#555", cursor: "not-allowed", border: "1px solid #222" }}
           >
             🔒 คุณได้ใช้สิทธิ์เล่นเกมวันนี้แล้ว
           </button>
         )}
 
-        {/* ปุ่มสั่งอาหารออนไลน์ (บอดไว้ก่อน) */}
+        {/* ปุ่มที่ 2: ปุ่มสั่งอาหารออนไลน์ (เปิดใช้งานได้จริง กดแล้วเปลี่ยน step ไปหน้าเมนูทันที) */}
         <button 
-          disabled 
-          style={{ ...s.primaryBtn, width: "100%", marginTop: 12, background: "#111", color: "#444", border: "1px dashed #222", cursor: "not-allowed" }}
+          style={{ ...s.primaryBtn, width: "100%", margin: 0, padding: "16px", background: BRAND }}
+          onClick={() => setStep("menu")}
         >
-          🍽️ สั่งอาหารออนไลน์ที่โต๊ะ (เร็วๆ นี้)
+          🍽️ สั่งอาหารออนไลน์ที่โต๊ะ
         </button>
+
       </div>
     </div>
   );
 }
+
+
+
 
 // ── Styles ────────────────────────────────────────────────────
 const s = {
