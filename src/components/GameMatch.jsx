@@ -281,14 +281,20 @@ export default function GameMatch({ member, onFinish }) {
               <strong>{finalResult?.diff?.toFixed(2)} วินาที</strong>
             </div>
             
-            {/* กล่อง Rank ที่ดึงคลาสตามระดับผลลัพธ์อัตโนมัติ */}
+                      {/* มัดรวมข้อมูล พลาดเป้า + Rank */}
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%", maxWidth: "340px", marginBottom: 10 }}>
+            <div style={{ ...styles.diffBox, flex: 1, margin: 0, padding: "8px", fontSize: 12 }}>
+              พลาดเป้าเป๊ะๆ<br />
+              <strong>{finalResult?.diff?.toFixed(2)} วินาที</strong>
+            </div>
+            
             <div 
-  className={`rank-badge rank-${finalResult?.rank?.toLowerCase()}`}
-  style={{ flex: 1, margin: 0, padding: "8px" }} /* ปล่อยว่างไว้ให้ CSS จัดการขนาดตัวหนังสือตามสเต็ป */
->
-  {finalResult?.rank}
-</div>
-
+              className={`rank-badge rank-${finalResult?.rank?.toLowerCase()}`}
+              style={{ flex: 1, margin: 0, padding: "8px" }}
+            >
+              {finalResult?.rank}
+            </div>
+          </div>
 
           {finalResult?.combo && (
             <div style={{ ...styles.comboBox, margin: "0 0 10px 0", padding: "4px 10px", fontSize: 12 }}>
@@ -312,6 +318,7 @@ export default function GameMatch({ member, onFinish }) {
         </div>
       </>
     );
+  }
 
   if (!mode) {
     return (
