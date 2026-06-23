@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700&family=Share+Tech+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Germania+One&family=Share+Tech+Mono&display=swap');
+
 
 /* --- Global Theme & Font --- */
 * {
@@ -80,57 +82,102 @@
   font-feature-settings: "tnum" !important;
 }
 
-/* สไตล์พื้นฐานของกล่อง Rank */
+/* --------------------------------------------------------
+   RANK BADGES SYSTEM (GERMANIA ONE & CYBER-STREET STYLE)
+   -------------------------------------------------------- */
+
 .rank-badge {
-  font-family: 'Share Tech Mono', monospace !important;
-  font-weight: bold !important;
+  /* สลับมาใช้ฟอนต์ Germania One ตามสั่ง */
+  font-family: 'Germania One', serif !important;
+  font-weight: 400 !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+  border-radius: 6px;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+  letter-spacing: 1px;
 }
 
-/* 🟢 กลุ่ม Rank ทั่วไป: กรอบเรียบง่าย คลีนๆ */
-.rank-c   { color: #9e9e9e; border: 1px solid #444; background: #151515; }
-.rank-b   { color: #4caf50; border: 1px solid #2e7d32; background: #112211; }
-.rank-a   { color: #2196f3; border: 1px solid #1565c0; background: #111e2e; }
+/* ⚪ Rank C: สีเทาดิบๆ แบบคอนกรีตหน้าร้าน (พยายามใหม่) */
+.rank-c { 
+  color: #a0a0a0; 
+  border: 1px solid #444; 
+  background: #1a1a1a; 
+  font-size: 20px !important;
+}
 
-/* 🟡 กลุ่ม Rank สูง (S / SS / SSS): เริ่มมีแสงเรืองรอง (Glow) */
-.rank-s   { 
-  color: #ffeb3b; border: 1px solid #fbc02d; background: #262411;
-  box-shadow: 0 0 10px rgba(255, 235, 59, 0.2);
+/* 🟢 Rank B: สีเขียวตองอ่อน นีออนสว่าง */
+.rank-b { 
+  color: #39ff14; 
+  border: 1px solid #28c00c; 
+  background: rgba(57, 255, 20, 0.08); 
+  font-size: 24px !important;
+  box-shadow: inset 0 0 8px rgba(57, 255, 20, 0.2);
 }
-.rank-ss  { 
-  color: #ff9800; border: 1px solid #ef6c00; background: #2b1d11;
-  box-shadow: 0 0 15px rgba(255, 152, 0, 0.3);
+
+/* 🔵 Rank A: สีน้ำเงินไซเบอร์ อิเล็กทริกบลู */
+.rank-a { 
+  color: #00e5ff; 
+  border: 1px solid #00b3cc; 
+  background: rgba(0, 229, 255, 0.08); 
+  font-size: 28px !important;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
 }
+
+/* 🟣 Rank S: สีชมพูฟูเชีย นีออนจัดจ้าน (เริ่มโหด) */
+.rank-s { 
+  color: #ff007f; 
+  border: 2px solid #ff007f; 
+  background: rgba(255, 0, 127, 0.1); 
+  font-size: 34px !important; /* ขนาดใหญ่เริ่มล้นกล่อง */
+  box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+  transform: scale(1.05);
+}
+
+/* 🟠 Rank SS: สีส้มลาวา เดือดๆ */
+.rank-ss { 
+  color: #ff5500; 
+  border: 2px solid #ff5500; 
+  background: rgba(255, 85, 0, 0.12); 
+  font-size: 40px !important;
+  box-shadow: 0 0 22px rgba(255, 85, 0, 0.6);
+  transform: scale(1.1) rotate(-1deg);
+}
+
+/* 🔴 Rank SSS: แดงเลือดนก เรืองแสงสลับเลเยอร์ */
 .rank-sss { 
-  color: #e91e63; border: 1px solid #c2185b; background: #2d111c;
-  box-shadow: 0 0 20px rgba(233, 30, 99, 0.4);
-  animation: rankPulse 1.5s infinite alternate;
+  color: #ff0000; 
+  border: 2px solid #ff0000; 
+  background: linear-gradient(180deg, #2a0000 0%, #111 100%);
+  font-size: 46px !important; /* ใหญ่กระแทกตา */
+  box-shadow: 0 0 25px rgba(ff, 0, 0, 0.7);
+  transform: scale(1.15) rotate(-2deg);
+  animation: sssPulse 1s infinite alternate;
 }
 
-/* 🔥 กลุ่ม Rank GOD: เด่นทะลุกรอบ + แฟลชขยายใหญ่ + เปล่งออร่า */
+/* 🔥 Rank GOD: ทองคำอำมหิต ทะลุกรอบขั้นสุด บ้าคลั่งที่สุดในเกม */
 .rank-god { 
-  color: #ff3d00; 
-  border: 2px solid #ff3d00; 
-  background: linear-gradient(135deg, #3a0f05 0%, #151515 100%);
-  box-shadow: 0 0 30px rgba(255, 61, 0, 0.6);
-  font-size: 28px !important; /* ขยายขนาดฟอนต์ให้ใหญ่ทะลักออกมา */
-  transform: scale(1.12) rotate(-2deg); /* ดันขนาดให้ใหญ่ล้นกรอบและเอียงสไตล์ซิ่ง */
-  animation: godGlow 1s infinite alternate;
+  color: #ffea00; 
+  border: 3px solid #ffea00; 
+  background: linear-gradient(135deg, #4a3b00 0%, #000000 100%);
+  font-size: 58px !important; /* ขนาดใหญ่ยักษ์ทะลักออกจากกรอบสี่เหลี่ยม */
+  box-shadow: 0 0 40px rgba(255, 234, 0, 0.9), inset 0 0 15px rgba(255, 234, 0, 0.4);
+  transform: scale(1.25) rotate(-4deg); /* บีบองศาให้เบี้ยวสตรีท ดันขนาดทะลุ 125% */
+  animation: godVibrate 0.15s infinite alternate;
 }
 
-/* แอนิเมชันเคลื่อนไหวสำหรับ Rank ระดับสูง */
-@keyframes rankPulse {
-  from { box-shadow: 0 0 10px rgba(233, 30, 99, 0.3); }
-  to { box-shadow: 0 0 22px rgba(233, 30, 99, 0.6); }
+/* --------------------------------------------------------
+   ANIMATIONS
+   -------------------------------------------------------- */
+
+@keyframes sssPulse {
+  from { box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); transform: scale(1.15) rotate(-2deg); }
+  to { box-shadow: 0 0 30px rgba(255, 0, 0, 0.9); transform: scale(1.18) rotate(-2deg); }
 }
 
-@keyframes godGlow {
-  0% { box-shadow: 0 0 20px rgba(255, 61, 0, 0.5); transform: scale(1.12) rotate(-2deg); }
-  100% { box-shadow: 0 0 35px rgba(255, 61, 0, 0.8); transform: scale(1.16) rotate(-2deg); }
+/* เอฟเฟกต์สั่นระริกแบบพระเจ้าคุมพลังไม่อยู่ */
+@keyframes godVibrate {
+  0% { transform: scale(1.25) rotate(-4deg) translate(0px, 0px); }
+  100% { transform: scale(1.27) rotate(-3.5deg) translate(1px, -1px); }
 }
-
