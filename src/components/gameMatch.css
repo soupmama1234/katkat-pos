@@ -1,14 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700&family=Share+Tech+Mono&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Germania+One&family=Share+Tech+Mono&display=swap');
 
-
 /* --- Global Theme & Font --- */
 * {
   box-sizing: border-box;
   font-family: 'Kanit', 'Rajdhani', sans-serif;
 }
 
-/* --- Animations --- */
+/* --- Base Animations --- */
 @keyframes breathe {
   0% { transform: scale(1); text-shadow: 0 0 15px rgba(255, 159, 10, 0.2); }
   50% { transform: scale(1.03); text-shadow: 0 0 30px rgba(255, 159, 10, 0.6); }
@@ -32,8 +31,7 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- Component Styles --- */
-/* ปรับแต่งการ์ดเลือกโหมดให้ดูเป็น Cyber-Japanese (ขอบเรืองแสงบางๆ) */
+/* --- Component Cards --- */
 .mode-card-easy {
   border: 1px solid rgba(76, 175, 80, 0.3) !important;
   transition: all 0.25s ease !important;
@@ -54,7 +52,6 @@
   transform: translateY(-2px);
 }
 
-/* ปุ่มกดสไตล์สตรีทซิ่ง */
 .game-btn {
   transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
 }
@@ -62,12 +59,6 @@
   transform: scale(0.95) !important;
 }
 
-/* ผลรางวัลขึ้นทีละสเต็ปนุ่มๆ */
-.result-item {
-  animation: cardFadeIn 0.4s ease forwards;
-}
-
-/* คลาสสำหรับนาฬิกาจับเวลาตอนวิ่ง */
 .cyber-timer {
   font-family: 'Share Tech Mono', monospace !important;
   font-variant-numeric: tabular-nums !important;
@@ -78,29 +69,37 @@
 /* ==========================================
    CYBER RESULT TIME (WHITE CORE & NEON GLOW)
    ========================================== */
-
 .cyber-result-time {
-  /* บังคับสีฟอนต์เป็นสีขาวเพื่อให้ตัวเลขสว่างเด่นลอยขึ้นมา (White Core) */
   color: #ffffff !important; 
-  
-  /* ระเบิดออร่าแสงเรืองรอบตัวเลข 3 ชั้น (Intense Neon Glow) */
   text-shadow: 
-    0 0 10px #FF9F0A,
+    0 0 12px #FF9F0A,
     0 0 25px #FF9F0A,
     0 0 50px rgba(255, 159, 10, 0.6) !important;
-    
-  /* สั่งรันแอนิเมชันเปิดตัว + แอนิเมชันไฟกะพริบวิ้งๆ ทำงานพร้อมกัน */
   animation: 
     resultTimeEnter 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
     neonSparkle 2s infinite alternate !important;
-  
   opacity: 0;
 }
 
-/* --------------------------------------------------------
-   RANK BADGES SYSTEM (FIXED BOX SIZE / MAXIMUM TEXT SIZE)
-   -------------------------------------------------------- */
+@keyframes resultTimeEnter {
+  0% { transform: scale(2); filter: blur(10px); opacity: 0; text-shadow: 0 0 100px #fff; }
+  70% { transform: scale(0.95); filter: blur(0); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 
+@keyframes neonSparkle {
+  0%, 100% {
+    text-shadow: 0 0 12px #FF9F0A, 0 0 25px #FF9F0A, 0 0 50px rgba(255, 159, 10, 0.6), 0 0 80px rgba(255, 159, 10, 0.4);
+    transform: scale(1);
+  }
+  92% { text-shadow: 0 0 12px #FF9F0A, 0 0 25px #FF9F0A, 0 0 50px rgba(255, 159, 10, 0.6); }
+  94% { text-shadow: 0 0 4px #FF9F0A, 0 0 10px rgba(255, 159, 10, 0.3); }
+  96% { text-shadow: 0 0 15px #FFDDaa, 0 0 35px #FF9F0A, 0 0 65px rgba(255, 159, 10, 0.8); transform: scale(1.01); }
+}
+
+/* ==========================================
+   RANK BADGES SYSTEM (FIXED BOX SIZE)
+   ========================================== */
 .rank-badge {
   font-family: 'Germania One', serif !important;
   font-weight: 400 !important;
@@ -111,160 +110,47 @@
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
   letter-spacing: 1px;
-  
-  /* 🔒 ล็อกขนาดกล่องให้เท่าเดิมตลอดเวลา ไม่ขยายตามตัวหนังสือ */
   width: 100% !important;
-  height: 90px !important; /* คุมความสูงกล่องไว้คงที่ */
-  overflow: visible; /* ยอมให้ตัวหนังสือใหญ่จนทะลักล้นกรอบออกไปได้ตามคอนเซปต์ */
+  height: 90px !important; 
+  overflow: visible; 
   box-sizing: border-box;
 }
 
-/* ⚪ Rank C: ขนาดเริ่มต้น เต็มกล่องพอดี */
-.rank-c { 
-  color: #a0a0a0; 
-  border: 1px solid #444; 
-  background: #1a1a1a; 
-  font-size: 45px !important;
-}
+.rank-c { color: #a0a0a0; border: 1px solid #444; background: #1a1a1a; font-size: 45px !important; }
+.rank-b { color: #39ff14; border: 1px solid #28c00c; background: rgba(57, 255, 20, 0.08); font-size: 55px !important; box-shadow: inset 0 0 8px rgba(57, 255, 20, 0.2); }
+.rank-a { color: #00e5ff; border: 1px solid #00b3cc; background: rgba(0, 229, 255, 0.08); font-size: 65px !important; box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); }
+.rank-s { color: #ff007f; border: 2px solid #ff007f; background: rgba(255, 0, 127, 0.1); font-size: 80px !important; box-shadow: 0 0 15px rgba(255, 0, 127, 0.4); transform: scale(1.02); }
+.rank-ss { color: #ff5500; border: 2px solid #ff5500; background: rgba(255, 85, 0, 0.12); font-size: 95px !important; box-shadow: 0 0 22px rgba(255, 85, 0, 0.6); transform: rotate(-1deg); }
+.rank-sss { color: #ff0000; border: 2px solid #ff0000; background: linear-gradient(180deg, #2a0000 0%, #111 100%); font-size: 110px !important; box-shadow: 0 0 25px rgba(255, 0, 0, 0.7); transform: rotate(-2deg); animation: sssPulse 1s infinite alternate; }
+.rank-god { color: #ffea00; border: 3px solid #ffea00; background: linear-gradient(135deg, #4a3b00 0%, #000000 100%); font-size: 130px !important; box-shadow: 0 0 40px rgba(255, 234, 0, 0.9); transform: rotate(-4deg); animation: godVibrate 0.15s infinite alternate; line-height: 0.8; }
 
-/* 🟢 Rank B: เริ่มใหญ่ขึ้น */
-.rank-b { 
-  color: #39ff14; 
-  border: 1px solid #28c00c; 
-  background: rgba(57, 255, 20, 0.08); 
-  font-size: 55px !important;
-  box-shadow: inset 0 0 8px rgba(57, 255, 20, 0.2);
-}
-
-/* 🔵 Rank A: ใหญ่คับกล่อง */
-.rank-a { 
-  color: #00e5ff; 
-  border: 1px solid #00b3cc; 
-  background: rgba(0, 229, 255, 0.08); 
-  font-size: 65px !important;
-  box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
-}
-
-/* 🟣 Rank S: ตัวใหญ่ทะลักเริ่มเบียดขอบกล่อง */
-.rank-s { 
-  color: #ff007f; 
-  border: 2px solid #ff007f; 
-  background: rgba(255, 0, 127, 0.1); 
-  font-size: 80px !important;
-  box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
-  transform: scale(1.02);
-}
-
-/* 🟠 Rank SS: ขนาดใหญ่เท่าตัวเลขเวลาปกติ */
-.rank-ss { 
-  color: #ff5500; 
-  border: 2px solid #ff5500; 
-  background: rgba(255, 85, 0, 0.12); 
-  font-size: 95px !important;
-  box-shadow: 0 0 22px rgba(255, 85, 0, 0.6);
-  transform: rotate(-1deg);
-}
-
-/* 🔴 Rank SSS: ใหญ่มากจนล้นขอบบนล่างเด่นชัด */
-.rank-sss { 
-  color: #ff0000; 
-  border: 2px solid #ff0000; 
-  background: linear-gradient(180deg, #2a0000 0%, #111 100%);
-  font-size: 110px !important; /* ขนาดใหญ่เท่าตัวเลขเวลาหน้า Result */
-  box-shadow: 0 0 25px rgba(255, 0, 0, 0.7);
-  transform: rotate(-2deg);
-  animation: sssPulse 1s infinite alternate;
-}
-
-/* 🔥 Rank GOD: ใหญ่ที่สุดในเกม (130px) ใหญ่กว่าตัวเลขเวลา ทะลักหลุดกรอบสี่เหลี่ยมออกมาอย่างบ้าคลั่ง */
-.rank-god { 
-  color: #ffea00; 
-  border: 3px solid #ffea00; 
-  background: linear-gradient(135deg, #4a3b00 0%, #000000 100%);
-  font-size: 130px !important; /* บิ๊กบึ้มทะลุกรอบขั้นสุด */
-  box-shadow: 0 0 40px rgba(255, 234, 0, 0.9), inset 0 0 15px rgba(255, 234, 0, 0.4);
-  transform: rotate(-4deg);
-  animation: godVibrate 0.15s infinite alternate;
-  line-height: 0.8; /* บีบระยะบรรทัดเพื่อไม่ให้ตัวอักษรโย้ลงข้างล่าง */
-}
-
-/* --------------------------------------------------------
-   ANIMATIONS
-   -------------------------------------------------------- */
 @keyframes sssPulse {
   from { box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); transform: rotate(-2deg) scale(1); }
   to { box-shadow: 0 0 30px rgba(255, 0, 0, 0.9); transform: rotate(-2deg) scale(1.03); }
 }
-
 @keyframes godVibrate {
   0% { transform: rotate(-4deg) translate(0px, 0px); }
   100% { transform: rotate(-3.5deg) translate(1px, -1px); }
 }
 
 /* ==========================================
-   RESULTS SCREEN ANIMATIONS (SMOOTH & IMPACT)
+   ENTRANCE DELAY ANIMATIONS
    ========================================== */
-
-/* ตัวเลขเวลาหน้า Result ให้สั่นสะเทือนเบาๆ และสว่างวาบขึ้นมา */
-.cyber-result-time {
-  animation: resultTimeEnter 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-  opacity: 0;
-}
-
-/* กล่องพิกัดพลาดเป้า และ กล่อง Rank ให้เด้ง Pop ขึ้นมาพร้อมกัน */
-style-diff-wrap, 
+.result-item-pop,
 .rank-badge,
-div[style*="rewardCard"],
-div[style*="maxWidth: 340px"] {
+.reward-card-animate,
+.staff-box-animate {
   animation: resultItemsEnter 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.2) forwards;
   opacity: 0;
 }
 
-/* ใส่ Delay ให้องค์ประกอบค่อยๆ ทยอยโผล่เรียงตามลำดับสายตา */
 .cyber-result-time { animation-delay: 0.1s; }
-div[style*="diffBox"]     { animation-delay: 0.25s; }
-.rank-badge                { animation-delay: 0.35s; }
-div[style*="rewardCard"]   { animation-delay: 0.5s; }
-div[style*="maxWidth: 340px"] { animation-delay: 0.65s; }
+.result-item-pop   { animation-delay: 0.25s; }
+.rank-badge        { animation-delay: 0.35s; }
+.reward-card-animate { animation-delay: 0.5s; }
+.staff-box-animate { animation-delay: 0.65s; }
 
-/* ------------------------------------------
-   KEYFRAMES (จังหวะการเคลื่อนไหว)
-   ------------------------------------------ */
-
-/* จังหวะเวลาโผล่: ขยายจากใหญ่กลืนลงมาพอดีพร้อมเรืองแสง แฟลชหน้าร้าน */
-@keyframes resultTimeEnter {
-  0% {
-    transform: scale(2);
-    filter: blur(10px);
-    opacity: 0;
-    color: #ffffff;
-    text-shadow: 0 0 50px #fff;
-  }
-  70% {
-    transform: scale(0.95);
-    filter: blur(0);
-    opacity: 1;
-    color: #FF9F0A;
-    text-shadow: 0 0 30px rgba(255,159,10,0.6);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-    color: #FF9F0A;
-    text-shadow: 0 0 15px rgba(255,159,10,0.3);
-  }
-}
-
-/* จังหวะไอเทมอื่นๆ โผล่: เด้งมาจากด้านล่างแบบนุ่มนวลแต่หนักแน่น (Smooth Pop) */
 @keyframes resultItemsEnter {
-  0% {
-    transform: translateY(25px) scale(0.9);
-    filter: blur(4px);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-    opacity: 1;
-  }
-      }
+  0% { transform: translateY(25px) scale(0.9); filter: blur(4px); opacity: 0; }
+  100% { transform: translateY(0) scale(1); filter: blur(0); opacity: 1; }
+    }
