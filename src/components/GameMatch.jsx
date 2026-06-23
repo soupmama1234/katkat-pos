@@ -436,6 +436,22 @@ const styles = {
     `,
     backgroundSize: "24px 24px",
   },
+  muteBtn: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: "50%",
+    width: 44,
+    height: 44,
+    fontSize: 20,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000
+  },
   title: { fontSize: 20, fontWeight: "bold" },
   subtitle: { fontSize: 16, margin: 0, color: "#fff" },
   timer: {
