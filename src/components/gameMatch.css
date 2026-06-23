@@ -83,11 +83,10 @@
 }
 
 /* --------------------------------------------------------
-   RANK BADGES SYSTEM (GERMANIA ONE & CYBER-STREET STYLE)
+   RANK BADGES SYSTEM (FIXED BOX SIZE / MAXIMUM TEXT SIZE)
    -------------------------------------------------------- */
 
 .rank-badge {
-  /* สลับมาใช้ฟอนต์ Germania One ตามสั่ง */
   font-family: 'Germania One', serif !important;
   font-weight: 400 !important;
   display: flex;
@@ -97,87 +96,92 @@
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
   letter-spacing: 1px;
+  
+  /* 🔒 ล็อกขนาดกล่องให้เท่าเดิมตลอดเวลา ไม่ขยายตามตัวหนังสือ */
+  width: 100% !important;
+  height: 90px !important; /* คุมความสูงกล่องไว้คงที่ */
+  overflow: visible; /* ยอมให้ตัวหนังสือใหญ่จนทะลักล้นกรอบออกไปได้ตามคอนเซปต์ */
+  box-sizing: border-box;
 }
 
-/* ⚪ Rank C: สีเทาดิบๆ แบบคอนกรีตหน้าร้าน (พยายามใหม่) */
+/* ⚪ Rank C: ขนาดเริ่มต้น เต็มกล่องพอดี */
 .rank-c { 
   color: #a0a0a0; 
   border: 1px solid #444; 
   background: #1a1a1a; 
-  font-size: 20px !important;
+  font-size: 45px !important;
 }
 
-/* 🟢 Rank B: สีเขียวตองอ่อน นีออนสว่าง */
+/* 🟢 Rank B: เริ่มใหญ่ขึ้น */
 .rank-b { 
   color: #39ff14; 
   border: 1px solid #28c00c; 
   background: rgba(57, 255, 20, 0.08); 
-  font-size: 24px !important;
+  font-size: 55px !important;
   box-shadow: inset 0 0 8px rgba(57, 255, 20, 0.2);
 }
 
-/* 🔵 Rank A: สีน้ำเงินไซเบอร์ อิเล็กทริกบลู */
+/* 🔵 Rank A: ใหญ่คับกล่อง */
 .rank-a { 
   color: #00e5ff; 
   border: 1px solid #00b3cc; 
   background: rgba(0, 229, 255, 0.08); 
-  font-size: 28px !important;
+  font-size: 65px !important;
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
 }
 
-/* 🟣 Rank S: สีชมพูฟูเชีย นีออนจัดจ้าน (เริ่มโหด) */
+/* 🟣 Rank S: ตัวใหญ่ทะลักเริ่มเบียดขอบกล่อง */
 .rank-s { 
   color: #ff007f; 
   border: 2px solid #ff007f; 
   background: rgba(255, 0, 127, 0.1); 
-  font-size: 34px !important; /* ขนาดใหญ่เริ่มล้นกล่อง */
+  font-size: 80px !important;
   box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
-  transform: scale(1.05);
+  transform: scale(1.02);
 }
 
-/* 🟠 Rank SS: สีส้มลาวา เดือดๆ */
+/* 🟠 Rank SS: ขนาดใหญ่เท่าตัวเลขเวลาปกติ */
 .rank-ss { 
   color: #ff5500; 
   border: 2px solid #ff5500; 
   background: rgba(255, 85, 0, 0.12); 
-  font-size: 40px !important;
+  font-size: 95px !important;
   box-shadow: 0 0 22px rgba(255, 85, 0, 0.6);
-  transform: scale(1.1) rotate(-1deg);
+  transform: rotate(-1deg);
 }
 
-/* 🔴 Rank SSS: แดงเลือดนก เรืองแสงสลับเลเยอร์ */
+/* 🔴 Rank SSS: ใหญ่มากจนล้นขอบบนล่างเด่นชัด */
 .rank-sss { 
   color: #ff0000; 
   border: 2px solid #ff0000; 
   background: linear-gradient(180deg, #2a0000 0%, #111 100%);
-  font-size: 46px !important; /* ใหญ่กระแทกตา */
-  box-shadow: 0 0 25px rgba(ff, 0, 0, 0.7);
-  transform: scale(1.15) rotate(-2deg);
+  font-size: 110px !important; /* ขนาดใหญ่เท่าตัวเลขเวลาหน้า Result */
+  box-shadow: 0 0 25px rgba(255, 0, 0, 0.7);
+  transform: rotate(-2deg);
   animation: sssPulse 1s infinite alternate;
 }
 
-/* 🔥 Rank GOD: ทองคำอำมหิต ทะลุกรอบขั้นสุด บ้าคลั่งที่สุดในเกม */
+/* 🔥 Rank GOD: ใหญ่ที่สุดในเกม (130px) ใหญ่กว่าตัวเลขเวลา ทะลักหลุดกรอบสี่เหลี่ยมออกมาอย่างบ้าคลั่ง */
 .rank-god { 
   color: #ffea00; 
   border: 3px solid #ffea00; 
   background: linear-gradient(135deg, #4a3b00 0%, #000000 100%);
-  font-size: 58px !important; /* ขนาดใหญ่ยักษ์ทะลักออกจากกรอบสี่เหลี่ยม */
+  font-size: 130px !important; /* บิ๊กบึ้มทะลุกรอบขั้นสุด */
   box-shadow: 0 0 40px rgba(255, 234, 0, 0.9), inset 0 0 15px rgba(255, 234, 0, 0.4);
-  transform: scale(1.25) rotate(-4deg); /* บีบองศาให้เบี้ยวสตรีท ดันขนาดทะลุ 125% */
+  transform: rotate(-4deg);
   animation: godVibrate 0.15s infinite alternate;
+  line-height: 0.8; /* บีบระยะบรรทัดเพื่อไม่ให้ตัวอักษรโย้ลงข้างล่าง */
 }
 
 /* --------------------------------------------------------
    ANIMATIONS
    -------------------------------------------------------- */
-
 @keyframes sssPulse {
-  from { box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); transform: scale(1.15) rotate(-2deg); }
-  to { box-shadow: 0 0 30px rgba(255, 0, 0, 0.9); transform: scale(1.18) rotate(-2deg); }
+  from { box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); transform: rotate(-2deg) scale(1); }
+  to { box-shadow: 0 0 30px rgba(255, 0, 0, 0.9); transform: rotate(-2deg) scale(1.03); }
 }
 
-/* เอฟเฟกต์สั่นระริกแบบพระเจ้าคุมพลังไม่อยู่ */
 @keyframes godVibrate {
-  0% { transform: scale(1.25) rotate(-4deg) translate(0px, 0px); }
-  100% { transform: scale(1.27) rotate(-3.5deg) translate(1px, -1px); }
+  0% { transform: rotate(-4deg) translate(0px, 0px); }
+  100% { transform: rotate(-3.5deg) translate(1px, -1px); }
 }
