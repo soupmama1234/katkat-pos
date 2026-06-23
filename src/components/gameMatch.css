@@ -79,3 +79,58 @@
   font-variant-numeric: tabular-nums !important;
   font-feature-settings: "tnum" !important;
 }
+
+/* สไตล์พื้นฐานของกล่อง Rank */
+.rank-badge {
+  font-family: 'Share Tech Mono', monospace !important;
+  font-weight: bold !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+}
+
+/* 🟢 กลุ่ม Rank ทั่วไป: กรอบเรียบง่าย คลีนๆ */
+.rank-c   { color: #9e9e9e; border: 1px solid #444; background: #151515; }
+.rank-b   { color: #4caf50; border: 1px solid #2e7d32; background: #112211; }
+.rank-a   { color: #2196f3; border: 1px solid #1565c0; background: #111e2e; }
+
+/* 🟡 กลุ่ม Rank สูง (S / SS / SSS): เริ่มมีแสงเรืองรอง (Glow) */
+.rank-s   { 
+  color: #ffeb3b; border: 1px solid #fbc02d; background: #262411;
+  box-shadow: 0 0 10px rgba(255, 235, 59, 0.2);
+}
+.rank-ss  { 
+  color: #ff9800; border: 1px solid #ef6c00; background: #2b1d11;
+  box-shadow: 0 0 15px rgba(255, 152, 0, 0.3);
+}
+.rank-sss { 
+  color: #e91e63; border: 1px solid #c2185b; background: #2d111c;
+  box-shadow: 0 0 20px rgba(233, 30, 99, 0.4);
+  animation: rankPulse 1.5s infinite alternate;
+}
+
+/* 🔥 กลุ่ม Rank GOD: เด่นทะลุกรอบ + แฟลชขยายใหญ่ + เปล่งออร่า */
+.rank-god { 
+  color: #ff3d00; 
+  border: 2px solid #ff3d00; 
+  background: linear-gradient(135deg, #3a0f05 0%, #151515 100%);
+  box-shadow: 0 0 30px rgba(255, 61, 0, 0.6);
+  font-size: 28px !important; /* ขยายขนาดฟอนต์ให้ใหญ่ทะลักออกมา */
+  transform: scale(1.12) rotate(-2deg); /* ดันขนาดให้ใหญ่ล้นกรอบและเอียงสไตล์ซิ่ง */
+  animation: godGlow 1s infinite alternate;
+}
+
+/* แอนิเมชันเคลื่อนไหวสำหรับ Rank ระดับสูง */
+@keyframes rankPulse {
+  from { box-shadow: 0 0 10px rgba(233, 30, 99, 0.3); }
+  to { box-shadow: 0 0 22px rgba(233, 30, 99, 0.6); }
+}
+
+@keyframes godGlow {
+  0% { box-shadow: 0 0 20px rgba(255, 61, 0, 0.5); transform: scale(1.12) rotate(-2deg); }
+  100% { box-shadow: 0 0 35px rgba(255, 61, 0, 0.8); transform: scale(1.16) rotate(-2deg); }
+}
+
