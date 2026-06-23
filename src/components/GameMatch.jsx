@@ -232,7 +232,7 @@ export default function GameMatch({ member, onFinish }) {
       {isMuted ? "🔇" : "🔊"}
     </button>
   );
-
+  
   if (showResult) {
     return (
       <>
@@ -242,56 +242,43 @@ export default function GameMatch({ member, onFinish }) {
           <h2 style={styles.title}>🎉 สรุปผลรางวัล 🎉</h2>
           <p style={{ color: "#888" }}>คุณ {member?.nickname} กดเวลาได้</p>
 
-          {resultStep >= 1 && (
-            <h1 style={styles.timeDisplay}>{finalResult?.time?.toFixed(2)}</h1>
-          )}
+          {/* แสดงเวลาผลลัพธ์ทันที */}
+          <h1 style={styles.timeDisplay}>{finalResult?.time?.toFixed(2)}</h1>
+        
+          {/* แสดงจำนวนวินาทีที่พลาดทันที */}
+          <div
+            style={{
+              ...styles.diffBox,
+              color: finalResult?.diff?.toFixed(2) === "0.00" ? "#00ff88" : "#bbb",
+            }}
+          >
+            พลาดเป้าหมายเพียง
+            <br />
+            <strong>
+              {finalResult?.diff?.toFixed(2)} วินาที
+            </strong>
+          </div>
 
-          {resultStep >= 2 && (
-  <div
-    style={{
-      ...styles.diffBox,
-      color:
-        finalResult?.diff?.toFixed(2) === "0.00"
-          ? "#00ff88"
-          : "#bbb",
-    }}
-  >
-    พลาดเป้าหมายเพียง
-    <br />
-    <strong>
-      {finalResult?.diff?.toFixed(2)} วินาที
-    </strong>
-  </div>
-)}
+          {/* แสดงเกรด/Rank ทันที */}
+          <div
+            style={{
+              ...styles.rankBox,
+              color: finalResult?.rank === "GOD" ? "#FF9F0A" : "#FFD60A",
+            }}
+          >
+            {finalResult?.rank}
+          </div>
 
-          {resultStep >= 3 && (
-            <div
-              style={{
-                ...styles.rankBox,
-                color: finalResult?.rank === "GOD" ? "#FF9F0A" : "#FFD60A",
-              }}
-            >
-              {finalResult?.rank}
-            </div>
-          )}
+          {/* แสดงข้อความ Combo ทันที */}
+          <div style={styles.comboBox}>
+            {finalResult?.combo}
+          </div>
 
-          {resultStep >= 4 && (
-            <div
-              style={{
-                ...styles.comboBox,
-                fontSize: isPerfectHit(finalResult?.time) ? 32 : 22,
-              }}
-            >
-              {finalResult?.combo}
-            </div>
-          )}
-
-          {resultStep >= 5 && (
-            <div style={styles.rewardCard}>
-              <p style={{ fontSize: 12, color: "#666" }}>รางวัลที่ได้รับ</p>
-              <h2 style={{ color: "#FF9F0A", margin: 0 }}>{finalResult?.reward}</h2>
-            </div>
-          )}
+          {/* แสดงการ์ดของรางวัลทันที */}
+          <div style={styles.rewardCard}>
+            <p style={{ fontSize: 12, color: "#666" }}>รางวัลที่ได้รับ</p>
+            <h2 style={{ color: "#FF9F0A", margin: 0 }}>{finalResult?.reward}</h2>
+          </div>
 
           <CountdownTimer onExpire={onFinish} />
           <button style={styles.btnStaff} onClick={onFinish}>
@@ -453,24 +440,24 @@ const styles = {
   },
   title: { fontSize: 20, fontWeight: "bold" },
   subtitle: { fontSize: 16, margin: 0, color: "#fff" },
-    timer: {
-    fontSize: "clamp(95px,22vw,150px)",
-    fontFamily: "'Rajdhani', sans-serif",
-    // บังคับให้เลขทุกตัวกว้างเท่ากันเป๊ะ ทศนิยมจะไม่ขยับสั่นอีกต่อไป
-    fontVariantNumeric: "tabular-nums", 
-    fontFeatureSettings: "'tnum' 1",
+      timer: {
+    fontSize: "clamp(90px, 20vw, 140px)",
+    // เพิ่ม monospace สำรองไว้ และบังคับใช้ตัวเลขกว้างเท่ากัน (tabular-nums)
+    fontFamily: "'Rajdhani', monospace, sans-serif",
+    fontVariantNumeric: "tabular-nums",
     fontWeight: 700,
-    letterSpacing: "4px",
-    margin: "25px 0",
-    textShadow: "0 0 25px rgba(255,159,10,0.3)",
+    letterSpacing: "2px",
+    margin: "30px 0",
+    textShadow: "0 0 25px rgba(255,255,255,0.2)",
+    animation: "breathe 1.4s ease-in-out infinite",
   },
-
-
   timeDisplay: {
-    fontSize: "clamp(48px,10vw,72px)",
-    fontFamily: "'Rajdhani', sans-serif",
+    fontSize: "clamp(48px, 10vw, 72px)",
+    fontFamily: "'Rajdhani', monospace, sans-serif",
+    fontVariantNumeric: "tabular-nums",
     fontWeight: 700,
   },
+
   modeCard: {
     background: "#121212",
     border: "1px solid #2b2b2b",
