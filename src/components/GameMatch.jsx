@@ -18,10 +18,14 @@ export default function GameMatch({ member, onFinish }) {
   const timerRef = useRef(null);
   const startTimeRef = useRef(0);
 
+  const isPerfectHit = (time) => {
+  return Number(time.toFixed(2)) === 5.00;
+  };
+
   const getRank = (finalTime) => {
     const diff = Math.abs(finalTime - 5);
 
-    if (diff === 0) return "GOD";
+    if (isPerfectHit(finalTime)) return "GOD";
     if (diff <= 0.03) return "SSS";
     if (diff <= 0.05) return "SS";
     if (diff <= 0.1) return "S";
@@ -33,7 +37,7 @@ export default function GameMatch({ member, onFinish }) {
   const getCombo = (finalTime) => {
     const diff = Math.abs(finalTime - 5);
 
-    if (diff === 0) return "🏆 PERFECT HIT";
+    if (isPerfectHit(finalTime)) return "🏆 PERFECT HIT";
     if (diff <= 0.03) return "⚡ PERFECT ZONE";
     if (diff <= 0.1) return "🔥 NEAR MISS";
     if (diff <= 0.2) return "🎯 GREAT TRY";
@@ -44,11 +48,11 @@ export default function GameMatch({ member, onFinish }) {
     const diff = Math.abs(finalTime - 5.0);
 
     if (mode === "hard") {
-      if (finalTime === 5.0) return "🏆 ข้าวฟรี 1 SET (มูลค่า 70 บาท)";
+      if (isPerfectHit(finalTime)) return "🏆 ข้าวฟรี 1 SET (มูลค่า 70 บาท)";
       return "🥉 ส่วนลด 5 บาท (รางวัลปลอบใจ)";
     }
 
-    if (finalTime === 5.0) return "🥈 ส่วนลด 20 บาท";
+    if (isPerfectHit(finalTime)) return "🥈 ส่วนลด 20 บาท";
     if (diff <= 0.05) return "🥉 ส่วนลด 10 บาท";
     return "🏷️ ส่วนลด 5 บาท (รางวัลปลอบใจ)";
   };
@@ -134,7 +138,7 @@ export default function GameMatch({ member, onFinish }) {
 
     const timers = [];
 
-    if (finalResult?.diff === 0) {
+    if (finalResult?.isPerfectHit(finalTime)) {
       timers.push(setTimeout(() => setShowConfetti(true), 0));
       timers.push(setTimeout(() => setShowConfetti(false), 2000));
     }
@@ -161,12 +165,22 @@ export default function GameMatch({ member, onFinish }) {
           )}
 
           {resultStep >= 2 && (
-            <div style={styles.diffBox}>
-              พลาดเป้าหมายเพียง
-              <br />
-              <strong>{finalResult?.diff?.toFixed(2)} วินาที</strong>
-            </div>
-          )}
+  <div
+    style={{
+      ...styles.diffBox,
+      color:
+        finalResult?.diff?.toFixed(2) === "0.00"
+          ? "#00ff88"
+          : "#bbb",
+    }}
+  >
+    พลาดเป้าหมายเพียง
+    <br />
+    <strong>
+      {finalResult?.diff?.toFixed(2)} วินาที
+    </strong>
+  </div>
+)}
 
           {resultStep >= 3 && (
             <div
@@ -183,7 +197,7 @@ export default function GameMatch({ member, onFinish }) {
             <div
               style={{
                 ...styles.comboBox,
-                fontSize: finalResult?.diff === 0 ? 32 : 22,
+                fontSize: finalResult?.isPerfectHit(finalTime) ? 32 : 22,
               }}
             >
               {finalResult?.combo}
