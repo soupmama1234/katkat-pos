@@ -138,7 +138,7 @@ export default function GameMatch({ member, onFinish }) {
 
     const timers = [];
 
-    if (finalResult && isPerfectHit(finalResult.time))) {
+    if (finalResult && isPerfectHit(finalResult.time)) {
       timers.push(setTimeout(() => setShowConfetti(true), 0));
       timers.push(setTimeout(() => setShowConfetti(false), 2000));
     }
