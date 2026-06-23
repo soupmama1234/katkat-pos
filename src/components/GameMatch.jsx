@@ -2,75 +2,28 @@ import React, { useState, useEffect, useRef } from "react";
 import Confetti from "react-confetti";
 import "./gameMatch.css";
 
-// ==========================================
-// [Step 2] ฟังก์ชันสร้างเสียงสังเคราะห์ (Web Audio API)
-// ==========================================
+let audioCtx = null; // สร้างตัวแปรรอไว้นอกฟังก์ชัน
+
 const playSound = (type, isMuted) => {
-  if (isMuted) return; // ถ้าเปิดโหมดปิดเสียง จะไม่มีเสียงทำงาน
-  
+  if (isMuted) return;
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    
-    switch (type) {
-      case 'beep':
-        const osc1 = ctx.createOscillator();
-        const gain1 = ctx.createGain();
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(880, ctx.currentTime);
-        gain1.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-        osc1.connect(gain1);
-        gain1.connect(ctx.destination);
-        osc1.start();
-        osc1.stop(ctx.currentTime + 0.1);
-        break;
-
-      case 'go':
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(1200, ctx.currentTime);
-        gain2.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.start();
-        osc2.stop(ctx.currentTime + 0.3);
-        break;
-
-      case 'stop':
-        const osc3 = ctx.createOscillator();
-        const gain3 = ctx.createGain();
-        osc3.type = 'triangle';
-        osc3.frequency.setValueAtTime(440, ctx.currentTime);
-        osc3.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.15);
-        gain3.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain3.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-        osc3.connect(gain3);
-        gain3.connect(ctx.destination);
-        osc3.start();
-        osc3.stop(ctx.currentTime + 0.15);
-        break;
-
-      case 'perfect':
-        const osc4 = ctx.createOscillator();
-        const gain4 = ctx.createGain();
-        osc4.type = 'square';
-        osc4.frequency.setValueAtTime(587.33, ctx.currentTime);
-        osc4.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
-        gain4.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain4.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-        osc4.connect(gain4);
-        gain4.connect(ctx.destination);
-        osc4.start();
-        osc4.stop(ctx.currentTime + 0.4);
-        break;
+    // เรียกใช้ตัวเดิม ถ้ายังไม่มีค่อยสร้าง (สร้างครั้งเดียวจบ)
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-  } catch (e) {
-    console.error("Audio error:", e);
-  }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    
+    const ctx = audioCtx;
+    let osc = ctx.createOscillator(), gain = ctx.createGain();
+    
+    // โค้ดจัดการเสียงสร้าง Oscillator ตัวเดิมของคุณ...
+    if (type === 'beep') { osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.1); }
+    if (type === 'go') { osc.type = 'sine'; osc.frequency.setValueAtTime(1200, ctx.currentTime); gain.gain.setValueAtTime(0.15, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.3); }
+    if (type === 'stop') { osc.type = 'triangle'; osc.frequency.setValueAtTime(440, ctx.currentTime); gain.gain.setValueAtTime(0.2, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.15); }
+    if (type === 'perfect') { osc.type = 'square'; osc.frequency.setValueAtTime(880, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.4); }
+  } catch (e) { console.error(e); }
 };
                                       
 export default function GameMatch({ member, onFinish }) {
