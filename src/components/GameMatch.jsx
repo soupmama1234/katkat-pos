@@ -240,7 +240,7 @@ export default function GameMatch({ member, onFinish }) {
     </button>
   );
 
-    // 1. หน้าแสดงผลลัพธ์รางวัล (Result Screen)
+  // 1. หน้าแสดงผลลัพธ์รางวัล (Result Screen)
   if (showResult) {
     return (
       <>
@@ -257,10 +257,8 @@ export default function GameMatch({ member, onFinish }) {
           <h2 style={{ ...styles.title, margin: "5px 0" }}>🎉 สรุปผลรางวัล 🎉</h2>
           <p style={{ color: "#888", fontSize: 13, margin: "0 0 5px 0" }}>คุณ {member?.nickname} กดเวลาได้</p>
 
-          {/* ตัวเลขเวลา */}
           <h1 className="cyber-result-time" style={styles.timeDisplay}>{finalResult?.time?.toFixed(2)}</h1>
         
-          {/* แถวมัดรวม พลาดเป้า + Rank */}
           <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%", maxWidth: "340px", marginBottom: 10 }}>
             <div 
               className="result-item-pop" 
@@ -284,36 +282,12 @@ export default function GameMatch({ member, onFinish }) {
             </div>
           )}
 
-          {/* การ์ดของรางวัล */}
           <div className="reward-card-animate" style={{ ...styles.rewardCard, margin: "0 0 15px 0", padding: "12px" }}>
             <p style={{ fontSize: 11, color: "#666", margin: "0 0 4px 0" }}>รางวัลที่ได้รับ</p>
             <h2 style={{ color: "#FF9F0A", margin: 0, fontSize: 18 }}>{finalResult?.reward}</h2>
           </div>
 
-          {/* โซนปุ่มกดท้ายจอที่คุณส่งมา (ใส่แท็กปิดครอบให้ถูกต้องด้านล่าง) */}
           <div className="staff-box-animate" style={{ width: "100%", maxWidth: "340px" }}>
-            <CountdownTimer onExpire={onFinish} />
-            <button style={{ ...styles.btnStaff, marginTop: 8, padding: "10px" }} onClick={onFinish}>
-              [ พนักงานกดเพื่อรับสิทธิ์ ]
-            </button>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-          {finalResult?.combo && (
-            <div style={{ ...styles.comboBox, margin: "0 0 10px 0", padding: "4px 10px", fontSize: 12 }}>
-              {finalResult?.combo}
-            </div>
-          )}
-
-          <div style={{ ...styles.rewardCard, margin: "0 0 15px 0", padding: "12px" }}>
-            <p style={{ fontSize: 11, color: "#666", margin: "0 0 4px 0" }}>รางวัลที่ได้รับ</p>
-            <h2 style={{ color: "#FF9F0A", margin: 0, fontSize: 18 }}>{finalResult?.reward}</h2>
-          </div>
-
-          <div style={{ width: "100%", maxWidth: "340px" }}>
             <CountdownTimer onExpire={onFinish} />
             <button style={{ ...styles.btnStaff, marginTop: 8, padding: "10px" }} onClick={onFinish}>
               [ พนักงานกดเพื่อรับสิทธิ์ ]
@@ -515,10 +489,8 @@ const styles = {
   },
   timeDisplay: {
     fontSize: "clamp(80px, 18vw, 110px)",
-    fontFamily: "'Rajdhani', monospace, sans-serif",
     fontVariantNumeric: "tabular-nums",
     fontWeight: 700,
-    color: "#FF9F0A",
     margin: "20px 0",
   },
   modeCard: {
@@ -613,4 +585,4 @@ const styles = {
     marginTop: 10,
   },
 };
-                  
+    
