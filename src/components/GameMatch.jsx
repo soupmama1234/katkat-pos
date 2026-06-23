@@ -311,15 +311,32 @@ export default function GameMatch({ member, onFinish }) {
           กรุณาเลือกโหมดเพื่อเล่นเกม (เลือกได้ครั้งเดียว)
         </p>
 
-        <div style={styles.modeCard} onClick={() => setMode("easy")}> 
+                {/* โหมดง่าย (Easy) */}
+        <div 
+          style={styles.modeCard} 
+          className="mode-card-easy" 
+          onClick={() => {
+            unlockAudio();
+            setMode("easy");
+          }}
+        > 
           <h4 style={{ color: "#4caf50", margin: 0 }}>🟢 โหมดง่าย (Easy)</h4>
           <p style={styles.modeDesc}>เห็นเวลาตลอด / เล่นได้ 3 ครั้ง / รางวัลสูงสุด ลด 20 บาท</p>
         </div>
 
-        <div style={styles.modeCard} onClick={() => setMode("hard")}> 
+        {/* โหมดเซียน (Hard) */}
+        <div 
+          style={styles.modeCard} 
+          className="mode-card-hard" 
+          onClick={() => {
+            unlockAudio();
+            setMode("hard");
+          }}
+        > 
           <h4 style={{ color: "#FF9F0A", margin: 0 }}>🔴 โหมดเซียน (Hard)</h4>
           <p style={styles.modeDesc}>ซ่อนเวลาวินาทีที่ 3 / เล่นได้ครั้งเดียว / รางวัลสูงสุด ข้าวฟรี 1 เซ็ต!</p>
         </div>
+
       </div>
     );
   }
