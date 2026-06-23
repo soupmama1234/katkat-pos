@@ -241,6 +241,7 @@ export default function GameMatch({ member, onFinish }) {
   );
 
   // 1. หน้าแสดงผลลัพธ์รางวัล (Result Screen)
+    // 1. หน้าแสดงผลลัพธ์รางวัล (Result Screen)
   if (showResult) {
     return (
       <>
@@ -257,27 +258,50 @@ export default function GameMatch({ member, onFinish }) {
           <h2 style={{ ...styles.title, margin: "5px 0" }}>🎉 สรุปผลรางวัล 🎉</h2>
           <p style={{ color: "#888", fontSize: 13, margin: "0 0 5px 0" }}>คุณ {member?.nickname} กดเวลาได้</p>
 
+          {/* แกนกลางสีขาว เรืองแสงคุมผ่านคลาส CSS */}
           <h1 className="cyber-result-time" style={styles.timeDisplay}>{finalResult?.time?.toFixed(2)}</h1>
         
-          {/* มัดรวมข้อมูล พลาดเป้า + Rank */}
-<div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%", maxWidth: "340px", marginBottom: 10 }}>
-  <div 
-    className="result-item-pop" /* <-- เพิ่ม class นี้เพื่อให้กล่องพลาดเป้าเด้งสลวย */
-    style={{ ...styles.diffBox, flex: 1, margin: 0, padding: "8px", fontSize: 12 }}
-  >
-    พลาดเป้าเป๊ะๆ<br />
-    <strong>{finalResult?.diff?.toFixed(2)} วินาที</strong>
-  </div>
-  
-  <div 
-    className={`rank-badge rank-${finalResult?.rank?.toLowerCase()}`}
-    style={{ flex: 1, margin: 0, padding: "8px" }}
-  >
-    {finalResult?.rank}
-  </div>
-</div>
+          {/* แถวมัดรวม พลาดเป้า + Rank (แก้ DIV ซ้ำซ้อนเรียบร้อย) */}
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%", maxWidth: "340px", marginBottom: 10 }}>
+            <div 
+              className="result-item-pop" 
+              style={{ ...styles.diffBox, flex: 1, margin: 0, padding: "8px", fontSize: 12 }}
+            >
+              พลาดเป้าเป๊ะๆ<br />
+              <strong>{finalResult?.diff?.toFixed(2)} วินาที</strong>
+            </div>
+            
+            <div 
+              className={`rank-badge rank-${finalResult?.rank?.toLowerCase()}`}
+              style={{ flex: 1, margin: 0, padding: "8px" }}
+            >
+              {finalResult?.rank}
+            </div>
+          </div>
 
+          {finalResult?.combo && (
+            <div style={{ ...styles.comboBox, margin: "0 0 10px 0", padding: "4px 10px", fontSize: 12 }}>
+              {finalResult?.combo}
+            </div>
+          )}
 
+          {/* การ์ดของรางวัล */}
+          <div className="reward-card-animate" style={{ ...styles.rewardCard, margin: "0 0 15px 0", padding: "12px" }}>
+            <p style={{ fontSize: 11, color: "#666", margin: "0 0 4px 0" }}>รางวัลที่ได้รับ</p>
+            <h2 style={{ color: "#FF9F0A", margin: 0, fontSize: 18 }}>{finalResult?.reward}</h2>
+          </div>
+
+          {/* โซนปุ่มกดท้ายจอ */}
+          <div className="staff-box-animate" style={{ width: "100%", maxWidth: "340px" }}>
+            <CountdownTimer onExpire={onFinish} />
+            <button style={{ ...styles.btnStaff, marginTop: 8, padding: "10px" }} onClick={onFinish}>
+              [ พนักงานกดเพื่อรับสิทธิ์ ]
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
           {finalResult?.combo && (
             <div style={{ ...styles.comboBox, margin: "0 0 10px 0", padding: "4px 10px", fontSize: 12 }}>
               {finalResult?.combo}
