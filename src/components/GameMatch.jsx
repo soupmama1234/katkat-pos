@@ -263,8 +263,10 @@ export default function GameMatch({ member, onFinish }) {
           <p style={{ color: "#888" }}>คุณ {member?.nickname} กดเวลาได้</p>
 
           {/* แสดงเวลาผลลัพธ์ทันที */}
-          <h1 style={styles.timeDisplay}>{finalResult?.time?.toFixed(2)}</h1>
-        
+<h1 className="cyber-result-time" style={styles.timeDisplay}>
+  {finalResult?.time?.toFixed(2)}
+</h1>
+
           {/* แสดงจำนวนวินาทีที่พลาดทันที */}
           <div
             style={{
@@ -387,15 +389,16 @@ export default function GameMatch({ member, onFinish }) {
         </p>
 
         <h1
-          style={{
-            ...styles.timer,
-            color: getTimerColor(),
-            animation: stopImpact ? "stopPulse .35s ease" : "none",
-            transition: "all .25s ease",
-          }}
-        >
-          {gameState === "running" && mode === "hard" && time >= 3.0 ? "■■■■" : time.toFixed(2)}
-        </h1>
+  className="cyber-timer" /* <-- ใส่คลาสนี้แทนการดึง fontFamily ใน style */
+  style={{
+    ...styles.timer,
+    color: getTimerColor(),
+    animation: stopImpact ? "stopPulse .35s ease" : "breathe 2s ease-in-out infinite",
+  }}
+>
+  {gameState === "running" && mode === "hard" && time >= 3.0 ? "■■■■" : time.toFixed(2)}
+</h1>
+
 
         {gameState !== "stopped" ? (
           <button
