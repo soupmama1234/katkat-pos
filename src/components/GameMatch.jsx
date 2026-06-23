@@ -470,22 +470,26 @@ const styles = {
   },
   title: { fontSize: 20, fontWeight: "bold" },
   subtitle: { fontSize: 16, margin: 0, color: "#fff" },
-      timer: {
-    fontSize: "clamp(90px, 20vw, 140px)",
-    // เพิ่ม monospace สำรองไว้ และบังคับใช้ตัวเลขกว้างเท่ากัน (tabular-nums)
+        timer: {
+    // ขยายขนาดเริ่มต้นให้ใหญ่ขึ้นเต็มตา (จาก 90px เป็น 130px และดันเพดานสูงสุดไปที่ 200px)
+    fontSize: "clamp(130px, 28vw, 200px)",
     fontFamily: "'Rajdhani', monospace, sans-serif",
     fontVariantNumeric: "tabular-nums",
     fontWeight: 700,
     letterSpacing: "2px",
-    margin: "30px 0",
-    textShadow: "0 0 25px rgba(255,255,255,0.2)",
+    // เพิ่มระยะห่างบน-ล่างให้ตัวเลขดันพื้นที่โล่งออกไป
+    margin: "50px 0",
+    textShadow: "0 0 35px rgba(255,159,10,0.25)",
     animation: "breathe 1.4s ease-in-out infinite",
   },
   timeDisplay: {
-    fontSize: "clamp(48px, 10vw, 72px)",
+    // ขยายขนาดตัวเลขหน้าสรุปผลลัพธ์ให้ใหญ่ขึ้นสะใจ
+    fontSize: "clamp(80px, 18vw, 110px)",
     fontFamily: "'Rajdhani', monospace, sans-serif",
     fontVariantNumeric: "tabular-nums",
     fontWeight: 700,
+    color: "#FF9F0A",
+    margin: "20px 0",
   },
 
   modeCard: {
