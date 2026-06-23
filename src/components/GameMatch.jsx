@@ -2,6 +2,77 @@ import React, { useState, useEffect, useRef } from "react";
 import Confetti from "react-confetti";
 import "./gameMatch.css";
 
+// ==========================================
+// [Step 2] ฟังก์ชันสร้างเสียงสังเคราะห์ (Web Audio API)
+// ==========================================
+const playSound = (type, isMuted) => {
+  if (isMuted) return; // ถ้าเปิดโหมดปิดเสียง จะไม่มีเสียงทำงาน
+  
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    
+    switch (type) {
+      case 'beep':
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(880, ctx.currentTime);
+        gain1.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start();
+        osc1.stop(ctx.currentTime + 0.1);
+        break;
+
+      case 'go':
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1200, ctx.currentTime);
+        gain2.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start();
+        osc2.stop(ctx.currentTime + 0.3);
+        break;
+
+      case 'stop':
+        const osc3 = ctx.createOscillator();
+        const gain3 = ctx.createGain();
+        osc3.type = 'triangle';
+        osc3.frequency.setValueAtTime(440, ctx.currentTime);
+        osc3.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.15);
+        gain3.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain3.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc3.connect(gain3);
+        gain3.connect(ctx.destination);
+        osc3.start();
+        osc3.stop(ctx.currentTime + 0.15);
+        break;
+
+      case 'perfect':
+        const osc4 = ctx.createOscillator();
+        const gain4 = ctx.createGain();
+        osc4.type = 'square';
+        osc4.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc4.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+        gain4.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain4.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc4.connect(gain4);
+        gain4.connect(ctx.destination);
+        osc4.start();
+        osc4.stop(ctx.currentTime + 0.4);
+        break;
+    }
+  } catch (e) {
+    console.error("Audio error:", e);
+  }
+};
+                                      
 export default function GameMatch({ member, onFinish }) {
   const [mode, setMode] = useState(null); // null, 'easy', 'hard'
   const [gameState, setGameState] = useState("idle"); // 'idle', 'running', 'stopped'
@@ -15,6 +86,8 @@ export default function GameMatch({ member, onFinish }) {
   const [finalResult, setFinalResult] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
+  const [isMuted, setIsMuted] = useState(false);
+  
   const timerRef = useRef(null);
   const startTimeRef = useRef(0);
 
@@ -59,6 +132,7 @@ export default function GameMatch({ member, onFinish }) {
 
   const startCountdown = () => {
     setCountdown(3);
+    playSound('beep', isMuted);
     let current = 3;
 
     const interval = setInterval(() => {
@@ -66,11 +140,13 @@ export default function GameMatch({ member, onFinish }) {
 
       if (current > 0) {
         setCountdown(current);
+        playSound('beep', isMuted);
         return;
       }
 
       setCountdown("GO!");
-
+      playSound('go', isMuted);
+      
       setTimeout(() => {
         setCountdown(null);
         setGameState("running");
@@ -100,7 +176,8 @@ export default function GameMatch({ member, onFinish }) {
       clearInterval(timerRef.current);
       triggerStopImpact();
       setGameState("stopped");
-
+      playSound('stop', isMuted);
+      
       const currentAttempt = attempts + 1;
       setAttempts(currentAttempt);
 
@@ -139,6 +216,7 @@ export default function GameMatch({ member, onFinish }) {
     const timers = [];
 
     if (finalResult && isPerfectHit(finalResult.time)) {
+      playSound('perfect', isMuted);
       timers.push(setTimeout(() => setShowConfetti(true), 0));
       timers.push(setTimeout(() => setShowConfetti(false), 2000));
     }
@@ -151,6 +229,17 @@ export default function GameMatch({ member, onFinish }) {
 
     return () => timers.forEach(clearTimeout);
   }, [showResult, finalResult]);
+
+  // ฟังก์ชัน render ปุ่มเปิด-ปิดเสียง (สไตล์ลอยมุมขวาบน)
+  const renderMuteButton = () => (
+    <button 
+      onClick={() => setIsMuted(!isMuted)} 
+      style={styles.muteBtn}
+      title={isMuted ? "เปิดเสียง" : "ปิดเสียง"}
+    >
+      {isMuted ? "🔇" : "🔊"}
+    </button>
+  );
 
   if (showResult) {
     return (
