@@ -246,6 +246,7 @@ export default function GameMatch({ member, onFinish }) {
       <>
         {showConfetti && <Confetti recycle={false} numberOfPieces={250} gravity={0.25} />}
         <div style={styles.container}>
+          {renderMuteButton()}
           <h2 style={styles.title}>🎉 สรุปผลรางวัล 🎉</h2>
           <p style={{ color: "#888" }}>คุณ {member?.nickname} กดเวลาได้</p>
 
@@ -312,6 +313,7 @@ export default function GameMatch({ member, onFinish }) {
   if (!mode) {
     return (
       <div style={styles.container}>
+        {renderMuteButton()}
         <h3 style={styles.subtitle}>ยินดีต้อนรับ คุณ {member?.nickname}</h3>
         <p style={{ color: "#666", fontSize: 13, marginBottom: 20 }}>
           กรุณาเลือกโหมดเพื่อเล่นเกม (เลือกได้ครั้งเดียว)
@@ -340,6 +342,7 @@ export default function GameMatch({ member, onFinish }) {
   if (countdown !== null) {
     return (
       <div style={styles.container}>
+        {renderMuteButton()}
         <div style={styles.countdownWrap}>
           <div
             style={{
@@ -358,6 +361,7 @@ export default function GameMatch({ member, onFinish }) {
     <>
       {stopImpact && <div style={styles.flashOverlay} />}
       <div style={styles.container}>
+        {renderMuteButton()}
         <p style={{ color: "#555", fontSize: 12 }}>
           โหมด: {mode === "easy" ? "Easy" : "Hard"} | สิทธิ์ที่ใช้ไปแล้ว: {attempts}/{mode === "easy" ? 3 : 1}
         </p>
