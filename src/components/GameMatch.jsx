@@ -283,12 +283,12 @@ export default function GameMatch({ member, onFinish }) {
             
             {/* กล่อง Rank ที่ดึงคลาสตามระดับผลลัพธ์อัตโนมัติ */}
             <div 
-              className={`rank-badge rank-${finalResult?.rank?.toLowerCase()}`}
-              style={{ flex: 1, margin: 0, padding: "8px", fontSize: 22 }}
-            >
-              {finalResult?.rank}
-            </div>
-          </div>
+  className={`rank-badge rank-${finalResult?.rank?.toLowerCase()}`}
+  style={{ flex: 1, margin: 0, padding: "8px" }} /* ปล่อยว่างไว้ให้ CSS จัดการขนาดตัวหนังสือตามสเต็ป */
+>
+  {finalResult?.rank}
+</div>
+
 
           {finalResult?.combo && (
             <div style={{ ...styles.comboBox, margin: "0 0 10px 0", padding: "4px 10px", fontSize: 12 }}>
