@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+งานimport React, { useState, useEffect, useRef } from "react";
 import Confetti from "react-confetti";
 import "./gameMatch.css";
 
@@ -312,8 +312,6 @@ export default function GameMatch({ member, onFinish }) {
         </div>
       </>
     );
-  }
-
 
   if (!mode) {
     return (
