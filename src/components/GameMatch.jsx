@@ -274,16 +274,19 @@ export default function GameMatch({ member, onFinish }) {
           <h1 className="cyber-result-time" style={styles.timeDisplay}>{finalResult?.time?.toFixed(2)}</h1>
         
           {/* มัดรวมข้อมูล พลาดเป้า + Rank + Combo ให้อยู่ในแถว/บล็อกเดียวกันเพื่อประหยัดพื้นที่แนวตั้ง */}
+                    {/* มัดรวมข้อมูล พลาดเป้า + Rank */}
           <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%", maxWidth: "340px", marginBottom: 10 }}>
             <div style={{ ...styles.diffBox, flex: 1, margin: 0, padding: "8px", fontSize: 12 }}>
               พลาดเป้าเป๊ะๆ<br />
               <strong>{finalResult?.diff?.toFixed(2)} วินาที</strong>
             </div>
             
-            <div style={{ ...styles.rankBox, flex: 1, margin: 0, padding: "8px", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#151515", borderRadius: "8px", border: "1px solid #333" }}>
-              <span style={{ color: finalResult?.rank === "GOD" ? "#FF9F0A" : "#FFD60A", fontWeight: "bold" }}>
-                {finalResult?.rank}
-              </span>
+            {/* กล่อง Rank ที่ดึงคลาสตามระดับผลลัพธ์อัตโนมัติ */}
+            <div 
+              className={`rank-badge rank-${finalResult?.rank?.toLowerCase()}`}
+              style={{ flex: 1, margin: 0, padding: "8px", fontSize: 22 }}
+            >
+              {finalResult?.rank}
             </div>
           </div>
 
