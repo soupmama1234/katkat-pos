@@ -68,8 +68,6 @@ const playSound = (type, isMuted) => {
   }
 };
 
-
-                                      
 export default function GameMatch({ member, onFinish }) {
   const [mode, setMode] = useState(null); // null, 'easy', 'hard'
   const [gameState, setGameState] = useState("idle"); // 'idle', 'running', 'stopped'
@@ -82,27 +80,26 @@ export default function GameMatch({ member, onFinish }) {
   const [resultStep, setResultStep] = useState(0);
   const [finalResult, setFinalResult] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
-
   const [isMuted, setIsMuted] = useState(false);
   
   const timerRef = useRef(null);
   const startTimeRef = useRef(0);
+
   const unlockAudio = () => {
-  if (!globalAudioCtx) {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-      globalAudioCtx = new AudioContext();
+    if (!globalAudioCtx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        globalAudioCtx = new AudioContext();
+      }
     }
-  }
-};
-  
+  };
+
   const isPerfectHit = (time) => {
-  return Number(time.toFixed(2)) === 5.00;
+    return Number(time.toFixed(2)) === 5.00;
   };
 
   const getRank = (finalTime) => {
     const diff = Math.abs(finalTime - 5);
-
     if (isPerfectHit(finalTime)) return "GOD";
     if (diff <= 0.03) return "SSS";
     if (diff <= 0.05) return "SS";
@@ -114,7 +111,6 @@ export default function GameMatch({ member, onFinish }) {
 
   const getCombo = (finalTime) => {
     const diff = Math.abs(finalTime - 5);
-
     if (isPerfectHit(finalTime)) return "🏆 PERFECT HIT";
     if (diff <= 0.03) return "⚡ PERFECT ZONE";
     if (diff <= 0.1) return "🔥 NEAR MISS";
@@ -124,12 +120,10 @@ export default function GameMatch({ member, onFinish }) {
 
   const calculateReward = (finalTime) => {
     const diff = Math.abs(finalTime - 5.0);
-
     if (mode === "hard") {
       if (isPerfectHit(finalTime)) return "🏆 ข้าวฟรี 1 SET (มูลค่า 70 บาท)";
       return "🥉 ส่วนลด 5 บาท (รางวัลปลอบใจ)";
     }
-
     if (isPerfectHit(finalTime)) return "🥈 ส่วนลด 20 บาท";
     if (diff <= 0.05) return "🥉 ส่วนลด 10 บาท";
     return "🏷️ ส่วนลด 5 บาท (รางวัลปลอบใจ)";
@@ -139,7 +133,6 @@ export default function GameMatch({ member, onFinish }) {
     setCountdown(3);
     playSound('beep', isMuted);
     let current = 3;
-
     const interval = setInterval(() => {
       current -= 1;
 
@@ -156,7 +149,6 @@ export default function GameMatch({ member, onFinish }) {
         setCountdown(null);
         setGameState("running");
         startTimeRef.current = Date.now();
-
         timerRef.current = setInterval(() => {
           setTime((Date.now() - startTimeRef.current) / 1000);
         }, 10);
@@ -171,24 +163,21 @@ export default function GameMatch({ member, onFinish }) {
     setTimeout(() => setStopImpact(false), 350);
   };
 
-    const handleAction = () => {
+  const handleAction = () => {
     if (gameState === "idle") {
       startCountdown();
       return;
     }
 
     if (gameState === "running") {
-      // 1. ต้องเคลียร์ Interval หยุดเวลาเป็นอันดับแรกสุด ห้ามมีอะไรคั่น!
       clearInterval(timerRef.current); 
       setGameState("stopped");
       triggerStopImpact();
 
-      // 2. สั่งเล่นเสียงแบบแยกสตรีม (Async) เพื่อไม่ให้การประมวลผลเสียงมาขัดจังหวะปุ่มกด STOP
       setTimeout(() => {
         playSound('stop', isMuted);
       }, 0);
 
-      // โดโค้ดคำนวณผลลัพธ์เดิมของคุณ...
       const currentAttempt = attempts + 1;
       setAttempts(currentAttempt);
 
@@ -211,7 +200,6 @@ export default function GameMatch({ member, onFinish }) {
       }
     }
   };
-
 
   const handleReset = () => {
     setTime(0);
@@ -242,7 +230,6 @@ export default function GameMatch({ member, onFinish }) {
     return () => timers.forEach(clearTimeout);
   }, [showResult, finalResult]);
 
-  // ฟังก์ชัน render ปุ่มเปิด-ปิดเสียง (สไตล์ลอยมุมขวาบน)
   const renderMuteButton = () => (
     <button 
       onClick={() => setIsMuted(!isMuted)} 
@@ -252,15 +239,15 @@ export default function GameMatch({ member, onFinish }) {
       {isMuted ? "🔇" : "🔊"}
     </button>
   );
-  
-    if (showResult) {
+
+  // 1. หน้าแสดงผลลัพธ์รางวัล (Result Screen)
+  if (showResult) {
     return (
       <>
         {showConfetti && <Confetti recycle={false} numberOfPieces={250} gravity={0.25} />}
         <div style={styles.container}>
           {renderMuteButton()}
           
-          {/* ปรับโลโก้หน้าผลลัพธ์ให้ย่อมลงเล็กน้อยเพื่อประหยัดพื้นที่แนวตั้ง */}
           <img 
             src="/kat%20kat%20katsu%20-%20Logo-07.png" 
             alt="Kat Kat Katsu Logo" 
@@ -270,18 +257,8 @@ export default function GameMatch({ member, onFinish }) {
           <h2 style={{ ...styles.title, margin: "5px 0" }}>🎉 สรุปผลรางวัล 🎉</h2>
           <p style={{ color: "#888", fontSize: 13, margin: "0 0 5px 0" }}>คุณ {member?.nickname} กดเวลาได้</p>
 
-          {/* ตัวเลขเวลาเด่นๆ */}
           <h1 className="cyber-result-time" style={styles.timeDisplay}>{finalResult?.time?.toFixed(2)}</h1>
         
-          {/* มัดรวมข้อมูล พลาดเป้า + Rank + Combo ให้อยู่ในแถว/บล็อกเดียวกันเพื่อประหยัดพื้นที่แนวตั้ง */}
-                    {/* มัดรวมข้อมูล พลาดเป้า + Rank */}
-          <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%", maxWidth: "340px", marginBottom: 10 }}>
-            <div style={{ ...styles.diffBox, flex: 1, margin: 0, padding: "8px", fontSize: 12 }}>
-              พลาดเป้าเป๊ะๆ<br />
-              <strong>{finalResult?.diff?.toFixed(2)} วินาที</strong>
-            </div>
-            
-                      {/* มัดรวมข้อมูล พลาดเป้า + Rank */}
           <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%", maxWidth: "340px", marginBottom: 10 }}>
             <div style={{ ...styles.diffBox, flex: 1, margin: 0, padding: "8px", fontSize: 12 }}>
               พลาดเป้าเป๊ะๆ<br />
@@ -302,13 +279,11 @@ export default function GameMatch({ member, onFinish }) {
             </div>
           )}
 
-          {/* การ์ดของรางวัล (บีบพื้นที่กระชับขึ้น) */}
           <div style={{ ...styles.rewardCard, margin: "0 0 15px 0", padding: "12px" }}>
             <p style={{ fontSize: 11, color: "#666", margin: "0 0 4px 0" }}>รางวัลที่ได้รับ</p>
             <h2 style={{ color: "#FF9F0A", margin: 0, fontSize: 18 }}>{finalResult?.reward}</h2>
           </div>
 
-          {/* โซนปุ่มกดท้ายจอ */}
           <div style={{ width: "100%", maxWidth: "340px" }}>
             <CountdownTimer onExpire={onFinish} />
             <button style={{ ...styles.btnStaff, marginTop: 8, padding: "10px" }} onClick={onFinish}>
@@ -318,12 +293,14 @@ export default function GameMatch({ member, onFinish }) {
         </div>
       </>
     );
-  
+  }
+
+  // 2. หน้าเลือกโหมดเริ่มต้น (Mode Selection)
   if (!mode) {
     return (
       <div style={styles.container}>
         {renderMuteButton()}
-         <img 
+        <img 
           src="/kat%20kat%20katsu%20-%20Logo-07.png" 
           alt="Kat Kat Katsu Logo" 
           style={styles.logo} 
@@ -333,7 +310,6 @@ export default function GameMatch({ member, onFinish }) {
           กรุณาเลือกโหมดเพื่อเล่นเกม (เลือกได้ครั้งเดียว)
         </p>
 
-                {/* โหมดง่าย (Easy) */}
         <div 
           style={styles.modeCard} 
           className="mode-card-easy" 
@@ -346,7 +322,6 @@ export default function GameMatch({ member, onFinish }) {
           <p style={styles.modeDesc}>เห็นเวลาตลอด / เล่นได้ 3 ครั้ง / รางวัลสูงสุด ลด 20 บาท</p>
         </div>
 
-        {/* โหมดเซียน (Hard) */}
         <div 
           style={styles.modeCard} 
           className="mode-card-hard" 
@@ -358,30 +333,21 @@ export default function GameMatch({ member, onFinish }) {
           <h4 style={{ color: "#FF9F0A", margin: 0 }}>🔴 โหมดเซียน (Hard)</h4>
           <p style={styles.modeDesc}>ซ่อนเวลาวินาทีที่ 3 / เล่นได้ครั้งเดียว / รางวัลสูงสุด ข้าวฟรี 1 เซ็ต!</p>
         </div>
-
       </div>
     );
   }
 
-  const getTimerColor = () => {
-    if (time >= 4.95) return "#ff3b30";
-    if (time >= 4.8) return "#ff9f0a";
-    if (time >= 4.5) return "#ffd60a";
-    return "#ffffff";
-  };
-
-    if (countdown !== null) {
+  // 3. หน้านับถอยหลังก่อนเริ่มเกม (Countdown)
+  if (countdown !== null) {
     return (
       <div style={styles.container}>
         {renderMuteButton()}
         <div style={styles.countdownWrap}>
-          {/* เพิ่ม key={countdown} เพื่อให้แอนิเมชัน countPop เล่นใหม่ทุกตัวเลข */}
           <div
             key={countdown} 
             style={{
               ...styles.countdownText,
               color: countdown === "GO!" ? "#FF9F0A" : "#ffffff",
-              // เพิ่มขนาดความอลังการตามสเต็ป: เลข 3 เล็กสุด -> GO! ใหญ่สุด
               transform: countdown === "3" ? "scale(0.9)" : countdown === "2" ? "scale(1)" : countdown === "1" ? "scale(1.15)" : "scale(1.3)"
             }}
           >
@@ -392,6 +358,14 @@ export default function GameMatch({ member, onFinish }) {
     );
   }
 
+  // 4. หน้าหลักระหว่างจับเวลาเล่นเกม (Gameplay)
+  const getTimerColor = () => {
+    if (time >= 4.95) return "#ff3b30";
+    if (time >= 4.8) return "#ff9f0a";
+    if (time >= 4.5) return "#ffd60a";
+    return "#ffffff";
+  };
+
   return (
     <>
       {stopImpact && <div style={styles.flashOverlay} />}
@@ -400,23 +374,23 @@ export default function GameMatch({ member, onFinish }) {
         <img 
           src="/kat%20kat%20katsu%20-%20Logo-07.png" 
           alt="Kat Kat Katsu Logo" 
-          style={{ ...styles.logo, height: "clamp(80px, 12vw, 110px)" }} // หน้าจับเวลาปรับให้ย่อมลงนิดนึงเพื่อไม่ให้เบียดตัวเลข
+          style={{ ...styles.logo, height: "clamp(80px, 12vw, 110px)" }}
         />
+        
         <p style={{ color: "#555", fontSize: 12 }}>
           โหมด: {mode === "easy" ? "Easy" : "Hard"} | สิทธิ์ที่ใช้ไปแล้ว: {attempts}/{mode === "easy" ? 3 : 1}
         </p>
 
         <h1
-  className="cyber-timer" /* <-- ใส่คลาสนี้แทนการดึง fontFamily ใน style */
-  style={{
-    ...styles.timer,
-    color: getTimerColor(),
-    animation: stopImpact ? "stopPulse .35s ease" : "breathe 2s ease-in-out infinite",
-  }}
->
-  {gameState === "running" && mode === "hard" && time >= 3.0 ? "■■■■" : time.toFixed(2)}
-</h1>
-
+          className="cyber-timer"
+          style={{
+            ...styles.timer,
+            color: getTimerColor(),
+            animation: stopImpact ? "stopPulse .35s ease" : "breathe 2s ease-in-out infinite",
+          }}
+        >
+          {gameState === "running" && mode === "hard" && time >= 3.0 ? "■■■■" : time.toFixed(2)}
+        </h1>
 
         {gameState !== "stopped" ? (
           <button
@@ -439,24 +413,21 @@ export default function GameMatch({ member, onFinish }) {
       </div>
     </>
   );
-}
+} // ปิดฟังก์ชัน Component ตรงนี้อย่างถูกต้อง
 
 function CountdownTimer({ onExpire }) {
   const [seconds, setSeconds] = useState(300);
-
   useEffect(() => {
     if (seconds <= 0) {
       onExpire();
       return;
     }
-
     const t = setTimeout(() => setSeconds(seconds - 1), 1000);
     return () => clearTimeout(t);
   }, [seconds, onExpire]);
 
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-
   return (
     <p style={{ color: "#ef5350", fontSize: 12, marginTop: 20 }}>
       ⚠️ กรุณายื่นให้พนักงานภายใน {m}:{s < 10 ? `0${s}` : s} นาที
@@ -496,9 +467,8 @@ const styles = {
     justifyContent: "center",
     zIndex: 1000
   },
-     logo: {
+  logo: {
     width: "auto",
-    // ขยายเพดานความสูงเพิ่มขึ้นเพื่อให้โลโก้ใหญ่เต็มตาในทุกหน้าจอ
     height: "clamp(120px, 20vw, 160px)", 
     marginBottom: 20,
     objectFit: "contain",
@@ -507,16 +477,14 @@ const styles = {
   subtitle: { fontSize: 16, margin: 0, color: "#fff" },
   timer: {
     fontSize: "clamp(130px, 28vw, 200px)",
-    // บังคับดึงฟอนต์ Courier New หรือ monospace ขึ้นมาก่อน เพื่อล็อกความกว้างตัวเลขให้เท่ากันเป๊ะ
     fontFamily: "'Share Tech Mono', monospace",
     fontWeight: 700,
-    letterSpacing: "0px", // ลด letterSpacing เพื่อให้เลขตระกูล monospace เรียงสวยพอดี
+    letterSpacing: "0px",
     margin: "50px 0",
     textShadow: "0 0 35px rgba(255,159,10,0.25)",
     animation: "breathe 1.4s ease-in-out infinite",
   },
   timeDisplay: {
-    // ขยายขนาดตัวเลขหน้าสรุปผลลัพธ์ให้ใหญ่ขึ้นสะใจ
     fontSize: "clamp(80px, 18vw, 110px)",
     fontFamily: "'Rajdhani', monospace, sans-serif",
     fontVariantNumeric: "tabular-nums",
@@ -524,7 +492,6 @@ const styles = {
     color: "#FF9F0A",
     margin: "20px 0",
   },
-
   modeCard: {
     background: "#121212",
     border: "1px solid #2b2b2b",
@@ -617,3 +584,4 @@ const styles = {
     marginTop: 10,
   },
 };
+                  
