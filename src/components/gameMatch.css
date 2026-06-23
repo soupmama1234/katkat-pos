@@ -1,47 +1,66 @@
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700&family=Rajdhani:wght@500;600;700&display=swap');
 
+/* --- Global Theme & Font --- */
+* {
+  box-sizing: border-box;
+  font-family: 'Kanit', 'Rajdhani', sans-serif;
+}
+
+/* --- Animations --- */
 @keyframes breathe {
-  0% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.02);
-  }
-
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(1); text-shadow: 0 0 15px rgba(255, 159, 10, 0.2); }
+  50% { transform: scale(1.03); text-shadow: 0 0 30px rgba(255, 159, 10, 0.6); }
+  100% { transform: scale(1); text-shadow: 0 0 15px rgba(255, 159, 10, 0.2); }
 }
 
 @keyframes countPop {
-
-  0% {
-    opacity: 0;
-    transform: scale(.4);
-  }
-
-  30% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
+  0% { opacity: 0; transform: scale(.4); text-shadow: 0 0 0px rgba(255,255,255,0); }
+  30% { opacity: 1; transform: scale(1.15); text-shadow: 0 0 30px rgba(255,255,255,0.6); }
+  100% { opacity: 1; transform: scale(1); text-shadow: 0 0 15px rgba(255,255,255,0.3); }
 }
 
 @keyframes stopPulse {
-  0% {
-    transform: scale(1);
-  }
+  0% { transform: scale(1); filter: brightness(1); }
+  20% { transform: scale(1.15); filter: brightness(1.8); box-shadow: 0 0 40px #ff3b30; }
+  100% { transform: scale(1); filter: brightness(1); }
+}
 
-  40% {
-    transform: scale(1.2);
-  }
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-  100% {
-    transform: scale(1);
-  }
+/* --- Component Styles --- */
+/* ปรับแต่งการ์ดเลือกโหมดให้ดูเป็น Cyber-Japanese (ขอบเรืองแสงบางๆ) */
+.mode-card-easy {
+  border: 1px solid rgba(76, 175, 80, 0.3) !important;
+  transition: all 0.25s ease !important;
+}
+.mode-card-easy:hover {
+  background: rgba(76, 175, 80, 0.1) !important;
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+  transform: translateY(-2px);
+}
+
+.mode-card-hard {
+  border: 1px solid rgba(255, 159, 10, 0.3) !important;
+  transition: all 0.25s ease !important;
+}
+.mode-card-hard:hover {
+  background: rgba(255, 159, 10, 0.1) !important;
+  box-shadow: 0 0 15px rgba(255, 159, 10, 0.4);
+  transform: translateY(-2px);
+}
+
+/* ปุ่มกดสไตล์สตรีทซิ่ง */
+.game-btn {
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+.game-btn:active {
+  transform: scale(0.95) !important;
+}
+
+/* ผลรางวัลขึ้นทีละสเต็ปนุ่มๆ */
+.result-item {
+  animation: cardFadeIn 0.4s ease forwards;
 }
