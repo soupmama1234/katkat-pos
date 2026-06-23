@@ -240,7 +240,6 @@ export default function GameMatch({ member, onFinish }) {
     </button>
   );
 
-  // 1. หน้าแสดงผลลัพธ์รางวัล (Result Screen)
     // 1. หน้าแสดงผลลัพธ์รางวัล (Result Screen)
   if (showResult) {
     return (
@@ -258,10 +257,10 @@ export default function GameMatch({ member, onFinish }) {
           <h2 style={{ ...styles.title, margin: "5px 0" }}>🎉 สรุปผลรางวัล 🎉</h2>
           <p style={{ color: "#888", fontSize: 13, margin: "0 0 5px 0" }}>คุณ {member?.nickname} กดเวลาได้</p>
 
-          {/* แกนกลางสีขาว เรืองแสงคุมผ่านคลาส CSS */}
+          {/* ตัวเลขเวลา */}
           <h1 className="cyber-result-time" style={styles.timeDisplay}>{finalResult?.time?.toFixed(2)}</h1>
         
-          {/* แถวมัดรวม พลาดเป้า + Rank (แก้ DIV ซ้ำซ้อนเรียบร้อย) */}
+          {/* แถวมัดรวม พลาดเป้า + Rank */}
           <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%", maxWidth: "340px", marginBottom: 10 }}>
             <div 
               className="result-item-pop" 
@@ -291,7 +290,7 @@ export default function GameMatch({ member, onFinish }) {
             <h2 style={{ color: "#FF9F0A", margin: 0, fontSize: 18 }}>{finalResult?.reward}</h2>
           </div>
 
-          {/* โซนปุ่มกดท้ายจอ */}
+          {/* โซนปุ่มกดท้ายจอที่คุณส่งมา (ใส่แท็กปิดครอบให้ถูกต้องด้านล่าง) */}
           <div className="staff-box-animate" style={{ width: "100%", maxWidth: "340px" }}>
             <CountdownTimer onExpire={onFinish} />
             <button style={{ ...styles.btnStaff, marginTop: 8, padding: "10px" }} onClick={onFinish}>
@@ -302,6 +301,7 @@ export default function GameMatch({ member, onFinish }) {
       </>
     );
   }
+
           {finalResult?.combo && (
             <div style={{ ...styles.comboBox, margin: "0 0 10px 0", padding: "4px 10px", fontSize: 12 }}>
               {finalResult?.combo}
