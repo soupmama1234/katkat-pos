@@ -3,19 +3,23 @@ import Confetti from "react-confetti";
 import "./gameMatch.css";
 
 let audioCtx = null; // สร้างตัวแปรรอไว้นอกฟังก์ชัน
+let globalAudioCtx = null; // สร้างตัวแปรส่วนกลางสแตนด์บายไว้ข้างนอกสุด
 
 const playSound = (type, isMuted) => {
-  if (isMuted) return;
+  if (isMuted || !globalAudioCtx) return; // ถ้าปิดเสียง หรือยังไม่ได้ปลดล็อก จะไม่ทำงาน
+  
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext(); // สร้างสดใหม่ทุกครั้งเหมือนแบบเดิม เสียงจะมาทันทีไม่ดีเลย์
+    // หากเบราว์เซอร์สั่งพักเสียง ให้ปลุกขึ้นมาทำงานก่อน
+    if (globalAudioCtx.state === 'suspended') {
+      globalAudioCtx.resume();
+    }
     
+    const ctx = globalAudioCtx;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     
     switch (type) {
-      case 'beep': // เสียงนับถอยหลัง สั้น กระชับ มาไว
+      case 'beep':
         osc.type = 'sine';
         osc.frequency.setValueAtTime(880, ctx.currentTime);
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
@@ -26,7 +30,7 @@ const playSound = (type, isMuted) => {
         osc.stop(ctx.currentTime + 0.08);
         break;
 
-      case 'go': // เสียงสัญญาณเริ่มปล่อยตัว
+      case 'go':
         osc.type = 'sine';
         osc.frequency.setValueAtTime(1200, ctx.currentTime);
         gain.gain.setValueAtTime(0.15, ctx.currentTime);
@@ -37,7 +41,7 @@ const playSound = (type, isMuted) => {
         osc.stop(ctx.currentTime + 0.25);
         break;
 
-      case 'stop': // เสียงกดหยุดเวลา แน่น มีน้ำหนัก
+      case 'stop':
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(440, ctx.currentTime);
         gain.gain.setValueAtTime(0.2, ctx.currentTime);
@@ -48,7 +52,7 @@ const playSound = (type, isMuted) => {
         osc.stop(ctx.currentTime + 0.12);
         break;
 
-      case 'perfect': // เสียงฉลองรางวัลใหญ่
+      case 'perfect':
         osc.type = 'square';
         osc.frequency.setValueAtTime(880, ctx.currentTime);
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
@@ -59,10 +63,11 @@ const playSound = (type, isMuted) => {
         osc.stop(ctx.currentTime + 0.35);
         break;
     }
-  } catch (e) { 
-    console.error("Audio error:", e); 
+  } catch (e) {
+    console.error("Audio error:", e);
   }
 };
+
 
                                       
 export default function GameMatch({ member, onFinish }) {
@@ -82,7 +87,15 @@ export default function GameMatch({ member, onFinish }) {
   
   const timerRef = useRef(null);
   const startTimeRef = useRef(0);
-
+  const unlockAudio = () => {
+  if (!globalAudioCtx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      globalAudioCtx = new AudioContext();
+    }
+  }
+};
+  
   const isPerfectHit = (time) => {
   return Number(time.toFixed(2)) === 5.00;
   };
