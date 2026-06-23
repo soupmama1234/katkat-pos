@@ -480,7 +480,7 @@ const styles = {
   timer: {
     fontSize: "clamp(130px, 28vw, 200px)",
     // บังคับดึงฟอนต์ Courier New หรือ monospace ขึ้นมาก่อน เพื่อล็อกความกว้างตัวเลขให้เท่ากันเป๊ะ
-    fontFamily: "Courier New, monospace", 
+    fontFamily: "'JetBrains Mono', monospace",
     fontWeight: 700,
     letterSpacing: "0px", // ลด letterSpacing เพื่อให้เลขตระกูล monospace เรียงสวยพอดี
     margin: "50px 0",
