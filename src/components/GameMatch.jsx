@@ -171,18 +171,24 @@ export default function GameMatch({ member, onFinish }) {
     setTimeout(() => setStopImpact(false), 350);
   };
 
-  const handleAction = () => {
+    const handleAction = () => {
     if (gameState === "idle") {
       startCountdown();
       return;
     }
 
     if (gameState === "running") {
-      clearInterval(timerRef.current);
-      triggerStopImpact();
+      // 1. ต้องเคลียร์ Interval หยุดเวลาเป็นอันดับแรกสุด ห้ามมีอะไรคั่น!
+      clearInterval(timerRef.current); 
       setGameState("stopped");
-      playSound('stop', isMuted);
-      
+      triggerStopImpact();
+
+      // 2. สั่งเล่นเสียงแบบแยกสตรีม (Async) เพื่อไม่ให้การประมวลผลเสียงมาขัดจังหวะปุ่มกด STOP
+      setTimeout(() => {
+        playSound('stop', isMuted);
+      }, 0);
+
+      // โดโค้ดคำนวณผลลัพธ์เดิมของคุณ...
       const currentAttempt = attempts + 1;
       setAttempts(currentAttempt);
 
@@ -205,6 +211,7 @@ export default function GameMatch({ member, onFinish }) {
       }
     }
   };
+
 
   const handleReset = () => {
     setTime(0);
