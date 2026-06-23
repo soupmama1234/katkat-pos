@@ -1,9 +1,9 @@
 // src/components/CustomerOrder.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { supabase as sb } from "../supabase";
+import GameMatch from "./GameMatch";
 
 const BRAND = "#FF9F0A";
-const BRAND_DARK = "#cc7a00";
 
 // ── Supabase helpers ──────────────────────────────────────────
 async function fetchProducts() {
@@ -96,26 +96,46 @@ function StepTable({ onNext }) {
   );
 }
 
-function StepMember({ onNext, onSkip }) {
-  const [phone, setPhone] = useState("");
-  const [state, setState] = useState("idle"); // idle | loading | found | notfound | registering | regdone
-  const [member, setMember] = useState(null);
+function StepMember({ onNext, onSkip, onPlayGame, isGameFinished, setIsGameFinished, initialPhone = "", initialMember = null }) {
+  const [phone, setPhone] = useState(initialPhone);
+  const [state, setState] = useState(initialMember ? "found" : "idle"); 
+  const [member, setMember] = useState(initialMember);
   const [nickname, setNickname] = useState("");
   const [error, setError] = useState("");
 
   const handleCheck = async () => {
-    if (!/^0\d{8,9}$/.test(phone)) { setError("กรอกเบอร์มือถือให้ถูกต้อง"); return; }
-    setError(""); setState("loading");
+    if (!/^0\d{8,9}$/.test(phone)) { 
+      setError("กรอกเบอร์มือถือให้ถูกต้อง"); 
+      return;
+    }
+    setError(""); 
+    setState("loading");
     const m = await fetchMemberByPhone(phone);
-    if (m) { setMember(m); setState("found"); }
-    else setState("notfound");
+    if (m) { 
+      setMember(m); 
+      setState("found"); 
+      // ✨ เพิ่มบรรทัดนี้: เช็คว่าวันที่เล่นล่าสุดตรงกับวันนี้ไหม (YYYY-MM-DD)
+      const todayStr = new Date().toLocaleDateString('sv-SE');
+      if (m.last_game_played_at === todayStr) {
+        setIsGameFinished(true);
+      } else {
+        setIsGameFinished(false);
+      }
+    } else { 
+      setState("notfound");
+    }
   };
+  
 
   const handleRegister = async () => {
-    if (!nickname.trim()) { setError("กรุณากรอกชื่อ"); return; }
+    if (!nickname.trim()) { 
+      setErr. or("กรุณากรอกชื่อ"); 
+      return;
+    }
     setState("registering");
     const m = await registerMember(phone, nickname.trim());
-    setMember(m); setState("regdone");
+    setMember(m); 
+    setState("regdone");
   };
 
   if (state === "found" || state === "regdone") return (
@@ -128,12 +148,33 @@ function StepMember({ onNext, onSkip }) {
         <div style={s.stepTitle}>
           {state === "regdone" ? "สมัครสำเร็จ!" : "ยินดีต้อนรับ!"}
         </div>
+        
         <div style={{ ...s.memberBadge }}>
           <div style={s.memberName}>{member?.nickname}</div>
           <div style={s.memberPts}>⭐ {member?.points || 0} แต้ม</div>
         </div>
-        <button style={s.primaryBtn} onClick={() => onNext(phone)}>
-          เริ่มสั่งอาหาร 🍽️
+
+        {!isGameFinished ? (
+          <button 
+            style={{ ...s.primaryBtn, background: BRAND, color: "#000" }} 
+            onClick={() => onPlayGame && onPlayGame(phone, member?.nickname || "ลูกค้า", member)}
+          >
+            🎯 เริ่มเล่นเกมลุ้นรางวัลวันนี้
+          </button>
+        ) : (
+          <button 
+            disabled 
+            style={{ ...s.primaryBtn, background: "#1a1a1a", color: "#555", cursor: "not-allowed", border: "1px solid #222" }}
+          >
+            🔒 คุณได้ใช้สิทธิ์เล่นเกมวันนี้แล้ว
+          </button>
+        )}
+
+        <button 
+          style={{ ...s.primaryBtn, background: BRAND, marginTop: 4 }} 
+          onClick={() => onNext(phone)}
+        >
+          🍽️ สั่งอาหารออนไลน์ที่โต๊ะ
         </button>
       </div>
     </div>
@@ -191,8 +232,7 @@ function StepMember({ onNext, onSkip }) {
       </div>
     </div>
   );
-}
-
+  }
 function MenuScreen({ tableNumber, memberPhone, onDone }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -201,8 +241,8 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCart, setShowCart] = useState(false);
-  const [modModal, setModModal] = useState(null); // {product}
-  const [tempSelection, setTempSelection] = useState([]); // [{...opt, key, groupId}]
+  const [modModal, setModModal] = useState(null);
+  const [tempSelection, setTempSelection] = useState([]); 
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -346,7 +386,7 @@ function MenuScreen({ tableNumber, memberPhone, onDone }) {
                   <div
                     key={opt.id}
                     style={{ ...s.modOption, ...(tempSelection.some(s => s.key === `${g.id}:${opt.id}`) ? s.modOptionActive : {}) }}
-onClick={() => {
+                    onClick={() => {
                       const key = `${g.id}:${opt.id}`;
                       setTempSelection(prev =>
                         prev.find(s => s.key === key)
@@ -363,7 +403,7 @@ onClick={() => {
             ))}
             <button
               style={{ ...s.primaryBtn, marginTop: 16 }}
-onClick={() => {
+              onClick={() => {
                 const combinedMod = tempSelection.length > 0 ? {
                   id: tempSelection.map(m => m.key).sort().join("|"),
                   name: tempSelection.map(m => m.name).join(", "),
@@ -388,23 +428,23 @@ onClick={() => {
             {cart.length === 0
               ? <div style={{ color: "#555", textAlign: "center", padding: "24px 0" }}>ยังไม่มีรายการ</div>
               : cart.map(item => (
-                <div key={item.key} style={s.cartRow}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{item.name}</div>
-                    {item.modifier && <div style={{ color: "#888", fontSize: 12 }}>{item.modifier.name}</div>}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={s.qtyRow}>
-                      <button style={s.qtyBtn} onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: Math.max(0, i.qty - 1) } : i).filter(i => i.qty > 0))}>−</button>
-                      <span style={{ color: "#fff", minWidth: 20, textAlign: "center" }}>{item.qty}</span>
-                      <button style={s.qtyBtn} onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: i.qty + 1 } : i))}>+</button>
+                  <div key={item.key} style={s.cartRow}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{item.name}</div>
+                      {item.modifier && <div style={{ color: "#888", fontSize: 12 }}>{item.modifier.name}</div>}
                     </div>
-                    <span style={{ color: BRAND, fontWeight: 700, minWidth: 55, textAlign: "right" }}>
-                      ฿{((item.price + (item.modifier?.price || 0)) * item.qty).toLocaleString()}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={s.qtyRow}>
+                        <button style={s.qtyBtn} onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: Math.max(0, i.qty - 1) } : i).filter(i => i.qty > 0))}>−</button>
+                        <span style={{ color: "#fff", minWidth: 20, textAlign: "center" }}>{item.qty}</span>
+                        <button style={s.qtyBtn} onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: i.qty + 1 } : i))}>+</button>
+                      </div>
+                      <span style={{ color: BRAND, fontWeight: 700, minWidth: 55, textAlign: "right" }}>
+                        ฿{((item.price + (item.modifier?.price || 0)) * item.qty).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))
             }
 
             {cart.length > 0 && (
@@ -436,22 +476,65 @@ onClick={() => {
   );
 }
 
-// ── Main Component ────────────────────────────────────────────
 export default function CustomerOrder() {
-  const [step, setStep] = useState("table"); // table | member | menu
+  const [step, setStep] = useState("member");
   const [tableNumber, setTableNumber] = useState("");
   const [memberPhone, setMemberPhone] = useState(null);
+  const [memberNickname, setMemberNickname] = useState("");
+  const [memberData, setMemberData] = useState(null);
+  const [isGameFinished, setIsGameFinished] = useState(false);
 
-  if (step === "table") return (
-    <StepTable onNext={t => { setTableNumber(t); setStep("member"); }} />
-  );
-  if (step === "member") return (
+     if (step === "member") return (
     <StepMember
-      onNext={phone => { setMemberPhone(phone); setStep("menu"); }}
-      onSkip={() => { setMemberPhone(null); setStep("menu"); }}
+      isGameFinished={isGameFinished}
+      setIsGameFinished={setIsGameFinished} // ✨ ส่งตัวนี้ลงมาด้วย ระบบถึงจะจำสถานะ
+      initialPhone={memberPhone || ""}
+      initialMember={memberData || null}
+
+      onNext={phone => { 
+        setMemberPhone(phone); 
+        setStep("menu");
+      }}
+      // ✨ ปรับบรรทัดนี้: ตอนกดเล่นเกม ให้เซ็ตค่า setIsGameFinished และจำ memberData ไว้
+      onPlayGame={(phone, nickname, fullMember) => {
+        setMemberPhone(phone);
+        setMemberNickname(nickname);
+        setMemberData(fullMember); 
+        setStep("game");
+      }}
+      onSkip={() => { 
+        setMemberPhone(null); 
+        setMemberData(null);
+        setIsGameFinished(true); 
+        setStep("menu"); 
+      }}
     />
   );
-  return <MenuScreen tableNumber={tableNumber} memberPhone={memberPhone} />;
+  
+    if (step === "game") {
+    return (
+      <GameMatch 
+        member={{ phone: memberPhone, nickname: memberNickname }} 
+        onFinish={async () => {
+          // ✨ เพิ่มท่อนนี้: อัปเดตวันที่เล่นล่าสุดลง Supabase ของเบอร์นั้นๆ
+          const todayStr = new Date().toLocaleDateString('sv-SE');
+          await sb.from("members")
+            .update({ last_game_played_at: todayStr })
+            .eq("phone", memberPhone);
+
+          setIsGameFinished(true);
+          setStep("member");
+        }} 
+      />
+    );
+  }
+  return (
+    <MenuScreen 
+      tableNumber={tableNumber} 
+      memberPhone={memberPhone} 
+      onDone={() => setStep("member")}
+    />
+  );
 }
 
 // ── Styles ────────────────────────────────────────────────────
@@ -506,7 +589,6 @@ const s = {
     color: "#888", fontSize: 13, textAlign: "center",
   },
   errTxt: { color: "#FF453A", fontSize: 12, textAlign: "center" },
-  // menu
   menuHeader: {
     position: "sticky", top: 0, zIndex: 100,
     background: "#0a0a0a", borderBottom: "1px solid #1a1a1a",
@@ -635,4 +717,13 @@ const s = {
     display: "flex", flexDirection: "column",
     alignItems: "center", maxWidth: 360, width: "100%",
   },
+  hubContainer: { background: "#0A0A0A", color: "#fff", padding: 20, minHeight: "90vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" },
+  hubCard: { background: "linear-gradient(135deg, #1e1e1e 0%, #111 100%)", border: "1px solid #2a2a2a", borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, boxSizing: "border-box", position: "relative" },
+  badge: { background: "#FF9F0A22", color: "#FF9F0A", fontSize: 10, padding: "4px 8px", borderRadius: 6, fontWeight: "bold", position: "absolute", top: 20, right: 20 },
+  welcomeText: { margin: "20px 0 4px 0", fontSize: 22, fontWeight: "bold" },
+  phoneText: { margin: 0, color: "#666", fontSize: 14 },
+  statGrid: { display: "flex", gap: 12, marginTop: 24, borderTop: "1px solid #222", paddingTop: 16 },
+  statBox: { flex: 1, background: "#161616", padding: 12, borderRadius: 10, textAlign: "center" },
+  hubBtn: { width: "100%", padding: "14px", borderRadius: 12, border: "none", fontSize: 14, fontWeight: "bold" }
 };
+        
