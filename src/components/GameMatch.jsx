@@ -253,68 +253,64 @@ export default function GameMatch({ member, onFinish }) {
     </button>
   );
   
-  if (showResult) {
+    if (showResult) {
     return (
       <>
         {showConfetti && <Confetti recycle={false} numberOfPieces={250} gravity={0.25} />}
         <div style={styles.container}>
           {renderMuteButton()}
-           <img 
+          
+          {/* ปรับโลโก้หน้าผลลัพธ์ให้ย่อมลงเล็กน้อยเพื่อประหยัดพื้นที่แนวตั้ง */}
+          <img 
             src="/kat%20kat%20katsu%20-%20Logo-07.png" 
             alt="Kat Kat Katsu Logo" 
-            style={styles.logo} 
+            style={{ ...styles.logo, height: "clamp(70px, 12vw, 95px)", marginBottom: 10 }} 
           />
-          <h2 style={styles.title}>🎉 สรุปผลรางวัล 🎉</h2>
-          <p style={{ color: "#888" }}>คุณ {member?.nickname} กดเวลาได้</p>
 
-          {/* แสดงเวลาผลลัพธ์ทันที */}
-<h1 className="cyber-result-time" style={styles.timeDisplay}>
-  {finalResult?.time?.toFixed(2)}
-</h1>
+          <h2 style={{ ...styles.title, margin: "5px 0" }}>🎉 สรุปผลรางวัล 🎉</h2>
+          <p style={{ color: "#888", fontSize: 13, margin: "0 0 5px 0" }}>คุณ {member?.nickname} กดเวลาได้</p>
 
-          {/* แสดงจำนวนวินาทีที่พลาดทันที */}
-          <div
-            style={{
-              ...styles.diffBox,
-              color: finalResult?.diff?.toFixed(2) === "0.00" ? "#00ff88" : "#bbb",
-            }}
-          >
-            พลาดเป้าหมายเพียง
-            <br />
-            <strong>
-              {finalResult?.diff?.toFixed(2)} วินาที
-            </strong>
+          {/* ตัวเลขเวลาเด่นๆ */}
+          <h1 className="cyber-result-time" style={styles.timeDisplay}>{finalResult?.time?.toFixed(2)}</h1>
+        
+          {/* มัดรวมข้อมูล พลาดเป้า + Rank + Combo ให้อยู่ในแถว/บล็อกเดียวกันเพื่อประหยัดพื้นที่แนวตั้ง */}
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%", maxWidth: "340px", marginBottom: 10 }}>
+            <div style={{ ...styles.diffBox, flex: 1, margin: 0, padding: "8px", fontSize: 12 }}>
+              พลาดเป้าเป๊ะๆ<br />
+              <strong>{finalResult?.diff?.toFixed(2)} วินาที</strong>
+            </div>
+            
+            <div style={{ ...styles.rankBox, flex: 1, margin: 0, padding: "8px", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#151515", borderRadius: "8px", border: "1px solid #333" }}>
+              <span style={{ color: finalResult?.rank === "GOD" ? "#FF9F0A" : "#FFD60A", fontWeight: "bold" }}>
+                {finalResult?.rank}
+              </span>
+            </div>
           </div>
 
-          {/* แสดงเกรด/Rank ทันที */}
-          <div
-            style={{
-              ...styles.rankBox,
-              color: finalResult?.rank === "GOD" ? "#FF9F0A" : "#FFD60A",
-            }}
-          >
-            {finalResult?.rank}
+          {finalResult?.combo && (
+            <div style={{ ...styles.comboBox, margin: "0 0 10px 0", padding: "4px 10px", fontSize: 12 }}>
+              {finalResult?.combo}
+            </div>
+          )}
+
+          {/* การ์ดของรางวัล (บีบพื้นที่กระชับขึ้น) */}
+          <div style={{ ...styles.rewardCard, margin: "0 0 15px 0", padding: "12px" }}>
+            <p style={{ fontSize: 11, color: "#666", margin: "0 0 4px 0" }}>รางวัลที่ได้รับ</p>
+            <h2 style={{ color: "#FF9F0A", margin: 0, fontSize: 18 }}>{finalResult?.reward}</h2>
           </div>
 
-          {/* แสดงข้อความ Combo ทันที */}
-          <div style={styles.comboBox}>
-            {finalResult?.combo}
+          {/* โซนปุ่มกดท้ายจอ */}
+          <div style={{ width: "100%", maxWidth: "340px" }}>
+            <CountdownTimer onExpire={onFinish} />
+            <button style={{ ...styles.btnStaff, marginTop: 8, padding: "10px" }} onClick={onFinish}>
+              [ พนักงานกดเพื่อรับสิทธิ์ ]
+            </button>
           </div>
-
-          {/* แสดงการ์ดของรางวัลทันที */}
-          <div style={styles.rewardCard}>
-            <p style={{ fontSize: 12, color: "#666" }}>รางวัลที่ได้รับ</p>
-            <h2 style={{ color: "#FF9F0A", margin: 0 }}>{finalResult?.reward}</h2>
-          </div>
-
-          <CountdownTimer onExpire={onFinish} />
-          <button style={styles.btnStaff} onClick={onFinish}>
-            [ พนักงานกดเพื่อรับสิทธิ์ ]
-          </button>
         </div>
       </>
     );
   }
+
 
   if (!mode) {
     return (
