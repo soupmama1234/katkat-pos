@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import "./gameMatch.css";
 
 export default function GameMatch({ member, onFinish }) {
   const [mode, setMode] = useState(null); // null, 'easy', 'hard'
