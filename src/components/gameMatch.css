@@ -75,11 +75,26 @@
   letter-spacing: 0px !important;
 }
 
-/* คลาสสำหรับตัวเลขหน้าสรุปผลลัพธ์ */
+/* ==========================================
+   CYBER RESULT TIME (WHITE CORE & NEON GLOW)
+   ========================================== */
+
 .cyber-result-time {
-  font-family: 'Share Tech Mono', monospace !important;
-  font-variant-numeric: tabular-nums !important;
-  font-feature-settings: "tnum" !important;
+  /* บังคับสีฟอนต์เป็นสีขาวเพื่อให้ตัวเลขสว่างเด่นลอยขึ้นมา (White Core) */
+  color: #ffffff !important; 
+  
+  /* ระเบิดออร่าแสงเรืองรอบตัวเลข 3 ชั้น (Intense Neon Glow) */
+  text-shadow: 
+    0 0 10px #FF9F0A,
+    0 0 25px #FF9F0A,
+    0 0 50px rgba(255, 159, 10, 0.6) !important;
+    
+  /* สั่งรันแอนิเมชันเปิดตัว + แอนิเมชันไฟกะพริบวิ้งๆ ทำงานพร้อมกัน */
+  animation: 
+    resultTimeEnter 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
+    neonSparkle 2s infinite alternate !important;
+  
+  opacity: 0;
 }
 
 /* --------------------------------------------------------
