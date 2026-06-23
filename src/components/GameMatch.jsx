@@ -138,7 +138,7 @@ export default function GameMatch({ member, onFinish }) {
 
     const timers = [];
 
-    if (finalResult?.isPerfectHit(finalTime)) {
+    if (finalResult && isPerfectHit(finalResult.time))) {
       timers.push(setTimeout(() => setShowConfetti(true), 0));
       timers.push(setTimeout(() => setShowConfetti(false), 2000));
     }
@@ -197,7 +197,7 @@ export default function GameMatch({ member, onFinish }) {
             <div
               style={{
                 ...styles.comboBox,
-                fontSize: finalResult?.isPerfectHit(finalTime) ? 32 : 22,
+                fontSize: isPerfectHit(finalResult?.time) ? 32 : 22,
               }}
             >
               {finalResult?.combo}
