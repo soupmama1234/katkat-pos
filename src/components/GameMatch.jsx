@@ -259,6 +259,11 @@ export default function GameMatch({ member, onFinish }) {
         {showConfetti && <Confetti recycle={false} numberOfPieces={250} gravity={0.25} />}
         <div style={styles.container}>
           {renderMuteButton()}
+           <img 
+            src="/kat%20kat%20katsu%20-%20Logo-07.png" 
+            alt="Kat Kat Katsu Logo" 
+            style={styles.logo} 
+          />
           <h2 style={styles.title}>🎉 สรุปผลรางวัล 🎉</h2>
           <p style={{ color: "#888" }}>คุณ {member?.nickname} กดเวลาได้</p>
 
@@ -389,6 +394,11 @@ export default function GameMatch({ member, onFinish }) {
       {stopImpact && <div style={styles.flashOverlay} />}
       <div style={styles.container}>
         {renderMuteButton()}
+        <img 
+          src="/kat%20kat%20katsu%20-%20Logo-07.png" 
+          alt="Kat Kat Katsu Logo" 
+          style={{ ...styles.logo, height: "clamp(80px, 12vw, 110px)" }} // หน้าจับเวลาปรับให้ย่อมลงนิดนึงเพื่อไม่ให้เบียดตัวเลข
+        />
         <p style={{ color: "#555", fontSize: 12 }}>
           โหมด: {mode === "easy" ? "Easy" : "Hard"} | สิทธิ์ที่ใช้ไปแล้ว: {attempts}/{mode === "easy" ? 3 : 1}
         </p>
@@ -483,10 +493,11 @@ const styles = {
     justifyContent: "center",
     zIndex: 1000
   },
-   logo: {
+     logo: {
     width: "auto",
-    height: "clamp(90px, 16vw, 130px)", // คุมสัดส่วนความสูงให้พอดีกับจอไอแพด/มือถือหน้าร้าน
-    marginBottom: 15,
+    // ขยายเพดานความสูงเพิ่มขึ้นเพื่อให้โลโก้ใหญ่เต็มตาในทุกหน้าจอ
+    height: "clamp(120px, 20vw, 160px)", 
+    marginBottom: 20,
     objectFit: "contain",
   },
   title: { fontSize: 20, fontWeight: "bold" },
