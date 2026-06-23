@@ -470,14 +470,12 @@ const styles = {
   },
   title: { fontSize: 20, fontWeight: "bold" },
   subtitle: { fontSize: 16, margin: 0, color: "#fff" },
-        timer: {
-    // ขยายขนาดเริ่มต้นให้ใหญ่ขึ้นเต็มตา (จาก 90px เป็น 130px และดันเพดานสูงสุดไปที่ 200px)
+  timer: {
     fontSize: "clamp(130px, 28vw, 200px)",
-    fontFamily: "'Rajdhani', monospace, sans-serif",
-    fontVariantNumeric: "tabular-nums",
+    // บังคับดึงฟอนต์ Courier New หรือ monospace ขึ้นมาก่อน เพื่อล็อกความกว้างตัวเลขให้เท่ากันเป๊ะ
+    fontFamily: "Courier New, monospace", 
     fontWeight: 700,
-    letterSpacing: "2px",
-    // เพิ่มระยะห่างบน-ล่างให้ตัวเลขดันพื้นที่โล่งออกไป
+    letterSpacing: "0px", // ลด letterSpacing เพื่อให้เลขตระกูล monospace เรียงสวยพอดี
     margin: "50px 0",
     textShadow: "0 0 35px rgba(255,159,10,0.25)",
     animation: "breathe 1.4s ease-in-out infinite",
