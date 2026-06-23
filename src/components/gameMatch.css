@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700&family=Rajdhani:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700&family=Share+Tech+Mono&display=swap');
 
 /* --- Global Theme & Font --- */
 * {
@@ -63,4 +63,19 @@
 /* ผลรางวัลขึ้นทีละสเต็ปนุ่มๆ */
 .result-item {
   animation: cardFadeIn 0.4s ease forwards;
+}
+
+/* คลาสสำหรับนาฬิกาจับเวลาตอนวิ่ง */
+.cyber-timer {
+  font-family: 'Share Tech Mono', monospace !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" !important;
+  letter-spacing: 0px !important;
+}
+
+/* คลาสสำหรับตัวเลขหน้าสรุปผลลัพธ์ */
+.cyber-result-time {
+  font-family: 'Share Tech Mono', monospace !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" !important;
 }
