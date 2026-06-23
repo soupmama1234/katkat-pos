@@ -315,6 +315,11 @@ export default function GameMatch({ member, onFinish }) {
     return (
       <div style={styles.container}>
         {renderMuteButton()}
+         <img 
+          src="/kat%20kat%20katsu%20-%20Logo-07.png" 
+          alt="Kat Kat Katsu Logo" 
+          style={styles.logo} 
+        />
         <h3 style={styles.subtitle}>ยินดีต้อนรับ คุณ {member?.nickname}</h3>
         <p style={{ color: "#666", fontSize: 13, marginBottom: 20 }}>
           กรุณาเลือกโหมดเพื่อเล่นเกม (เลือกได้ครั้งเดียว)
@@ -477,6 +482,12 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     zIndex: 1000
+  },
+   logo: {
+    width: "auto",
+    height: "clamp(90px, 16vw, 130px)", // คุมสัดส่วนความสูงให้พอดีกับจอไอแพด/มือถือหน้าร้าน
+    marginBottom: 15,
+    objectFit: "contain",
   },
   title: { fontSize: 20, fontWeight: "bold" },
   subtitle: { fontSize: 16, margin: 0, color: "#fff" },
