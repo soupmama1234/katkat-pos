@@ -70,6 +70,11 @@
    CYBER RESULT TIME (WHITE CORE & NEON GLOW)
    ========================================== */
 .cyber-result-time {
+  /* ล็อกสเปซตัวเลขสไตล์ Monospace ให้ตรงกันทุกตัว เลขวิ่งแล้วไม่แกว่ง */
+  font-family: 'Share Tech Mono', monospace !important; 
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" !important;
+  
   color: #ffffff !important; 
   text-shadow: 
     0 0 12px #FF9F0A,
@@ -80,6 +85,7 @@
     neonSparkle 2s infinite alternate !important;
   opacity: 0;
 }
+
 
 @keyframes resultTimeEnter {
   0% { transform: scale(2); filter: blur(10px); opacity: 0; text-shadow: 0 0 100px #fff; }
