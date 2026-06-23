@@ -318,8 +318,7 @@ export default function GameMatch({ member, onFinish }) {
         </div>
       </>
     );
-  }
-
+  
   if (!mode) {
     return (
       <div style={styles.container}>
