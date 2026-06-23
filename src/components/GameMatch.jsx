@@ -339,15 +339,19 @@ export default function GameMatch({ member, onFinish }) {
     return "#ffffff";
   };
 
-  if (countdown !== null) {
+    if (countdown !== null) {
     return (
       <div style={styles.container}>
         {renderMuteButton()}
         <div style={styles.countdownWrap}>
+          {/* เพิ่ม key={countdown} เพื่อให้แอนิเมชัน countPop เล่นใหม่ทุกตัวเลข */}
           <div
+            key={countdown} 
             style={{
               ...styles.countdownText,
-              color: countdown === "GO!" ? "#00ff88" : "#ffffff",
+              color: countdown === "GO!" ? "#FF9F0A" : "#ffffff",
+              // เพิ่มขนาดความอลังการตามสเต็ป: เลข 3 เล็กสุด -> GO! ใหญ่สุด
+              transform: countdown === "3" ? "scale(0.9)" : countdown === "2" ? "scale(1)" : countdown === "1" ? "scale(1.15)" : "scale(1.3)"
             }}
           >
             {countdown}
@@ -458,14 +462,15 @@ const styles = {
   title: { fontSize: 20, fontWeight: "bold" },
   subtitle: { fontSize: 16, margin: 0, color: "#fff" },
   timer: {
-    fontSize: "clamp(90px,20vw,140px)",
+    fontSize: "clamp(95px,22vw,150px)",
     fontFamily: "'Rajdhani', sans-serif",
+    fontVariantNumeric: "tabular-nums", // <-- เพิ่มบรรทัดนี้เพื่อหยุดการสั่น
     fontWeight: 700,
     letterSpacing: "4px",
-    margin: "30px 0",
-    textShadow: "0 0 25px rgba(255,255,255,0.2)",
-    animation: "breathe 1.4s ease-in-out infinite",
+    margin: "25px 0",
+    textShadow: "0 0 25px rgba(255,159,10,0.3)",
   },
+
   timeDisplay: {
     fontSize: "clamp(48px,10vw,72px)",
     fontFamily: "'Rajdhani', sans-serif",
