@@ -1,4 +1,4 @@
-งานimport React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Confetti from "react-confetti";
 import "./gameMatch.css";
 
