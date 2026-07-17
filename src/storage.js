@@ -252,7 +252,7 @@ async addOptionToGroup(groupId, name, price, channelPrices = {}) {
     if (items.length > 0) {
       const rows = items.map(i => ({
         order_id: data.id,
-        product_id: i.id || null,
+        product_id: Number.isInteger(i.id) ? i.id : null,
         name: i.name,
         qty: i.qty,
         price: i.price,
