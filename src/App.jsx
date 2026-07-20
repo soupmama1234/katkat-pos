@@ -542,6 +542,11 @@ const updateProduct = useCallback(async (id, fields) => {
     return async (id) => {
       const ok = await showConfirm("ลบออเดอร์?", "ต้องการลบบิลนี้ใช่หรือไม่?");
       if (!ok) return;
+      try {
+        await sb.rpc("revert_stock_for_order", { p_order_id: id });
+      } catch (e) {
+        console.warn("revert stock failed:", e);
+      }
       await db.deleteOrder(id);
       setOrders(prev => prev.filter(o => o.id !== id));
       showToast("ลบออเดอร์แล้ว");
@@ -553,11 +558,18 @@ const updateProduct = useCallback(async (id, fields) => {
     return async () => {
       const ok = await showConfirm("ล้างทั้งหมด?", "ต้องการลบออเดอร์ทั้งหมดใช่หรือไม่?");
       if (!ok) return;
+      try {
+        await Promise.all(
+          orders.map(o => sb.rpc("revert_stock_for_order", { p_order_id: o.id }))
+        );
+      } catch (e) {
+        console.warn("revert stock (bulk) failed:", e);
+      }
       await db.clearOrders();
       setOrders([]);
       showToast("ล้างข้อมูลแล้ว");
     };
-  }, [session?.role, showConfirm, showToast]);
+  }, [session?.role, showConfirm, showToast, orders]);
 
   const handleCleanupUnusedModifierGroups = useCallback(async () => {
   const usedGroupIds = new Set(
