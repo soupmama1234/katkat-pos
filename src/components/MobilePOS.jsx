@@ -8,6 +8,7 @@ import OrderTypeBar from "./pos/OrderTypeBar.jsx";
 import DeliveryRefInput from "./pos/DeliveryRefInput.jsx";
 import MemberBar from "./pos/MemberBar.jsx";
 import ModifierPopup from "./pos/ModifierPopup.jsx";
+import BackdateBar from "./pos/BackdateBar.jsx";
 
 export default function MobilePOS({
   // products
@@ -120,6 +121,8 @@ export default function MobilePOS({
           variant="dark"
         />
       )}
+
+      <BackdateBar backdateAt={backdateAt} setBackdateAt={setBackdateAt} variant="dark" />
 
       {/* 5. ── shared: Member bar (POS only) ── */}
       {!isDelivery && (
