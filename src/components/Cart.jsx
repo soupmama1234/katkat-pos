@@ -6,6 +6,7 @@ import { parseRewardDiscount } from "../utils/discounts";
 import OrderTypeBar from "./pos/OrderTypeBar.jsx";
 import DeliveryRefInput from "./pos/DeliveryRefInput.jsx";
 import MemberBar from "./pos/MemberBar.jsx";
+import BackdateBar from "./pos/BackdateBar.jsx";
 
 export default function Cart({
   // cart
