@@ -482,7 +482,7 @@ const updateProduct = useCallback(async (id, fields) => {
         channel: priceChannel,
         refId: isDelivery ? deliveryRef : "",
         isSettled: !isDelivery,
-        actualAmount: isDelivery ? 0 : total,
+        actualAmount: total,
         member_phone: memberPhone || null,
         orderType: isDelivery ? "delivery" : orderType,
         tableNumber: (!isDelivery && orderType === "dine_in") ? (tableNumber.trim() || null) : null,
