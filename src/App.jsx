@@ -481,7 +481,7 @@ const updateProduct = useCallback(async (id, fields) => {
         payment: isDelivery ? "transfer" : paymentMethod,
         channel: priceChannel,
         refId: isDelivery ? deliveryRef : "",
-        isSettled: !isDelivery,
+        isSettled: true,
         actualAmount: total,
         member_phone: memberPhone || null,
         orderType: isDelivery ? "delivery" : orderType,
