@@ -39,6 +39,9 @@ export default function MobilePOS({
   // โครงการรัฐ
   hasSubsidy = false, setHasSubsidy,
   subsidyConfig = { enabled: false, label: "ไทยช่วยไทย", channels: [] },
+  // Backdate
+  backdateAt = null,
+  setBackdateAt,
 }) {
   const [showCart, setShowCart]           = useState(false);
   const [showRedeem, setShowRedeem]       = useState(false);
