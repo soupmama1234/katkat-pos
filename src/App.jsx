@@ -20,7 +20,7 @@ import LoginScreen from "./components/LoginScreen";
 import CustomerOrder from "./components/CustomerOrder";
 import StaffManager from "./components/StaffManager";
 import SubsidySettings from "./components/SubsidySettings";
-import BackdateBar from "./pos/BackdateBar.jsx";
+import BackdateBar from "./components/pos/BackdateBar.jsx";
 
 
 // ── New Order Alert ───────────────────────────────────────────
