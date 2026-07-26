@@ -108,6 +108,7 @@ function App() {
 
   // ── โครงการไทยช่วยไทย ──
   const [hasSubsidy, setHasSubsidy] = useState(false);
+  const [backdateAt, setBackdateAt] = useState(null); // null = ไม่ backdate, "YYYY-MM-DDTHH:mm" = backdate
   const [subsidyConfig, setSubsidyConfig] = useState({
     enabled: false,
     label: "ไทยช่วยไทย",
@@ -480,13 +481,14 @@ const updateProduct = useCallback(async (id, fields) => {
         payment: isDelivery ? "transfer" : paymentMethod,
         channel: priceChannel,
         refId: isDelivery ? deliveryRef : "",
-        isSettled: true,
-        actualAmount: total,
+        isSettled: !isDelivery,
+        actualAmount: isDelivery ? 0 : total,
         member_phone: memberPhone || null,
         orderType: isDelivery ? "delivery" : orderType,
         tableNumber: (!isDelivery && orderType === "dine_in") ? (tableNumber.trim() || null) : null,
         customerType: memberPhone ? null : (customerType || null),
         hasSubsidy: hasSubsidy || false,
+        createdAt: backdateAt ? new Date(backdateAt).toISOString() : undefined,
       });
       setOrders(prev => [saved, ...prev]);
 
@@ -514,6 +516,7 @@ const updateProduct = useCallback(async (id, fields) => {
       setTableNumber("");
       setDeliveryRefMap({ grab: "", lineman: "", shopee: "" });
       setHasSubsidy(false);
+      setBackdateAt(null); // reset ทุกครั้งหลังบันทึก — กันลืมปิดแล้วบิลถัดไปเพี้ยนตาม
       clearMember();
       showToast(isDelivery ? `บันทึกออเดอร์ ${priceChannel.toUpperCase()} เรียบร้อย` : "✨ ชำระเงินเรียบร้อยครับ");
     } catch (err) {
