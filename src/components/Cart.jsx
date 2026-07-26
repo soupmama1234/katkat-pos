@@ -119,6 +119,8 @@ export default function Cart({
         />
       )}
 
+      <BackdateBar backdateAt={backdateAt} setBackdateAt={setBackdateAt} variant="light" />
+
       {/* ── shared: Member bar ── */}
       {!isDelivery && (
         <MemberBar
