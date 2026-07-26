@@ -32,8 +32,13 @@ export default function Cart({
   // pending
   pendingOrders = [], onSavePending, onRestorePending, onDeletePending,
   // โครงการรัฐ
-  hasSubsidy = false, setHasSubsidy,
-  subsidyConfig = { enabled: false, label: "ไทยช่วยไทย", channels: [] },
+hasSubsidy = false,
+setHasSubsidy,
+subsidyConfig = { enabled: false, label: "ไทยช่วยไทย", channels: [] },
+
+// Backdate
+backdateAt = null,
+setBackdateAt,
 }) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
