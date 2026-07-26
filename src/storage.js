@@ -244,6 +244,7 @@ async addOptionToGroup(groupId, name, price, channelPrices = {}) {
       table_number: order.tableNumber || null,
       customer_type: order.customerType || null,
       has_subsidy: order.hasSubsidy || false,
+      ...(order.createdAt ? { created_at: order.createdAt } : {}),
     }).select().single();
     if (error) throw error;
 
