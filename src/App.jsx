@@ -622,6 +622,7 @@ const updateProduct = useCallback(async (id, fields) => {
     onDeletePending: handleDeletePending,
     hasSubsidy, setHasSubsidy,
     subsidyConfig,
+    backdateAt, setBackdateAt,
   };
 
   const handleSettleOrder = async (order, payment, actual) => {
